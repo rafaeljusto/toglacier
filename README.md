@@ -23,15 +23,15 @@ The maximum archive size is 40GB (but we can increase this).
 For now this program will only work with environment variables. So you need to
 set the following before running the program:
 
-  | Environment Variable  | Description                             |
-  | --------------------- | --------------------------------------- |
-  | AWS_ACCOUNT_ID        | AWS account ID                          |
-  | AWS_ACCESS_KEY_ID     | AWS access key ID                       |
-  | AWS_SECRET_ACCESS_KEY | AWS secret access key                   |
-  | AWS_REGION            | AWS region                              |
-  | AWS_VAULT_NAME        | AWS vault name                          |
-  | TOGLACIER_PATH        | Path to backup                          |
-  | TOGLACIER_AUDIT       | Path where we keep track of the backups |
+| Environment Variable  | Description                             |
+| --------------------- | --------------------------------------- |
+| AWS_ACCOUNT_ID        | AWS account ID                          |
+| AWS_ACCESS_KEY_ID     | AWS access key ID                       |
+| AWS_SECRET_ACCESS_KEY | AWS secret access key                   |
+| AWS_REGION            | AWS region                              |
+| AWS_VAULT_NAME        | AWS vault name                          |
+| TOGLACIER_PATH        | Path to backup                          |
+| TOGLACIER_AUDIT       | Path where we keep track of the backups |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
