@@ -29,7 +29,7 @@ func main() {
 	}
 	defer archive.Close()
 
-	archiveID, location, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_REGION"), os.Getenv("AWS_VAULT_NAME"))
+	archiveID, location, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -103,20 +103,20 @@ func buildArchiveLevels(tarArchive *tar.Writer, pathLevel string) error {
 	return nil
 }
 
-func sendArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
+func sendArchive(archive *os.File, awsAccountID, awsVaultName string) (archiveID, location string, err error) {
 	archiveInfo, err := archive.Stat()
 	if err != nil {
 		return "", "", fmt.Errorf("error retrieving archive information. details: %s", err)
 	}
 
 	if archiveInfo.Size() <= 1024100 {
-		return sendSmallArchive(archive, awsAccountID, awsRegion, awsVaultName)
+		return sendSmallArchive(archive, awsAccountID, awsVaultName)
 	}
 
-	return sendBigArchive(archive, archiveInfo.Size(), awsAccountID, awsRegion, awsVaultName)
+	return sendBigArchive(archive, archiveInfo.Size(), awsAccountID, awsVaultName)
 }
 
-func sendSmallArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
+func sendSmallArchive(archive *os.File, awsAccountID, awsVaultName string) (archiveID, location string, err error) {
 	// ComputeHashes already rewind the file seek at the beginning and at the end
 	// of the function, so we don't need to wore about it
 	hash := glacier.ComputeHashes(archive)
@@ -134,9 +134,7 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName st
 		return "", "", fmt.Errorf("error creating aws session. details: %s", err)
 	}
 
-	awsGlacier := glacier.New(awsSession, &aws.Config{
-		Region: aws.String(awsRegion),
-	})
+	awsGlacier := glacier.New(awsSession)
 
 	// Uncomment the line bellow to understand what is going on
 	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
@@ -149,15 +147,13 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName st
 	return *response.ArchiveId, *response.Location, nil
 }
 
-func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
+func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultName string) (archiveID, location string, err error) {
 	awsSession, err := session.NewSession()
 	if err != nil {
 		return "", "", fmt.Errorf("error creating aws session. details: %s", err)
 	}
 
-	awsGlacier := glacier.New(awsSession, &aws.Config{
-		Region: aws.String(awsRegion),
-	})
+	awsGlacier := glacier.New(awsSession)
 
 	// Uncomment the line bellow to understand what is going on
 	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
