@@ -5,9 +5,17 @@ import (
 	"log"
 	"os"
 	"time"
+
+	"github.com/jasonlvhit/gocron"
 )
 
 func main() {
+	scheduler := gocron.NewScheduler()
+	scheduler.Every(1).Day().At("00:00").Do(runSchedulerTask, nil)
+	<-scheduler.Start()
+}
+
+func runSchedulerTask() {
 	archive, err := buildArchive(os.Getenv("TOGLACIER_PATH"))
 	if err != nil {
 		log.Fatal(err)

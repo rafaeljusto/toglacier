@@ -41,4 +41,7 @@ The audit file that keeps track of all backups has the following format:
 
     [datetime] [location] [checksum]
 
+The program is scheduled to run once a day at midnight. This information isn't
+configurable yet.
+
 **This software is still under development.**
