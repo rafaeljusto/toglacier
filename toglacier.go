@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,6 +21,7 @@ import (
 // AWS_ACCESS_KEY_ID=AKID1234567890
 // AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
 // AWS_REGION=us-east-1
+// AWS_VAULT_NAME=vault
 // TOGLACIER_PATH=/mybackup/data
 
 func main() {
@@ -29,7 +31,7 @@ func main() {
 	}
 	defer archive.Close()
 
-	archiveID, location, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_REGION"))
+	archiveID, location, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_REGION"), os.Getenv("AWS_VAULT_NAME"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +42,7 @@ func main() {
 
 func buildArchive(backupPath string) (*os.File, error) {
 	if fileInfo, err := os.Stat(backupPath); err != nil {
-		return nil, fmt.Errorf("error checking the path to backup. details: %s", err)
+		return nil, fmt.Errorf("error checking the path “%s” to backup. details: %s", backupPath, err)
 
 	} else if !fileInfo.IsDir() {
 		return nil, fmt.Errorf("path to backup is not a directory")
@@ -70,24 +72,25 @@ func buildArchive(backupPath string) (*os.File, error) {
 			return nil, fmt.Errorf("error writing header in tar for file %s. details: %s", file.Name(), err)
 		}
 
-		fd, err := os.Open(file.Name())
+		filename := path.Join(backupPath, file.Name())
+		fd, err := os.Open(filename)
 		if err != nil {
 			tarFile.Close()
-			return nil, fmt.Errorf("error opening file %s. details: %s", file.Name(), err)
+			return nil, fmt.Errorf("error opening file %s. details: %s", filename, err)
 		}
 
 		if n, err := io.Copy(tarArchive, fd); err != nil {
 			tarFile.Close()
-			return nil, fmt.Errorf("error writing content in tar for file %s. details: %s", file.Name(), err)
+			return nil, fmt.Errorf("error writing content in tar for file %s. details: %s", filename, err)
 
 		} else if n != file.Size() {
 			tarFile.Close()
-			return nil, fmt.Errorf("wrong number of bytes writen in file %s", file.Name())
+			return nil, fmt.Errorf("wrong number of bytes writen in file %s", filename)
 		}
 
 		if err := fd.Close(); err != nil {
 			tarFile.Close()
-			return nil, fmt.Errorf("error closing file %s. details: %s", file.Name(), err)
+			return nil, fmt.Errorf("error closing file %s. details: %s", filename, err)
 		}
 	}
 
@@ -99,7 +102,7 @@ func buildArchive(backupPath string) (*os.File, error) {
 	return tarFile, nil
 }
 
-func sendArchive(file *os.File, awsAccountID, awsRegion string) (archiveID, location string, err error) {
+func sendArchive(file *os.File, awsAccountID, awsRegion, vaultName string) (archiveID, location string, err error) {
 	// ComputeHashes already rewind the file seek at the beginning and at the end
 	// of the function, so we don't need to wore about it
 	hash := glacier.ComputeHashes(file)
@@ -109,6 +112,7 @@ func sendArchive(file *os.File, awsAccountID, awsRegion string) (archiveID, loca
 		ArchiveDescription: aws.String(fmt.Sprintf("backup file from %s", time.Now().Format(time.RFC3339))),
 		Body:               file,
 		Checksum:           aws.String(hex.EncodeToString(hash.TreeHash)),
+		VaultName:          aws.String(vaultName),
 	}
 
 	awsSession, err := session.NewSession()
@@ -119,6 +123,9 @@ func sendArchive(file *os.File, awsAccountID, awsRegion string) (archiveID, loca
 	awsGlacier := glacier.New(awsSession, &aws.Config{
 		Region: aws.String(awsRegion),
 	})
+
+	// Uncomment the line bellow to understand what is going on
+	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
 
 	response, err := awsGlacier.UploadArchive(&awsArchive)
 	if err != nil {
