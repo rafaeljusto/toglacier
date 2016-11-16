@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,13 +18,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/glacier"
 )
 
-// Environment variables:
-// AWS_ACCOUNT_ID=my@email.com
-// AWS_ACCESS_KEY_ID=AKID1234567890
-// AWS_SECRET_ACCESS_KEY=MY-SECRET-KEY
-// AWS_REGION=us-east-1
-// AWS_VAULT_NAME=vault
-// TOGLACIER_PATH=/mybackup/data
+// partSize the size of each part of the multipart upload except the last, in
+// bytes. The last part can be smaller than this part size.
+const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 
 func main() {
 	archive, err := buildArchive(os.Getenv("TOGLACIER_PATH"))
@@ -41,18 +39,6 @@ func main() {
 }
 
 func buildArchive(backupPath string) (*os.File, error) {
-	if fileInfo, err := os.Stat(backupPath); err != nil {
-		return nil, fmt.Errorf("error checking the path “%s” to backup. details: %s", backupPath, err)
-
-	} else if !fileInfo.IsDir() {
-		return nil, fmt.Errorf("path to backup is not a directory")
-	}
-
-	files, err := ioutil.ReadDir(backupPath)
-	if err != nil {
-		return nil, fmt.Errorf("error reading the path to backup. details: %s", err)
-	}
-
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
 		return nil, fmt.Errorf("error creating the tar file. details: %s", err)
@@ -60,38 +46,9 @@ func buildArchive(backupPath string) (*os.File, error) {
 
 	tarArchive := tar.NewWriter(tarFile)
 
-	for _, file := range files {
-		tarHeader := tar.Header{
-			Name: file.Name(),
-			Mode: 0600,
-			Size: file.Size(),
-		}
-
-		if err := tarArchive.WriteHeader(&tarHeader); err != nil {
-			tarFile.Close()
-			return nil, fmt.Errorf("error writing header in tar for file %s. details: %s", file.Name(), err)
-		}
-
-		filename := path.Join(backupPath, file.Name())
-		fd, err := os.Open(filename)
-		if err != nil {
-			tarFile.Close()
-			return nil, fmt.Errorf("error opening file %s. details: %s", filename, err)
-		}
-
-		if n, err := io.Copy(tarArchive, fd); err != nil {
-			tarFile.Close()
-			return nil, fmt.Errorf("error writing content in tar for file %s. details: %s", filename, err)
-
-		} else if n != file.Size() {
-			tarFile.Close()
-			return nil, fmt.Errorf("wrong number of bytes writen in file %s", filename)
-		}
-
-		if err := fd.Close(); err != nil {
-			tarFile.Close()
-			return nil, fmt.Errorf("error closing file %s. details: %s", filename, err)
-		}
+	if err := buildArchiveLevels(tarArchive, backupPath); err != nil {
+		tarFile.Close()
+		return nil, err
 	}
 
 	if err := tarArchive.Close(); err != nil {
@@ -102,17 +59,74 @@ func buildArchive(backupPath string) (*os.File, error) {
 	return tarFile, nil
 }
 
-func sendArchive(file *os.File, awsAccountID, awsRegion, vaultName string) (archiveID, location string, err error) {
+func buildArchiveLevels(tarArchive *tar.Writer, pathLevel string) error {
+	files, err := ioutil.ReadDir(pathLevel)
+	if err != nil {
+		return fmt.Errorf("error reading path “%s”. details: %s", pathLevel, err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
+			buildArchiveLevels(tarArchive, path.Join(pathLevel, file.Name()))
+			continue
+		}
+
+		tarHeader := tar.Header{
+			Name: file.Name(),
+			Mode: 0600,
+			Size: file.Size(),
+		}
+
+		if err := tarArchive.WriteHeader(&tarHeader); err != nil {
+			return fmt.Errorf("error writing header in tar for file %s. details: %s", file.Name(), err)
+		}
+
+		filename := path.Join(pathLevel, file.Name())
+
+		fd, err := os.Open(filename)
+		if err != nil {
+			return fmt.Errorf("error opening file %s. details: %s", filename, err)
+		}
+
+		if n, err := io.Copy(tarArchive, fd); err != nil {
+			return fmt.Errorf("error writing content in tar for file %s. details: %s", filename, err)
+
+		} else if n != file.Size() {
+			return fmt.Errorf("wrong number of bytes writen in file %s", filename)
+		}
+
+		if err := fd.Close(); err != nil {
+			return fmt.Errorf("error closing file %s. details: %s", filename, err)
+		}
+	}
+
+	return nil
+}
+
+func sendArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
+	archiveInfo, err := archive.Stat()
+	if err != nil {
+		return "", "", fmt.Errorf("error retrieving archive information. details: %s", err)
+	}
+
+	if archiveInfo.Size() <= 1024100 {
+		return sendSmallArchive(archive, awsAccountID, awsRegion, awsVaultName)
+	}
+
+	return sendBigArchive(archive, archiveInfo.Size(), awsAccountID, awsRegion, awsVaultName)
+}
+
+func sendSmallArchive(archive *os.File, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
 	// ComputeHashes already rewind the file seek at the beginning and at the end
 	// of the function, so we don't need to wore about it
-	hash := glacier.ComputeHashes(file)
+	hash := glacier.ComputeHashes(archive)
 
 	awsArchive := glacier.UploadArchiveInput{
 		AccountId:          aws.String(awsAccountID),
 		ArchiveDescription: aws.String(fmt.Sprintf("backup file from %s", time.Now().Format(time.RFC3339))),
-		Body:               file,
+		Body:               archive,
 		Checksum:           aws.String(hex.EncodeToString(hash.TreeHash)),
-		VaultName:          aws.String(vaultName),
+		VaultName:          aws.String(awsVaultName),
 	}
 
 	awsSession, err := session.NewSession()
@@ -133,4 +147,75 @@ func sendArchive(file *os.File, awsAccountID, awsRegion, vaultName string) (arch
 	}
 
 	return *response.ArchiveId, *response.Location, nil
+}
+
+func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsRegion, awsVaultName string) (archiveID, location string, err error) {
+	awsSession, err := session.NewSession()
+	if err != nil {
+		return "", "", fmt.Errorf("error creating aws session. details: %s", err)
+	}
+
+	awsGlacier := glacier.New(awsSession, &aws.Config{
+		Region: aws.String(awsRegion),
+	})
+
+	// Uncomment the line bellow to understand what is going on
+	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
+
+	awsInitiate := glacier.InitiateMultipartUploadInput{
+		AccountId:          aws.String(awsAccountID),
+		ArchiveDescription: aws.String(fmt.Sprintf("backup file from %s", time.Now().Format(time.RFC3339))),
+		PartSize:           aws.String(strconv.FormatInt(partSize, 10)),
+		VaultName:          aws.String(awsVaultName),
+	}
+
+	awsInitiateResponse, err := awsGlacier.InitiateMultipartUpload(&awsInitiate)
+	if err != nil {
+		return "", "", fmt.Errorf("error initializing multipart upload. details: %s", err)
+	}
+
+	var offset int64
+	var part = make([]byte, partSize)
+
+	for offset = 0; offset < archiveSize; offset += partSize {
+		n, err := archive.Read(part)
+		if err != nil {
+			return "", "", fmt.Errorf("error reading an archive part (%d). details: %s", offset, err)
+		}
+
+		body := bytes.NewReader(part[:n])
+		hash := glacier.ComputeHashes(body)
+
+		awsArchivePart := glacier.UploadMultipartPartInput{
+			AccountId: aws.String(awsAccountID),
+			Body:      body,
+			Checksum:  aws.String(hex.EncodeToString(hash.TreeHash)),
+			Range:     aws.String(fmt.Sprintf("%d-%d/%d", offset, offset+int64(n), archiveSize)),
+			UploadId:  awsInitiateResponse.UploadId,
+			VaultName: aws.String(awsVaultName),
+		}
+
+		if _, err := awsGlacier.UploadMultipartPart(&awsArchivePart); err != nil {
+			return "", "", fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
+		}
+	}
+
+	// ComputeHashes already rewind the file seek at the beginning and at the end
+	// of the function, so we don't need to wore about it
+	hash := glacier.ComputeHashes(archive)
+
+	awsComplete := glacier.CompleteMultipartUploadInput{
+		AccountId:   aws.String(awsAccountID),
+		ArchiveSize: aws.String(strconv.FormatInt(archiveSize, 10)),
+		Checksum:    aws.String(hex.EncodeToString(hash.TreeHash)),
+		UploadId:    awsInitiateResponse.UploadId,
+		VaultName:   aws.String(awsVaultName),
+	}
+
+	awsCompleteResponse, err := awsGlacier.CompleteMultipartUpload(&awsComplete)
+	if err != nil {
+		return "", "", fmt.Errorf("error completing multipart upload. details: %s", err)
+	}
+
+	return *awsCompleteResponse.ArchiveId, *awsCompleteResponse.Location, nil
 }
