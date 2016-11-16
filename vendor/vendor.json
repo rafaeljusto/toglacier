@@ -1,0 +1,131 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"path": "github.com/aws/aws-sdk-go/aws",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/awserr",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/awsutil",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/client",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/client/metadata",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/corehandlers",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/credentials",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/credentials/endpointcreds",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/credentials/stscreds",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/defaults",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/ec2metadata",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/request",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/session",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/aws/signer/v4",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/endpoints",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/json/jsonutil",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/jsonrpc",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/query",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/query/queryutil",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/rest",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/restjson",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/private/waiter",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/service/glacier",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/service/glacier/glacieriface",
+			"revision": ""
+		},
+		{
+			"path": "github.com/aws/aws-sdk-go/service/sts",
+			"revision": ""
+		},
+		{
+			"path": "github.com/go-ini/ini",
+			"revision": ""
+		},
+		{
+			"path": "github.com/jasonlvhit/gocron",
+			"revision": ""
+		},
+		{
+			"path": "github.com/jmespath/go-jmespath",
+			"revision": ""
+		}
+	],
+	"rootPath": "github.com/rafaeljusto/toglacier"
+}
