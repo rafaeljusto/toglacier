@@ -18,6 +18,21 @@ follow the AWS suggestion and send multipart when the tarball gets bigger than
 100MB. When using multipart, each part will have 4MB (except for the last one).
 The maximum archive size is 40GB (but we can increase this).
 
+## Install
+
+To compile and run the program you will need to download the [Go
+compiler](https://golang.org/dl/), set the
+[GOPATH](https://golang.org/doc/code.html#GOPATH), add the $GOPATH/bin to your
+$PATH and run the following command:
+
+```
+go get -u github.com/rafaeljusto/toglacier
+```
+
+As this program works like a service/daemon, you should run it in background. It
+is a good practice to also add it to your system startup (you don't want your
+backup to stop working after a reboot).
+
 ## Usage
 
 For now this program will only work with environment variables. So you need to
@@ -44,4 +59,17 @@ The audit file that keeps track of all backups has the following format:
 The program is scheduled to run once a day at midnight. This information isn't
 configurable yet.
 
-**This software is still under development.**
+A simple shell script that could help running the program in Unix environments:
+
+```shell
+#!/bin/sh
+
+AWS_ACCOUNT_ID="000000000000" \
+AWS_ACCESS_KEY_ID="AAAAAAAAAAAAAAAAAAAA" \
+AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+AWS_REGION="us-east-1" \
+AWS_VAULT_NAME="backup" \
+TOGLACIER_PATH="/usr/local/important-files" \
+TOGLACIER_AUDIT="/var/log/toglacier.log" \
+./toglacier
+```
