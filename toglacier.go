@@ -20,7 +20,11 @@ func runSchedulerTask() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer archive.Close()
+	defer func() {
+		archive.Close()
+		// remove the temporary tarball
+		os.Remove(archive.Name())
+	}()
 
 	result, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
 	if err != nil {
