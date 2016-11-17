@@ -59,10 +59,12 @@ to use the web interface).
 
     [datetime] [location] [checksum]
 
-The program is scheduled to run once a day at midnight. This information isn't
-configurable yet.
+**The program is scheduled to run once a day at midnight**. This information
+isn't configurable yet (the library that I'm using for cron tasks isn't so
+flexible).
 
-A simple shell script that could help running the program in Unix environments:
+A simple shell script that could help you running the program in Unix
+environments:
 
 ```shell
 #!/bin/sh
@@ -73,6 +75,9 @@ AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
 AWS_REGION="us-east-1" \
 AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files" \
-TOGLACIER_AUDIT="/var/log/toglacier.log" \
-./toglacier
+TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
+/usr/local/bin/toglacier &>> /var/log/toglacier/error.log
 ```
+
+Just remember to give the write permissions to where the stdout/stderr and audit
+files are going to be written (`/var/log/toglacier`).
