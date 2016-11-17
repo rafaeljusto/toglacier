@@ -103,28 +103,40 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "sv61kTARWfkfrT8ouftcpZhepZ4=",
 			"path": "github.com/aws/aws-sdk-go/service/glacier",
-			"revision": ""
+			"revision": "1b2abe886743dc2bcc78472bfd30a15dc0a61fb8",
+			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
+			"checksumSHA1": "ts3tU8y45rhOfS5VrAadNMM/+oY=",
 			"path": "github.com/aws/aws-sdk-go/service/glacier/glacieriface",
-			"revision": ""
+			"revision": "1b2abe886743dc2bcc78472bfd30a15dc0a61fb8",
+			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
+			"checksumSHA1": "Ko75IlSR0pVtGp7dCdZuXh1279Q=",
 			"path": "github.com/aws/aws-sdk-go/service/sts",
-			"revision": ""
+			"revision": "1b2abe886743dc2bcc78472bfd30a15dc0a61fb8",
+			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
+			"checksumSHA1": "cVyhKIRI2gQrgpn5qrBeAqErmWM=",
 			"path": "github.com/go-ini/ini",
-			"revision": ""
+			"revision": "6e4869b434bd001f6983749881c7ead3545887d8",
+			"revisionTime": "2016-08-27T06:11:18Z"
 		},
 		{
+			"checksumSHA1": "Epx/Fewr0QrXZRdg26+97oIoV2k=",
 			"path": "github.com/jasonlvhit/gocron",
-			"revision": ""
+			"revision": "42a5804d37aa0b9239b265e894a16b8edbf52d54",
+			"revisionTime": "2016-06-29T18:10:17Z"
 		},
 		{
+			"checksumSHA1": "0ZrwvB6KoGPj2PoDNSEJwxQ6Mog=",
 			"path": "github.com/jmespath/go-jmespath",
-			"revision": ""
+			"revision": "bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d",
+			"revisionTime": "2016-08-03T19:07:31Z"
 		}
 	],
 	"rootPath": "github.com/rafaeljusto/toglacier"
