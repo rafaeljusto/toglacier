@@ -22,8 +22,8 @@ The maximum archive size is 40GB (but we can increase this).
 
 To compile and run the program you will need to download the [Go
 compiler](https://golang.org/dl/), set the
-[GOPATH](https://golang.org/doc/code.html#GOPATH), add the $GOPATH/bin to your
-$PATH and run the following command:
+[$GOPATH](https://golang.org/doc/code.html#GOPATH), add the `$GOPATH/bin` to
+your `$PATH` and run the following command:
 
 ```
 go get -u github.com/rafaeljusto/toglacier
@@ -52,7 +52,10 @@ Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#glacier_region).
 
-The audit file that keeps track of all backups has the following format:
+The audit file that keeps track of all backups has the format bellow. It's a
+good idea to periodically copy this audit file somewhere else, so if you lose
+your server you can recorver the files faster from the AWS Glacier (don't need
+to use the web interface).
 
     [datetime] [location] [checksum]
 
