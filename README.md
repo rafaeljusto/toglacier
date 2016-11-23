@@ -18,6 +18,9 @@ follow the AWS suggestion and send multipart when the tarball gets bigger than
 100MB. When using multipart, each part will have 4MB (except for the last one).
 The maximum archive size is 40GB (but we can increase this).
 
+Old backups will also be removed automatically, to avoid keeping many files in
+AWS Glacier service, and consequently saving you some money.
+
 ## Install
 
 To compile and run the program you will need to download the [Go
@@ -38,15 +41,16 @@ backup to stop working after a reboot).
 For now this program will only work with environment variables. So you need to
 set the following before running the program:
 
-| Environment Variable  | Description                             |
-| --------------------- | --------------------------------------- |
-| AWS_ACCOUNT_ID        | AWS account ID                          |
-| AWS_ACCESS_KEY_ID     | AWS access key ID                       |
-| AWS_SECRET_ACCESS_KEY | AWS secret access key                   |
-| AWS_REGION            | AWS region                              |
-| AWS_VAULT_NAME        | AWS vault name                          |
-| TOGLACIER_PATH        | Path to backup                          |
-| TOGLACIER_AUDIT       | Path where we keep track of the backups |
+| Environment Variable   | Description                             |
+| ---------------------- | --------------------------------------- |
+| AWS_ACCOUNT_ID         | AWS account ID                          |
+| AWS_ACCESS_KEY_ID      | AWS access key ID                       |
+| AWS_SECRET_ACCESS_KEY  | AWS secret access key                   |
+| AWS_REGION             | AWS region                              |
+| AWS_VAULT_NAME         | AWS vault name                          |
+| TOGLACIER_PATH         | Path to backup                          |
+| TOGLACIER_AUDIT        | Path where we keep track of the backups |
+| TOGLACIER_KEEP_BACKUPS | Number of backups to keep (default 10)  |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -59,9 +63,10 @@ to use the web interface).
 
     [datetime] [location] [checksum]
 
-**The program is scheduled to run once a day at midnight**. This information
-isn't configurable yet (the library that I'm using for cron tasks isn't so
-flexible).
+**The program is scheduled to backup the files once a day at midnight**. This
+information isn't configurable yet (the library that I'm using for cron tasks
+isn't so flexible). Also, **old backups are removed once a week at 1 AM** (yep,
+not configurable yet).
 
 A simple shell script that could help you running the program in Unix
 environments:
@@ -76,6 +81,7 @@ AWS_REGION="us-east-1" \
 AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
+TOGLACIER_KEEP_BACKUPS="10" \
 /usr/local/bin/toglacier &>> /var/log/toglacier/error.log
 ```
 

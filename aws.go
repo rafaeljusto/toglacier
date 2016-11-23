@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -145,4 +147,120 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 	result.location = *awsCompleteResponse.Location
 	result.checksum = *awsCompleteResponse.Checksum
 	return result, nil
+}
+
+// removeOldArchives keep only the most 10 recent backups in the AWS Glacier
+// service. This is useful to save money in used storage.
+func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error {
+	initiateJobInput := glacier.InitiateJobInput{
+		AccountId: aws.String(awsAccountID),
+		JobParameters: &glacier.JobParameters{
+			Format: aws.String("JSON"),
+			Type:   aws.String("inventory-retrieval"),
+		},
+		VaultName: aws.String(awsVaultName),
+	}
+
+	initiateJobOutput, err := awsGlacier.InitiateJob(&initiateJobInput)
+	if err != nil {
+		return fmt.Errorf("error initiating the job. details: %s", err)
+	}
+
+waitJob:
+	for {
+		listJobsInput := glacier.ListJobsInput{
+			AccountId: aws.String(awsAccountID),
+			VaultName: aws.String(awsVaultName),
+		}
+
+		listJobsOutput, err := awsGlacier.ListJobs(&listJobsInput)
+		if err != nil {
+			return fmt.Errorf("error retrieving the job from aws. details: %s", err)
+		}
+
+		jobFound := false
+		for _, jobDescription := range listJobsOutput.JobList {
+			if *jobDescription.JobId == *initiateJobOutput.JobId {
+				jobFound = true
+
+				if *jobDescription.Completed {
+					if *jobDescription.StatusCode == "Succeeded" {
+						break waitJob
+					} else if *jobDescription.StatusCode == "Failed" {
+						return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+					}
+				}
+
+				break
+			}
+		}
+
+		if !jobFound {
+			return fmt.Errorf("job not found in aws")
+		}
+
+		// Wait for the job to complete, as it takes some time, we will sleep for a
+		// long time before we check again
+		time.Sleep(1 * time.Minute)
+	}
+
+	jobOutputInput := glacier.GetJobOutputInput{
+		AccountId: aws.String(awsAccountID),
+		JobId:     initiateJobOutput.JobId,
+		VaultName: aws.String(awsVaultName),
+	}
+
+	jobOutputOutput, err := awsGlacier.GetJobOutput(&jobOutputInput)
+	if err != nil {
+		return fmt.Errorf("error retrieving the job information. details: %s", err)
+	}
+	defer jobOutputOutput.Body.Close()
+
+	// http://docs.aws.amazon.com/amazonglacier/latest/dev/api-job-output-get.html#api-job-output-get-responses-elements
+	iventory := struct {
+		VaultARN      string `json:"VaultARN"`
+		InventoryDate string `json:"InventoryDate"`
+		ArchiveList   awsIventoryArchiveList
+	}{}
+
+	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
+	if err := jsonDecoder.Decode(&iventory); err != nil {
+		return fmt.Errorf("error decoding the iventory. details: %s", err)
+	}
+
+	sort.Sort(iventory.ArchiveList)
+
+	for i := keepBackups; i < len(iventory.ArchiveList); i++ {
+		deleteArchiveInput := glacier.DeleteArchiveInput{
+			AccountId: aws.String(awsAccountID),
+			ArchiveId: aws.String(iventory.ArchiveList[i].ArchiveID),
+			VaultName: aws.String(awsVaultName),
+		}
+
+		if _, err := awsGlacier.DeleteArchive(&deleteArchiveInput); err != nil {
+			return fmt.Errorf("error removing old backup. details: %s", err)
+		}
+	}
+
+	return nil
+}
+
+type awsIventoryArchiveList []struct {
+	ArchiveID          string    `json:"ArchiveId"`
+	ArchiveDescription string    `json:"ArchiveDescription"`
+	CreationDate       time.Time `json:"CreationDate"`
+	Size               int       `json:"Size"`
+	SHA256TreeHash     string    `json:"SHA256TreeHash"`
+}
+
+func (a awsIventoryArchiveList) Len() int {
+	return len(a)
+}
+
+func (a awsIventoryArchiveList) Less(i, j int) bool {
+	return a[i].CreationDate.Before(a[j].CreationDate)
+}
+
+func (a awsIventoryArchiveList) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
 }
