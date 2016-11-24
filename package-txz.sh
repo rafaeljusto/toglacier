@@ -128,4 +128,4 @@ prepare
 compile
 copy_files
 build_txz
-#cleanup
+cleanup
