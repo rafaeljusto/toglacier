@@ -82,8 +82,30 @@ AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
-/usr/local/bin/toglacier &>> /var/log/toglacier/error.log
+toglacier &>> /var/log/toglacier/error.log
 ```
 
 Just remember to give the write permissions to where the stdout/stderr and audit
 files are going to be written (`/var/log/toglacier`).
+
+## Deployment
+
+For developers that want to build a package, we already have 2 scripts to make
+your life easier. As Go is can do some cross-compilation, you can build the
+desired package from any OS or architecture.
+
+### Debian
+
+To build a Debian package you will need the [Effing Package
+Management](https://github.com/jordansissel/fpm/wiki) tool. Then just run the
+script with the desired version and release of the program:
+
+    ./package-deb.sh <version>-<release>
+
+### FreeBSD
+
+You can also build a package for the FreeBSD
+[pkgng](https://wiki.freebsd.org/pkgng) repository. No external tools needed
+here to build the package.
+
+    ./package-txz.sh <version>-<release>
