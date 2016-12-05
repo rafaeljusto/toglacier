@@ -79,6 +79,10 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsVaultName string) (awsR
 		return result, fmt.Errorf("error sending archive to aws glacier. details: %s", err)
 	}
 
+	if hex.EncodeToString(hash.LinearHash) != *response.Checksum {
+		return result, fmt.Errorf("error comparing checksums")
+	}
+
 	result.location = *response.Location
 	result.checksum = *response.Checksum
 	return result, nil
@@ -142,6 +146,10 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 	awsCompleteResponse, err := awsGlacier.CompleteMultipartUpload(&awsComplete)
 	if err != nil {
 		return result, fmt.Errorf("error completing multipart upload. details: %s", err)
+	}
+
+	if hex.EncodeToString(hash.LinearHash) != *awsCompleteResponse.Checksum {
+		return result, fmt.Errorf("error comparing checksums")
 	}
 
 	result.location = *awsCompleteResponse.Location
