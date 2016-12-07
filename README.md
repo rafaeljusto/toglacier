@@ -91,7 +91,7 @@ files are going to be written (`/var/log/toglacier`).
 ## Deployment
 
 For developers that want to build a package, we already have 2 scripts to make
-your life easier. As Go is can do some cross-compilation, you can build the
+your life easier. As Go can do some cross-compilation, you can build the
 desired package from any OS or architecture.
 
 ### Debian
