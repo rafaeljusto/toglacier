@@ -48,7 +48,7 @@ set the following before running the program:
 | AWS_SECRET_ACCESS_KEY  | AWS secret access key                   |
 | AWS_REGION             | AWS region                              |
 | AWS_VAULT_NAME         | AWS vault name                          |
-| TOGLACIER_PATH         | Path to backup                          |
+| TOGLACIER_PATH         | Paths to backup (separated by comma)    |
 | TOGLACIER_AUDIT        | Path where we keep track of the backups |
 | TOGLACIER_KEEP_BACKUPS | Number of backups to keep (default 10)  |
 
@@ -79,7 +79,7 @@ AWS_ACCESS_KEY_ID="AAAAAAAAAAAAAAAAAAAA" \
 AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
 AWS_REGION="us-east-1" \
 AWS_VAULT_NAME="backup" \
-TOGLACIER_PATH="/usr/local/important-files" \
+TOGLACIER_PATH="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
 toglacier &>> /var/log/toglacier/error.log

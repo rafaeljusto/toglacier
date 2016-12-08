@@ -7,19 +7,31 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
+	"time"
 )
 
-func buildArchive(backupPath string) (*os.File, error) {
+// buildArchive builds a tarball containing all the desired files that you want
+// to backup. On success it will return an open file, so the caller is
+// responsible for closing it.
+func buildArchive(backupPaths string) (*os.File, error) {
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
 		return nil, fmt.Errorf("error creating the tar file. details: %s", err)
 	}
 
 	tarArchive := tar.NewWriter(tarFile)
+	basePath := "backup-" + time.Now().Format("20060102150405")
 
-	if err := buildArchiveLevels(tarArchive, backupPath); err != nil {
-		tarFile.Close()
-		return nil, err
+	for _, currentPath := range strings.Split(backupPaths, ",") {
+		if currentPath == "" {
+			continue
+		}
+
+		if err := buildArchiveLevels(tarArchive, basePath, currentPath); err != nil {
+			tarFile.Close()
+			return nil, err
+		}
 	}
 
 	if err := tarArchive.Close(); err != nil {
@@ -30,29 +42,30 @@ func buildArchive(backupPath string) (*os.File, error) {
 	return tarFile, nil
 }
 
-func buildArchiveLevels(tarArchive *tar.Writer, pathLevel string) error {
-	files, err := ioutil.ReadDir(pathLevel)
+func buildArchiveLevels(tarArchive *tar.Writer, basePath, currentPath string) error {
+	files, err := ioutil.ReadDir(currentPath)
 	if err != nil {
-		return fmt.Errorf("error reading path “%s”. details: %s", pathLevel, err)
+		return fmt.Errorf("error reading path “%s”. details: %s", currentPath, err)
 	}
 
 	for _, file := range files {
 		if file.IsDir() {
-			buildArchiveLevels(tarArchive, path.Join(pathLevel, file.Name()))
+			buildArchiveLevels(tarArchive, basePath, path.Join(currentPath, file.Name()))
 			continue
 		}
 
 		tarHeader := tar.Header{
-			Name: file.Name(),
-			Mode: 0600,
-			Size: file.Size(),
+			Name:    path.Join(basePath, currentPath, file.Name()),
+			Mode:    0600,
+			Size:    file.Size(),
+			ModTime: file.ModTime(),
 		}
 
 		if err := tarArchive.WriteHeader(&tarHeader); err != nil {
 			return fmt.Errorf("error writing header in tar for file %s. details: %s", file.Name(), err)
 		}
 
-		filename := path.Join(pathLevel, file.Name())
+		filename := path.Join(currentPath, file.Name())
 
 		fd, err := os.Open(filename)
 		if err != nil {
