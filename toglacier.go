@@ -8,13 +8,67 @@ import (
 	"time"
 
 	"github.com/jasonlvhit/gocron"
+	"github.com/urfave/cli"
 )
 
 func main() {
-	scheduler := gocron.NewScheduler()
-	scheduler.Every(1).Day().At("00:00").Do(backup, nil)
-	scheduler.Every(1).Weeks().At("01:00").Do(removeOldArchives, nil)
-	<-scheduler.Start()
+	app := cli.NewApp()
+	app.Name = "toglacier"
+	app.Usage = "Send data to AWS Glacier service"
+	app.Version = "2.0.0"
+	app.Commands = []cli.Command{
+		{
+			Name:  "sync",
+			Usage: "backup now the desired paths to AWS Glacier",
+			Action: func(c *cli.Context) error {
+				backup()
+				return nil
+			},
+		},
+		{
+			Name:    "remove",
+			Aliases: []string{"rm"},
+			Usage:   "remove a specific backup from AWS Glacier",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "location,l",
+					Usage: "location of the backup file",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				// TODO
+				return nil
+			},
+		},
+		{
+			Name:    "list",
+			Aliases: []string{"ls"},
+			Usage:   "list all backups sent to AWS Glacier",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "remote,r",
+					Usage: "retrieve the list from AWS Glacier (long wait)",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				// TODO
+				return nil
+			},
+		},
+		{
+			Name:  "start",
+			Usage: "run the scheduler (will block forever)",
+			Action: func(c *cli.Context) error {
+				scheduler := gocron.NewScheduler()
+				scheduler.Every(1).Day().At("00:00").Do(backup, nil)
+				scheduler.Every(1).Weeks().At("01:00").Do(removeOldArchives, nil)
+				<-scheduler.Start()
+				return nil
+			},
+		},
+	}
+
+	app.Run(os.Args)
 }
 
 func backup() {
