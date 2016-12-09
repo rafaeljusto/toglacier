@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jasonlvhit/gocron"
@@ -51,7 +53,14 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				// TODO
+				backups := listBackups(c.Bool("remote"))
+				if len(backups) > 0 {
+					fmt.Println("Date\t\t\tLocation")
+					fmt.Println("================\t================================================")
+					for _, result := range backups {
+						fmt.Printf("%s\t%s\n", result.time.Format("2006-01-02 15:04"), result.location)
+					}
+				}
 				return nil
 			},
 		},
@@ -101,6 +110,50 @@ func backup() {
 		log.Printf("error writing the audit file. details: %s", err)
 		return
 	}
+}
+
+func listBackups(remote bool) []awsResult {
+	if remote {
+		// TODO
+		return nil
+	}
+
+	auditFile, err := os.Open(os.Getenv("TOGLACIER_AUDIT"))
+	if err != nil {
+		log.Printf("error opening the audit file. details: %s", err)
+		return nil
+	}
+	defer auditFile.Close()
+
+	var results []awsResult
+
+	scanner := bufio.NewScanner(auditFile)
+	for scanner.Scan() {
+		lineParts := strings.Split(scanner.Text(), " ")
+		if len(lineParts) != 3 {
+			log.Println("corrupted audit file. wrong number of columns")
+			return nil
+		}
+
+		result := awsResult{
+			location: lineParts[1],
+			checksum: lineParts[2],
+		}
+
+		if result.time, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
+			log.Printf("corrupted audit file. invalid date format. details: %s", err)
+			return nil
+		}
+
+		results = append(results, result)
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("error reading the audit file. details: %s", err)
+		return nil
+	}
+
+	return results
 }
 
 func removeOldBackups() {
