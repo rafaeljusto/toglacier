@@ -38,7 +38,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				// TODO
+				removeBackup(c.String("location"))
 				return nil
 			},
 		},
@@ -114,8 +114,11 @@ func backup() {
 
 func listBackups(remote bool) []awsResult {
 	if remote {
-		// TODO
-		return nil
+		results, err := listArchives(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
+		if err != nil {
+			log.Printf("error retrieving remote backups. details: %s", err)
+		}
+		return results
 	}
 
 	auditFile, err := os.Open(os.Getenv("TOGLACIER_AUDIT"))
@@ -154,6 +157,13 @@ func listBackups(remote bool) []awsResult {
 	}
 
 	return results
+}
+
+func removeBackup(location string) {
+	if err := removeArchive(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"), location); err != nil {
+		log.Println(err)
+		return
+	}
 }
 
 func removeOldBackups() {

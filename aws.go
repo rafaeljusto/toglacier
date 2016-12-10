@@ -157,9 +157,7 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 	return result, nil
 }
 
-// removeOldArchives keep only the most 10 recent backups in the AWS Glacier
-// service. This is useful to save money in used storage.
-func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error {
+func listArchives(awsAccountID, awsVaultName string) ([]awsResult, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(awsAccountID),
 		JobParameters: &glacier.JobParameters{
@@ -171,7 +169,7 @@ func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error
 
 	initiateJobOutput, err := awsGlacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return fmt.Errorf("error initiating the job. details: %s", err)
+		return nil, fmt.Errorf("error initiating the job. details: %s", err)
 	}
 
 waitJob:
@@ -183,7 +181,7 @@ waitJob:
 
 		listJobsOutput, err := awsGlacier.ListJobs(&listJobsInput)
 		if err != nil {
-			return fmt.Errorf("error retrieving the job from aws. details: %s", err)
+			return nil, fmt.Errorf("error retrieving the job from aws. details: %s", err)
 		}
 
 		jobFound := false
@@ -195,7 +193,7 @@ waitJob:
 					if *jobDescription.StatusCode == "Succeeded" {
 						break waitJob
 					} else if *jobDescription.StatusCode == "Failed" {
-						return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+						return nil, fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
 					}
 				}
 
@@ -204,7 +202,7 @@ waitJob:
 		}
 
 		if !jobFound {
-			return fmt.Errorf("job not found in aws")
+			return nil, fmt.Errorf("job not found in aws")
 		}
 
 		// Wait for the job to complete, as it takes some time, we will sleep for a
@@ -220,7 +218,7 @@ waitJob:
 
 	jobOutputOutput, err := awsGlacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return fmt.Errorf("error retrieving the job information. details: %s", err)
+		return nil, fmt.Errorf("error retrieving the job information. details: %s", err)
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -233,20 +231,47 @@ waitJob:
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
 	if err := jsonDecoder.Decode(&iventory); err != nil {
-		return fmt.Errorf("error decoding the iventory. details: %s", err)
+		return nil, fmt.Errorf("error decoding the iventory. details: %s", err)
 	}
 
 	sort.Sort(iventory.ArchiveList)
 
-	for i := keepBackups; i < len(iventory.ArchiveList); i++ {
-		deleteArchiveInput := glacier.DeleteArchiveInput{
-			AccountId: aws.String(awsAccountID),
-			ArchiveId: aws.String(iventory.ArchiveList[i].ArchiveID),
-			VaultName: aws.String(awsVaultName),
-		}
+	var archives []awsResult
+	for _, archive := range iventory.ArchiveList {
+		archives = append(archives, awsResult{
+			time:     archive.CreationDate,
+			location: archive.ArchiveID,
+			checksum: archive.SHA256TreeHash,
+		})
+	}
+	return archives, nil
+}
 
-		if _, err := awsGlacier.DeleteArchive(&deleteArchiveInput); err != nil {
-			return fmt.Errorf("error removing old backup. details: %s", err)
+func removeArchive(awsAccountID, awsVaultName, location string) error {
+	deleteArchiveInput := glacier.DeleteArchiveInput{
+		AccountId: aws.String(awsAccountID),
+		ArchiveId: aws.String(location),
+		VaultName: aws.String(awsVaultName),
+	}
+
+	if _, err := awsGlacier.DeleteArchive(&deleteArchiveInput); err != nil {
+		return fmt.Errorf("error removing old backup. details: %s", err)
+	}
+
+	return nil
+}
+
+// removeOldArchives keep only the most 10 recent backups in the AWS Glacier
+// service. This is useful to save money in used storage.
+func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error {
+	archives, err := listArchives(awsAccountID, awsVaultName)
+	if err != nil {
+		return fmt.Errorf("error retrieving remote backups. details: %s", err)
+	}
+
+	for i := keepBackups; i < len(archives); i++ {
+		if err := removeArchive(awsAccountID, awsVaultName, archives[i].location); err != nil {
+			return err
 		}
 	}
 
