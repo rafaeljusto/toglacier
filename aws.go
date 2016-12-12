@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,9 +24,9 @@ const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 
 // awsResult store all the information that we need to find the backup later.
 type awsResult struct {
-	time     time.Time
-	location string
-	checksum string
+	time      time.Time
+	archiveID string
+	checksum  string
 }
 
 // awsGlacier represents the AWS Glacier API, useful for mocking in unit tests.
@@ -40,8 +41,10 @@ func init() {
 
 	awsGlacier = glacier.New(awsSession)
 
-	// Uncomment the line bellow to understand what is going on
-	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
+	// Uncomment the lines bellow to understand what is going on
+	// if g, ok := awsGlacier.(*glacier.Glacier); ok {
+	// 	g.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
+	// }
 }
 
 func sendArchive(archive *os.File, awsAccountID, awsVaultName string) (awsResult, error) {
@@ -83,7 +86,8 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsVaultName string) (awsR
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
-	result.location = *response.Location
+	locationParts := strings.Split(*response.Location, "/")
+	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *response.Checksum
 	return result, nil
 }
@@ -152,7 +156,8 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
-	result.location = *awsCompleteResponse.Location
+	locationParts := strings.Split(*awsCompleteResponse.Location, "/")
+	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *awsCompleteResponse.Checksum
 	return result, nil
 }
@@ -239,18 +244,18 @@ waitJob:
 	var archives []awsResult
 	for _, archive := range iventory.ArchiveList {
 		archives = append(archives, awsResult{
-			time:     archive.CreationDate,
-			location: archive.ArchiveID,
-			checksum: archive.SHA256TreeHash,
+			time:      archive.CreationDate,
+			archiveID: archive.ArchiveID,
+			checksum:  archive.SHA256TreeHash,
 		})
 	}
 	return archives, nil
 }
 
-func removeArchive(awsAccountID, awsVaultName, location string) error {
+func removeArchive(awsAccountID, awsVaultName, archiveID string) error {
 	deleteArchiveInput := glacier.DeleteArchiveInput{
 		AccountId: aws.String(awsAccountID),
-		ArchiveId: aws.String(location),
+		ArchiveId: aws.String(archiveID),
 		VaultName: aws.String(awsVaultName),
 	}
 
@@ -270,7 +275,7 @@ func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error
 	}
 
 	for i := keepBackups; i < len(archives); i++ {
-		if err := removeArchive(awsAccountID, awsVaultName, archives[i].location); err != nil {
+		if err := removeArchive(awsAccountID, awsVaultName, archives[i].archiveID); err != nil {
 			return err
 		}
 	}

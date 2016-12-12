@@ -18,6 +18,12 @@ func main() {
 	app.Name = "toglacier"
 	app.Usage = "Send data to AWS Glacier service"
 	app.Version = "2.0.0"
+	app.Authors = []cli.Author{
+		{
+			Name:  "Rafael Dantas Justo",
+			Email: "adm@rafael.net.br",
+		},
+	}
 	app.Commands = []cli.Command{
 		{
 			Name:  "sync",
@@ -28,17 +34,12 @@ func main() {
 			},
 		},
 		{
-			Name:    "remove",
-			Aliases: []string{"rm"},
-			Usage:   "remove a specific backup from AWS Glacier",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "location,l",
-					Usage: "location of the backup file",
-				},
-			},
+			Name:      "remove",
+			Aliases:   []string{"rm"},
+			Usage:     "remove a specific backup from AWS Glacier",
+			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				removeBackup(c.String("location"))
+				removeBackup(c.Args().First())
 				return nil
 			},
 		},
@@ -55,10 +56,10 @@ func main() {
 			Action: func(c *cli.Context) error {
 				backups := listBackups(c.Bool("remote"))
 				if len(backups) > 0 {
-					fmt.Println("Date\t\t\tLocation")
+					fmt.Println("Date\t\t\tArchive ID")
 					fmt.Println("================\t================================================")
 					for _, result := range backups {
-						fmt.Printf("%s\t%s\n", result.time.Format("2006-01-02 15:04"), result.location)
+						fmt.Printf("%s\t%s\n", result.time.Format("2006-01-02 15:04"), result.archiveID)
 					}
 				}
 				return nil
@@ -105,7 +106,7 @@ func backup() {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s\n", result.time.Format(time.RFC3339), result.location, result.checksum)
+	audit := fmt.Sprintf("%s %s %s\n", result.time.Format(time.RFC3339), result.archiveID, result.checksum)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		log.Printf("error writing the audit file. details: %s", err)
 		return
@@ -139,8 +140,8 @@ func listBackups(remote bool) []awsResult {
 		}
 
 		result := awsResult{
-			location: lineParts[1],
-			checksum: lineParts[2],
+			archiveID: lineParts[1],
+			checksum:  lineParts[2],
 		}
 
 		if result.time, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
@@ -159,11 +160,13 @@ func listBackups(remote bool) []awsResult {
 	return results
 }
 
-func removeBackup(location string) {
-	if err := removeArchive(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"), location); err != nil {
+func removeBackup(archiveID string) {
+	if err := removeArchive(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"), archiveID); err != nil {
 		log.Println(err)
 		return
 	}
+
+	// TODO: Remove from audit file
 }
 
 func removeOldBackups() {
