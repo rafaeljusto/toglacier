@@ -25,6 +25,7 @@ const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 // awsResult store all the information that we need to find the backup later.
 type awsResult struct {
 	time      time.Time
+	vaultName string
 	archiveID string
 	checksum  string
 }
@@ -86,6 +87,7 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsVaultName string) (awsR
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
+	result.vaultName = awsVaultName
 	locationParts := strings.Split(*response.Location, "/")
 	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *response.Checksum
@@ -156,6 +158,7 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
+	result.vaultName = awsVaultName
 	locationParts := strings.Split(*awsCompleteResponse.Location, "/")
 	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *awsCompleteResponse.Checksum
@@ -245,6 +248,7 @@ waitJob:
 	for _, archive := range iventory.ArchiveList {
 		archives = append(archives, awsResult{
 			time:      archive.CreationDate,
+			vaultName: awsVaultName,
 			archiveID: archive.ArchiveID,
 			checksum:  archive.SHA256TreeHash,
 		})

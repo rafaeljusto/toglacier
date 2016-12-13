@@ -61,7 +61,7 @@ good idea to periodically copy this audit file somewhere else, so if you lose
 your server you can recorver the files faster from the AWS Glacier (don't need
 to use the web interface).
 
-    [datetime] [archiveID] [checksum]
+    [datetime] [vaultName] [archiveID] [checksum]
 
 **The program is scheduled to backup the files once a day at midnight**. This
 information isn't configurable yet (the library that I'm using for cron tasks

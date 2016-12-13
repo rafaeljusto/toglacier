@@ -56,10 +56,10 @@ func main() {
 			Action: func(c *cli.Context) error {
 				backups := listBackups(c.Bool("remote"))
 				if len(backups) > 0 {
-					fmt.Println("Date\t\t\tArchive ID")
-					fmt.Println("================\t================================================")
+					fmt.Println("Date             | Vault Name       | Archive ID")
+					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
 					for _, result := range backups {
-						fmt.Printf("%s\t%s\n", result.time.Format("2006-01-02 15:04"), result.archiveID)
+						fmt.Printf("%-16s | %-16s | %-138s\n", result.time.Format("2006-01-02 15:04"), result.vaultName, result.archiveID)
 					}
 				}
 				return nil
@@ -106,7 +106,7 @@ func backup() {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s\n", result.time.Format(time.RFC3339), result.archiveID, result.checksum)
+	audit := fmt.Sprintf("%s %s %s %s\n", result.time.Format(time.RFC3339), result.vaultName, result.archiveID, result.checksum)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		log.Printf("error writing the audit file. details: %s", err)
 		return
@@ -134,14 +134,15 @@ func listBackups(remote bool) []awsResult {
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
 		lineParts := strings.Split(scanner.Text(), " ")
-		if len(lineParts) != 3 {
+		if len(lineParts) != 4 {
 			log.Println("corrupted audit file. wrong number of columns")
 			return nil
 		}
 
 		result := awsResult{
-			archiveID: lineParts[1],
-			checksum:  lineParts[2],
+			vaultName: lineParts[1],
+			archiveID: lineParts[2],
+			checksum:  lineParts[3],
 		}
 
 		if result.time, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
