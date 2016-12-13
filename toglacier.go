@@ -93,7 +93,7 @@ func backup() {
 		os.Remove(archive.Name())
 	}()
 
-	result, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
+	backup, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
 	if err != nil {
 		log.Println(err)
 		return
@@ -106,7 +106,7 @@ func backup() {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s\n", result.time.Format(time.RFC3339), result.vaultName, result.archiveID, result.checksum)
+	audit := fmt.Sprintf("%s %s %s %s\n", backup.time.Format(time.RFC3339), backup.vaultName, backup.archiveID, backup.checksum)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		log.Printf("error writing the audit file. details: %s", err)
 		return
@@ -115,11 +115,11 @@ func backup() {
 
 func listBackups(remote bool) []awsResult {
 	if remote {
-		results, err := listArchives(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
+		backups, err := listArchives(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
 		if err != nil {
 			log.Printf("error retrieving remote backups. details: %s", err)
 		}
-		return results
+		return backups
 	}
 
 	auditFile, err := os.Open(os.Getenv("TOGLACIER_AUDIT"))
@@ -129,7 +129,7 @@ func listBackups(remote bool) []awsResult {
 	}
 	defer auditFile.Close()
 
-	var results []awsResult
+	var backups []awsResult
 
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
@@ -150,7 +150,7 @@ func listBackups(remote bool) []awsResult {
 			return nil
 		}
 
-		results = append(results, result)
+		backups = append(backups, result)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -158,7 +158,7 @@ func listBackups(remote bool) []awsResult {
 		return nil
 	}
 
-	return results
+	return backups
 }
 
 func removeBackup(archiveID string) {
@@ -167,7 +167,34 @@ func removeBackup(archiveID string) {
 		return
 	}
 
-	// TODO: Remove from audit file
+	// remove the entry from the audit file
+
+	backups := listBackups(false)
+
+	err := os.Rename(os.Getenv("TOGLACIER_AUDIT"), os.Getenv("TOGLACIER_AUDIT")+"."+time.Now().Format("20060102150405"))
+	if err != nil {
+		log.Printf("error moving audit file. details: %s", err)
+		return
+	}
+
+	auditFile, err := os.OpenFile(os.Getenv("TOGLACIER_AUDIT"), os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Printf("error opening the audit file. details: %s", err)
+		return
+	}
+	defer auditFile.Close()
+
+	for _, backup := range backups {
+		if backup.archiveID == archiveID {
+			continue
+		}
+
+		audit := fmt.Sprintf("%s %s %s %s\n", backup.time.Format(time.RFC3339), backup.vaultName, backup.archiveID, backup.checksum)
+		if _, err = auditFile.WriteString(audit); err != nil {
+			log.Printf("error writing the audit file. details: %s", err)
+			return
+		}
+	}
 }
 
 func removeOldBackups() {
