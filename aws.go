@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -23,9 +24,10 @@ const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 
 // awsResult store all the information that we need to find the backup later.
 type awsResult struct {
-	time     time.Time
-	location string
-	checksum string
+	time      time.Time
+	vaultName string
+	archiveID string
+	checksum  string
 }
 
 // awsGlacier represents the AWS Glacier API, useful for mocking in unit tests.
@@ -40,8 +42,10 @@ func init() {
 
 	awsGlacier = glacier.New(awsSession)
 
-	// Uncomment the line bellow to understand what is going on
-	//awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
+	// Uncomment the lines bellow to understand what is going on
+	// if g, ok := awsGlacier.(*glacier.Glacier); ok {
+	// 	g.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
+	// }
 }
 
 func sendArchive(archive *os.File, awsAccountID, awsVaultName string) (awsResult, error) {
@@ -83,7 +87,9 @@ func sendSmallArchive(archive *os.File, awsAccountID, awsVaultName string) (awsR
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
-	result.location = *response.Location
+	result.vaultName = awsVaultName
+	locationParts := strings.Split(*response.Location, "/")
+	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *response.Checksum
 	return result, nil
 }
@@ -152,14 +158,14 @@ func sendBigArchive(archive *os.File, archiveSize int64, awsAccountID, awsVaultN
 		return result, fmt.Errorf("error comparing checksums")
 	}
 
-	result.location = *awsCompleteResponse.Location
+	result.vaultName = awsVaultName
+	locationParts := strings.Split(*awsCompleteResponse.Location, "/")
+	result.archiveID = locationParts[len(locationParts)-1]
 	result.checksum = *awsCompleteResponse.Checksum
 	return result, nil
 }
 
-// removeOldArchives keep only the most 10 recent backups in the AWS Glacier
-// service. This is useful to save money in used storage.
-func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error {
+func listArchives(awsAccountID, awsVaultName string) ([]awsResult, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(awsAccountID),
 		JobParameters: &glacier.JobParameters{
@@ -171,7 +177,7 @@ func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error
 
 	initiateJobOutput, err := awsGlacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return fmt.Errorf("error initiating the job. details: %s", err)
+		return nil, fmt.Errorf("error initiating the job. details: %s", err)
 	}
 
 waitJob:
@@ -183,7 +189,7 @@ waitJob:
 
 		listJobsOutput, err := awsGlacier.ListJobs(&listJobsInput)
 		if err != nil {
-			return fmt.Errorf("error retrieving the job from aws. details: %s", err)
+			return nil, fmt.Errorf("error retrieving the job from aws. details: %s", err)
 		}
 
 		jobFound := false
@@ -195,7 +201,7 @@ waitJob:
 					if *jobDescription.StatusCode == "Succeeded" {
 						break waitJob
 					} else if *jobDescription.StatusCode == "Failed" {
-						return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+						return nil, fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
 					}
 				}
 
@@ -204,7 +210,7 @@ waitJob:
 		}
 
 		if !jobFound {
-			return fmt.Errorf("job not found in aws")
+			return nil, fmt.Errorf("job not found in aws")
 		}
 
 		// Wait for the job to complete, as it takes some time, we will sleep for a
@@ -220,7 +226,7 @@ waitJob:
 
 	jobOutputOutput, err := awsGlacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return fmt.Errorf("error retrieving the job information. details: %s", err)
+		return nil, fmt.Errorf("error retrieving the job information. details: %s", err)
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -233,20 +239,48 @@ waitJob:
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
 	if err := jsonDecoder.Decode(&iventory); err != nil {
-		return fmt.Errorf("error decoding the iventory. details: %s", err)
+		return nil, fmt.Errorf("error decoding the iventory. details: %s", err)
 	}
 
 	sort.Sort(iventory.ArchiveList)
 
-	for i := keepBackups; i < len(iventory.ArchiveList); i++ {
-		deleteArchiveInput := glacier.DeleteArchiveInput{
-			AccountId: aws.String(awsAccountID),
-			ArchiveId: aws.String(iventory.ArchiveList[i].ArchiveID),
-			VaultName: aws.String(awsVaultName),
-		}
+	var archives []awsResult
+	for _, archive := range iventory.ArchiveList {
+		archives = append(archives, awsResult{
+			time:      archive.CreationDate,
+			vaultName: awsVaultName,
+			archiveID: archive.ArchiveID,
+			checksum:  archive.SHA256TreeHash,
+		})
+	}
+	return archives, nil
+}
 
-		if _, err := awsGlacier.DeleteArchive(&deleteArchiveInput); err != nil {
-			return fmt.Errorf("error removing old backup. details: %s", err)
+func removeArchive(awsAccountID, awsVaultName, archiveID string) error {
+	deleteArchiveInput := glacier.DeleteArchiveInput{
+		AccountId: aws.String(awsAccountID),
+		ArchiveId: aws.String(archiveID),
+		VaultName: aws.String(awsVaultName),
+	}
+
+	if _, err := awsGlacier.DeleteArchive(&deleteArchiveInput); err != nil {
+		return fmt.Errorf("error removing old backup. details: %s", err)
+	}
+
+	return nil
+}
+
+// removeOldArchives keep only the most 10 recent backups in the AWS Glacier
+// service. This is useful to save money in used storage.
+func removeOldArchives(awsAccountID, awsVaultName string, keepBackups int) error {
+	archives, err := listArchives(awsAccountID, awsVaultName)
+	if err != nil {
+		return fmt.Errorf("error retrieving remote backups. details: %s", err)
+	}
+
+	for i := keepBackups; i < len(archives); i++ {
+		if err := removeArchive(awsAccountID, awsVaultName, archives[i].archiveID); err != nil {
+			return err
 		}
 	}
 

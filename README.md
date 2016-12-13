@@ -56,17 +56,24 @@ Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#glacier_region).
 
+There are some commands in the tool to manage the backups:
+
+  * **sync**: execute the backup task now
+  * **list or ls**: list the current backups using a local audit file or remotly
+  * **remove or rm**: remove a backup from AWS Glacier service
+  * **start**: initialize the scheduler (will block forever)
+
 The audit file that keeps track of all backups has the format bellow. It's a
 good idea to periodically copy this audit file somewhere else, so if you lose
 your server you can recorver the files faster from the AWS Glacier (don't need
-to use the web interface).
+to wait for the iventory).
 
-    [datetime] [location] [checksum]
+    [datetime] [vaultName] [archiveID] [checksum]
 
-**The program is scheduled to backup the files once a day at midnight**. This
-information isn't configurable yet (the library that I'm using for cron tasks
-isn't so flexible). Also, **old backups are removed once a week at 1 AM** (yep,
-not configurable yet).
+When running the scheduler (start command), **the tool will backup the files
+once a day at midnight**. This information isn't configurable yet (the library
+that I'm using for cron tasks isn't so flexible). Also, **old backups are
+removed once a week at 1 AM** (yep, not configurable yet).
 
 A simple shell script that could help you running the program in Unix
 environments:
@@ -82,7 +89,13 @@ AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
-toglacier &>> /var/log/toglacier/error.log
+toglacier $@ &>> /var/log/toglacier/error.log
+```
+
+With that you can just run the following command to start the scheduler:
+
+```
+./toglacier.sh start
 ```
 
 Just remember to give the write permissions to where the stdout/stderr and audit
