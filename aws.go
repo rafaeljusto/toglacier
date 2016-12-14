@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
+	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -280,6 +282,84 @@ waitJob:
 		})
 	}
 	return archives, nil
+}
+
+func retrieveArchive(awsAccountID, awsVaultName, archiveID string) (string, error) {
+	initiateJobInput := glacier.InitiateJobInput{
+		AccountId: aws.String(awsAccountID),
+		JobParameters: &glacier.JobParameters{
+			ArchiveId: aws.String(archiveID),
+			Type:      aws.String("archive-retrieval"),
+		},
+		VaultName: aws.String(awsVaultName),
+	}
+
+	initiateJobOutput, err := awsGlacier.InitiateJob(&initiateJobInput)
+	if err != nil {
+		return "", fmt.Errorf("error initiating the job. details: %s", err)
+	}
+
+waitJob:
+	for {
+		listJobsInput := glacier.ListJobsInput{
+			AccountId: aws.String(awsAccountID),
+			VaultName: aws.String(awsVaultName),
+		}
+
+		listJobsOutput, err := awsGlacier.ListJobs(&listJobsInput)
+		if err != nil {
+			return "", fmt.Errorf("error retrieving the job from aws. details: %s", err)
+		}
+
+		jobFound := false
+		for _, jobDescription := range listJobsOutput.JobList {
+			if *jobDescription.JobId == *initiateJobOutput.JobId {
+				jobFound = true
+
+				if *jobDescription.Completed {
+					if *jobDescription.StatusCode == "Succeeded" {
+						break waitJob
+					} else if *jobDescription.StatusCode == "Failed" {
+						return "", fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+					}
+				}
+
+				break
+			}
+		}
+
+		if !jobFound {
+			return "", fmt.Errorf("job not found in aws")
+		}
+
+		// Wait for the job to complete, as it takes some time, we will sleep for a
+		// long time before we check again
+		time.Sleep(1 * time.Minute)
+	}
+
+	jobOutputInput := glacier.GetJobOutputInput{
+		AccountId: aws.String(awsAccountID),
+		JobId:     initiateJobOutput.JobId,
+		VaultName: aws.String(awsVaultName),
+	}
+
+	jobOutputOutput, err := awsGlacier.GetJobOutput(&jobOutputInput)
+	if err != nil {
+		return "", fmt.Errorf("error retrieving the job information. details: %s", err)
+	}
+	defer jobOutputOutput.Body.Close()
+
+	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+archiveID+".tar"))
+	if err != nil {
+		return "", fmt.Errorf("error creating backup file. details: %s", err)
+	}
+	defer backup.Close()
+
+	if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
+		return "", fmt.Errorf("error copying data to the backup file. details: %s", err)
+	}
+
+	return backup.Name(), nil
 }
 
 func removeArchive(awsAccountID, awsVaultName, archiveID string) error {
