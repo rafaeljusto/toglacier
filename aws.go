@@ -34,6 +34,32 @@ type awsResult struct {
 var awsGlacier glacieriface.GlacierAPI
 
 func init() {
+	var err error
+
+	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	if strings.HasPrefix(awsAccessKeyID, "encrypted:") {
+		awsAccessKeyID, err = passwordDecrypt(strings.TrimPrefix(awsAccessKeyID, "encrypted:"))
+		if err != nil {
+			fmt.Printf("error decrypting aws access key id. details: %s", err)
+			os.Exit(1)
+		}
+		// this environment variable is used by the AWS library, so we neede to set
+		// it again in plain text
+		os.Setenv("AWS_ACCESS_KEY_ID", awsAccessKeyID)
+	}
+
+	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if strings.HasPrefix(awsSecretAccessKey, "encrypted:") {
+		awsSecretAccessKey, err = passwordDecrypt(strings.TrimPrefix(awsSecretAccessKey, "encrypted:"))
+		if err != nil {
+			fmt.Printf("error decrypting aws secret access key. details: %s", err)
+			os.Exit(1)
+		}
+		// this environment variable is used by the AWS library, so we neede to set
+		// it again in plain text
+		os.Setenv("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey)
+	}
+
 	awsSession, err := session.NewSession()
 	if err != nil {
 		log.Printf("error creating aws session. details: %s", err)
