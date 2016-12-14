@@ -6,7 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 ### Added
-- Subcommands to manage the backups (sync, list, remove, start)
+- Subcommands to manage the backups (sync, list, remove, start, encrypt)
+- Sensitive parameters can now be encrypted
 
 ## [1.0.0] - 2016-12-08
 ### Added
