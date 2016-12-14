@@ -61,6 +61,17 @@ func main() {
 			},
 		},
 		{
+			Name:      "get",
+			Usage:     "retrieve a specific backup from AWS Glacier",
+			ArgsUsage: "<archiveID>",
+			Action: func(c *cli.Context) error {
+				if backupFile := retrieveBackup(c.Args().First()); backupFile != "" {
+					fmt.Printf("Backup recovered at %s\n", backupFile)
+				}
+				return nil
+			},
+		},
+		{
 			Name:      "remove",
 			Aliases:   []string{"rm"},
 			Usage:     "remove a specific backup from AWS Glacier",
@@ -106,7 +117,7 @@ func main() {
 		{
 			Name:      "encrypt",
 			Aliases:   []string{"enc"},
-			Usage:     "encrypt a password",
+			Usage:     "encrypt a password or secret",
 			ArgsUsage: "<password>",
 			Action: func(c *cli.Context) error {
 				if pwd, err := passwordEncrypt(c.Args().First()); err == nil {
@@ -200,6 +211,16 @@ func listBackups(remote bool) []awsResult {
 	}
 
 	return backups
+}
+
+func retrieveBackup(archiveID string) string {
+	backupFile, err := retrieveArchive(awsAccountID, awsVaultName, archiveID)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+
+	return backupFile
 }
 
 func removeBackup(archiveID string) {

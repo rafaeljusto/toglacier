@@ -64,6 +64,7 @@ and `Glacier Service`). You will find your AWS region identification
 There are some commands in the tool to manage the backups:
 
   * **sync**: execute the backup task now
+  * **get**: retrive a backup from AWS Glacier service
   * **list or ls**: list the current backups using a local audit file or remotly
   * **remove or rm**: remove a backup from AWS Glacier service
   * **start**: initialize the scheduler (will block forever)
