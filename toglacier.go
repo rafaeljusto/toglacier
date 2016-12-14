@@ -13,6 +13,33 @@ import (
 	"github.com/urfave/cli"
 )
 
+var awsAccountID, awsVaultName, backupPaths, auditFile string
+var keepBackups = 10
+
+func init() {
+	var err error
+
+	awsAccountID = os.Getenv("AWS_ACCOUNT_ID")
+	if strings.HasPrefix(awsAccountID, "encrypted:") {
+		awsAccountID, err = passwordDecrypt(strings.TrimPrefix(awsAccountID, "encrypted:"))
+		if err != nil {
+			fmt.Printf("error decrypting aws account id. details: %s", err)
+			os.Exit(1)
+		}
+	}
+
+	awsVaultName = os.Getenv("AWS_VAULT_NAME")
+	backupPaths = os.Getenv("TOGLACIER_PATH")
+	auditFile = os.Getenv("TOGLACIER_AUDIT")
+
+	if os.Getenv("TOGLACIER_KEEP_BACKUPS") != "" {
+		if keepBackups, err = strconv.Atoi(os.Getenv("TOGLACIER_KEEP_BACKUPS")); err != nil {
+			fmt.Printf("invalid number of backups to keep. details: %s", err)
+			os.Exit(1)
+		}
+	}
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "toglacier"
@@ -76,13 +103,27 @@ func main() {
 				return nil
 			},
 		},
+		{
+			Name:      "encrypt",
+			Aliases:   []string{"enc"},
+			Usage:     "encrypt a password",
+			ArgsUsage: "<password>",
+			Action: func(c *cli.Context) error {
+				if pwd, err := passwordEncrypt(c.Args().First()); err == nil {
+					fmt.Printf("encrypted:%s\n", pwd)
+				} else {
+					fmt.Printf("error encrypting password. details: %s\n", err)
+				}
+				return nil
+			},
+		},
 	}
 
 	app.Run(os.Args)
 }
 
 func backup() {
-	archive, err := buildArchive(os.Getenv("TOGLACIER_PATH"))
+	archive, err := buildArchive(backupPaths)
 	if err != nil {
 		log.Println(err)
 		return
@@ -93,13 +134,13 @@ func backup() {
 		os.Remove(archive.Name())
 	}()
 
-	backup, err := sendArchive(archive, os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
+	backup, err := sendArchive(archive, awsAccountID, awsVaultName)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	auditFile, err := os.OpenFile(os.Getenv("TOGLACIER_AUDIT"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	auditFile, err := os.OpenFile(auditFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Printf("error opening the audit file. details: %s", err)
 		return
@@ -115,14 +156,14 @@ func backup() {
 
 func listBackups(remote bool) []awsResult {
 	if remote {
-		backups, err := listArchives(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"))
+		backups, err := listArchives(awsAccountID, awsVaultName)
 		if err != nil {
 			log.Printf("error retrieving remote backups. details: %s", err)
 		}
 		return backups
 	}
 
-	auditFile, err := os.Open(os.Getenv("TOGLACIER_AUDIT"))
+	auditFile, err := os.Open(auditFile)
 	if err != nil {
 		log.Printf("error opening the audit file. details: %s", err)
 		return nil
@@ -162,7 +203,7 @@ func listBackups(remote bool) []awsResult {
 }
 
 func removeBackup(archiveID string) {
-	if err := removeArchive(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"), archiveID); err != nil {
+	if err := removeArchive(awsAccountID, awsVaultName, archiveID); err != nil {
 		log.Println(err)
 		return
 	}
@@ -171,13 +212,13 @@ func removeBackup(archiveID string) {
 
 	backups := listBackups(false)
 
-	err := os.Rename(os.Getenv("TOGLACIER_AUDIT"), os.Getenv("TOGLACIER_AUDIT")+"."+time.Now().Format("20060102150405"))
+	err := os.Rename(auditFile, auditFile+"."+time.Now().Format("20060102150405"))
 	if err != nil {
 		log.Printf("error moving audit file. details: %s", err)
 		return
 	}
 
-	auditFile, err := os.OpenFile(os.Getenv("TOGLACIER_AUDIT"), os.O_CREATE|os.O_WRONLY, 0600)
+	auditFile, err := os.OpenFile(auditFile, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Printf("error opening the audit file. details: %s", err)
 		return
@@ -198,16 +239,7 @@ func removeBackup(archiveID string) {
 }
 
 func removeOldBackups() {
-	keepBackups := 10
-	if os.Getenv("TOGLACIER_KEEP_BACKUPS") != "" {
-		var err error
-		if keepBackups, err = strconv.Atoi(os.Getenv("TOGLACIER_KEEP_BACKUPS")); err != nil {
-			log.Printf("invalid number of backups to keep. details: %s", err)
-			return
-		}
-	}
-
-	if err := removeOldArchives(os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_VAULT_NAME"), keepBackups); err != nil {
+	if err := removeOldArchives(awsAccountID, awsVaultName, keepBackups); err != nil {
 		log.Println(err)
 		return
 	}

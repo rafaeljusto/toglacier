@@ -32,9 +32,14 @@ your `$PATH` and run the following command:
 go get -u github.com/rafaeljusto/toglacier
 ```
 
-As this program works like a service/daemon, you should run it in background. It
-is a good practice to also add it to your system startup (you don't want your
-backup to stop working after a reboot).
+If you are thinking that is a good idea to encrypt some sensitive tool
+parameters and want to improve the security, is a good idea to replace the
+numbers of the slices in the function `passwordKey` of the `encpass.go` file for
+your random numbers. Remember to compile the tool again (`go install`).
+
+As this program can work like a service/daemon (start command), in this case you
+should run it in background. It is a good practice to also add it to your system
+startup (you don't want your backup scheduler to stop working after a reboot).
 
 ## Usage
 
@@ -62,6 +67,12 @@ There are some commands in the tool to manage the backups:
   * **list or ls**: list the current backups using a local audit file or remotly
   * **remove or rm**: remove a backup from AWS Glacier service
   * **start**: initialize the scheduler (will block forever)
+  * **encrypt or enc**: encrypt a password or secret to improve security
+
+You can improve the security by encrypting the values (use encrypt command) of
+the variables `AWS_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+The tool will detect an encrypted value when it starts with the label
+`encrypted:`.
 
 The audit file that keeps track of all backups has the format bellow. It's a
 good idea to periodically copy this audit file somewhere else, so if you lose
@@ -81,9 +92,9 @@ environments:
 ```shell
 #!/bin/sh
 
-AWS_ACCOUNT_ID="000000000000" \
-AWS_ACCESS_KEY_ID="AAAAAAAAAAAAAAAAAAAA" \
-AWS_SECRET_ACCESS_KEY="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \
+AWS_ACCOUNT_ID="encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==" \
+AWS_ACCESS_KEY_ID="encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ" \
+AWS_SECRET_ACCESS_KEY="encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=" \
 AWS_REGION="us-east-1" \
 AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files-1,/usr/local/important-files-2" \
