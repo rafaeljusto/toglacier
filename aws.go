@@ -82,7 +82,7 @@ func sendArchive(archive *os.File, awsAccountID, awsVaultName string) (awsResult
 		return awsResult{}, fmt.Errorf("error retrieving archive information. details: %s", err)
 	}
 
-	if archiveInfo.Size() <= 1024100 {
+	if archiveInfo.Size() <= 102400 {
 		return sendSmallArchive(archive, awsAccountID, awsVaultName)
 	}
 
