@@ -10,26 +10,21 @@ import (
 	"time"
 
 	"github.com/jasonlvhit/gocron"
+	"github.com/rafaeljusto/toglacier/internal/archive"
+	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/urfave/cli"
 )
 
-var awsAccountID, awsVaultName, backupPaths, auditFile string
+var awsAccountID, awsVaultName, auditFile string
+var backupPaths []string
 var keepBackups = 10
 
 func init() {
 	var err error
 
 	awsAccountID = os.Getenv("AWS_ACCOUNT_ID")
-	if strings.HasPrefix(awsAccountID, "encrypted:") {
-		awsAccountID, err = passwordDecrypt(strings.TrimPrefix(awsAccountID, "encrypted:"))
-		if err != nil {
-			fmt.Printf("error decrypting aws account id. details: %s", err)
-			os.Exit(1)
-		}
-	}
-
 	awsVaultName = os.Getenv("AWS_VAULT_NAME")
-	backupPaths = os.Getenv("TOGLACIER_PATH")
+	backupPaths = strings.Split(os.Getenv("TOGLACIER_PATH"), ",")
 	auditFile = os.Getenv("TOGLACIER_AUDIT")
 
 	if os.Getenv("TOGLACIER_KEEP_BACKUPS") != "" {
@@ -96,8 +91,8 @@ func main() {
 				if len(backups) > 0 {
 					fmt.Println("Date             | Vault Name       | Archive ID")
 					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
-					for _, result := range backups {
-						fmt.Printf("%-16s | %-16s | %-138s\n", result.time.Format("2006-01-02 15:04"), result.vaultName, result.archiveID)
+					for _, backup := range backups {
+						fmt.Printf("%-16s | %-16s | %-138s\n", backup.CreatedAt.Format("2006-01-02 15:04"), backup.VaultName, backup.ID)
 					}
 				}
 				return nil
@@ -109,7 +104,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
 				scheduler.Every(1).Day().At("00:00").Do(backup, nil)
-				scheduler.Every(1).Weeks().At("01:00").Do(removeOldArchives, nil)
+				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, nil)
 				<-scheduler.Start()
 				return nil
 			},
@@ -120,7 +115,7 @@ func main() {
 			Usage:     "encrypt a password or secret",
 			ArgsUsage: "<password>",
 			Action: func(c *cli.Context) error {
-				if pwd, err := passwordEncrypt(c.Args().First()); err == nil {
+				if pwd, err := cloud.PasswordEncrypt(c.Args().First()); err == nil {
 					fmt.Printf("encrypted:%s\n", pwd)
 				} else {
 					fmt.Printf("error encrypting password. details: %s\n", err)
@@ -134,18 +129,19 @@ func main() {
 }
 
 func backup() {
-	archive, err := buildArchive(backupPaths)
+	archive, err := archive.Build(backupPaths...)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer func() {
-		archive.Close()
-		// remove the temporary tarball
-		os.Remove(archive.Name())
-	}()
 
-	backup, err := sendArchive(archive, awsAccountID, awsVaultName)
+	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	backup, err := c.Send(archive)
 	if err != nil {
 		log.Println(err)
 		return
@@ -158,16 +154,22 @@ func backup() {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s\n", backup.time.Format(time.RFC3339), backup.vaultName, backup.archiveID, backup.checksum)
+	audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), awsVaultName, backup.ID, backup.Checksum)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		log.Printf("error writing the audit file. details: %s", err)
 		return
 	}
 }
 
-func listBackups(remote bool) []awsResult {
+func listBackups(remote bool) []cloud.Backup {
 	if remote {
-		backups, err := listArchives(awsAccountID, awsVaultName)
+		c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
+		if err != nil {
+			log.Println(err)
+			return nil
+		}
+
+		backups, err := c.List()
 		if err != nil {
 			log.Printf("error retrieving remote backups. details: %s", err)
 		}
@@ -181,7 +183,7 @@ func listBackups(remote bool) []awsResult {
 	}
 	defer auditFile.Close()
 
-	var backups []awsResult
+	var backups []cloud.Backup
 
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
@@ -191,18 +193,18 @@ func listBackups(remote bool) []awsResult {
 			return nil
 		}
 
-		result := awsResult{
-			vaultName: lineParts[1],
-			archiveID: lineParts[2],
-			checksum:  lineParts[3],
+		backup := cloud.Backup{
+			VaultName: lineParts[1],
+			ID:        lineParts[2],
+			Checksum:  lineParts[3],
 		}
 
-		if result.time, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
+		if backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
 			log.Printf("corrupted audit file. invalid date format. details: %s", err)
 			return nil
 		}
 
-		backups = append(backups, result)
+		backups = append(backups, backup)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -213,8 +215,14 @@ func listBackups(remote bool) []awsResult {
 	return backups
 }
 
-func retrieveBackup(archiveID string) string {
-	backupFile, err := retrieveArchive(awsAccountID, awsVaultName, archiveID)
+func retrieveBackup(id string) string {
+	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
+	if err != nil {
+		log.Println(err)
+		return ""
+	}
+
+	backupFile, err := c.Get(id)
 	if err != nil {
 		log.Println(err)
 		return ""
@@ -223,8 +231,14 @@ func retrieveBackup(archiveID string) string {
 	return backupFile
 }
 
-func removeBackup(archiveID string) {
-	if err := removeArchive(awsAccountID, awsVaultName, archiveID); err != nil {
+func removeBackup(id string) {
+	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if err := c.Remove(id); err != nil {
 		log.Println(err)
 		return
 	}
@@ -233,8 +247,7 @@ func removeBackup(archiveID string) {
 
 	backups := listBackups(false)
 
-	err := os.Rename(auditFile, auditFile+"."+time.Now().Format("20060102150405"))
-	if err != nil {
+	if err = os.Rename(auditFile, auditFile+"."+time.Now().Format("20060102150405")); err != nil {
 		log.Printf("error moving audit file. details: %s", err)
 		return
 	}
@@ -247,11 +260,11 @@ func removeBackup(archiveID string) {
 	defer auditFile.Close()
 
 	for _, backup := range backups {
-		if backup.archiveID == archiveID {
+		if backup.ID == id {
 			continue
 		}
 
-		audit := fmt.Sprintf("%s %s %s %s\n", backup.time.Format(time.RFC3339), backup.vaultName, backup.archiveID, backup.checksum)
+		audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
 		if _, err = auditFile.WriteString(audit); err != nil {
 			log.Printf("error writing the audit file. details: %s", err)
 			return
@@ -260,8 +273,8 @@ func removeBackup(archiveID string) {
 }
 
 func removeOldBackups() {
-	if err := removeOldArchives(awsAccountID, awsVaultName, keepBackups); err != nil {
-		log.Println(err)
-		return
+	backups := listBackups(true)
+	for i := keepBackups; i < len(backups); i++ {
+		removeBackup(backups[i].ID)
 	}
 }

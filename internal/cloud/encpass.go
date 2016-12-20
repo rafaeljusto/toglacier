@@ -1,4 +1,4 @@
-package main
+package cloud
 
 import (
 	"bytes"
@@ -27,8 +27,8 @@ func passwordKey() []byte {
 	return result
 }
 
-// passwordEncrypt uses the secret to encode the password.
-func passwordEncrypt(input string) (string, error) {
+// PasswordEncrypt uses the secret to encode the password.
+func PasswordEncrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
 		return "", err

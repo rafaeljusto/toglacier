@@ -1,4 +1,4 @@
-package main
+package archive
 
 import (
 	"archive/tar"
@@ -7,39 +7,37 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 )
 
-// buildArchive builds a tarball containing all the desired files that you want
-// to backup. On success it will return an open file, so the caller is
-// responsible for closing it.
-func buildArchive(backupPaths string) (*os.File, error) {
+// Build builds a tarball containing all the desired files that you want to
+// backup. On success it will return an open file, so the caller is responsible
+// for closing it.
+func Build(backupPaths ...string) (string, error) {
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return nil, fmt.Errorf("error creating the tar file. details: %s", err)
+		return "", fmt.Errorf("error creating the tar file. details: %s", err)
 	}
+	defer tarFile.Close()
 
 	tarArchive := tar.NewWriter(tarFile)
 	basePath := "backup-" + time.Now().Format("20060102150405")
 
-	for _, currentPath := range strings.Split(backupPaths, ",") {
+	for _, currentPath := range backupPaths {
 		if currentPath == "" {
 			continue
 		}
 
 		if err := buildArchiveLevels(tarArchive, basePath, currentPath); err != nil {
-			tarFile.Close()
-			return nil, err
+			return "", err
 		}
 	}
 
 	if err := tarArchive.Close(); err != nil {
-		tarFile.Close()
-		return nil, fmt.Errorf("error generating tar file. details: %s", err)
+		return "", fmt.Errorf("error generating tar file. details: %s", err)
 	}
 
-	return tarFile, nil
+	return tarFile.Name(), nil
 }
 
 func buildArchiveLevels(tarArchive *tar.Writer, basePath, currentPath string) error {
