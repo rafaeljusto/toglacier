@@ -1,17 +1,16 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
 )
 
@@ -147,16 +146,9 @@ func backup() {
 		return
 	}
 
-	auditFile, err := os.OpenFile(auditFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		log.Printf("error opening the audit file. details: %s", err)
-		return
-	}
-	defer auditFile.Close()
-
-	audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), awsVaultName, backup.ID, backup.Checksum)
-	if _, err = auditFile.WriteString(audit); err != nil {
-		log.Printf("error writing the audit file. details: %s", err)
+	a := storage.NewAuditFile(auditFile)
+	if err := a.Save(backup); err != nil {
+		log.Println(err)
 		return
 	}
 }
@@ -176,42 +168,12 @@ func listBackups(remote bool) []cloud.Backup {
 		return backups
 	}
 
-	auditFile, err := os.Open(auditFile)
+	a := storage.NewAuditFile(auditFile)
+	backups, err := a.List()
 	if err != nil {
-		log.Printf("error opening the audit file. details: %s", err)
+		log.Println(err)
 		return nil
 	}
-	defer auditFile.Close()
-
-	var backups []cloud.Backup
-
-	scanner := bufio.NewScanner(auditFile)
-	for scanner.Scan() {
-		lineParts := strings.Split(scanner.Text(), " ")
-		if len(lineParts) != 4 {
-			log.Println("corrupted audit file. wrong number of columns")
-			return nil
-		}
-
-		backup := cloud.Backup{
-			VaultName: lineParts[1],
-			ID:        lineParts[2],
-			Checksum:  lineParts[3],
-		}
-
-		if backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
-			log.Printf("corrupted audit file. invalid date format. details: %s", err)
-			return nil
-		}
-
-		backups = append(backups, backup)
-	}
-
-	if err := scanner.Err(); err != nil {
-		log.Printf("error reading the audit file. details: %s", err)
-		return nil
-	}
-
 	return backups
 }
 
@@ -243,32 +205,10 @@ func removeBackup(id string) {
 		return
 	}
 
-	// remove the entry from the audit file
-
-	backups := listBackups(false)
-
-	if err = os.Rename(auditFile, auditFile+"."+time.Now().Format("20060102150405")); err != nil {
-		log.Printf("error moving audit file. details: %s", err)
+	a := storage.NewAuditFile(auditFile)
+	if err := a.Remove(id); err != nil {
+		log.Println(err)
 		return
-	}
-
-	auditFile, err := os.OpenFile(auditFile, os.O_CREATE|os.O_WRONLY, 0600)
-	if err != nil {
-		log.Printf("error opening the audit file. details: %s", err)
-		return
-	}
-	defer auditFile.Close()
-
-	for _, backup := range backups {
-		if backup.ID == id {
-			continue
-		}
-
-		audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
-		if _, err = auditFile.WriteString(audit); err != nil {
-			log.Printf("error writing the audit file. details: %s", err)
-			return
-		}
 	}
 }
 
