@@ -35,6 +35,13 @@ func init() {
 }
 
 func main() {
+	awsCloud, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	auditFileStorage := storage.NewAuditFile(auditFile)
+
 	app := cli.NewApp()
 	app.Name = "toglacier"
 	app.Usage = "Send data to AWS Glacier service"
@@ -50,7 +57,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				backup()
+				backup(awsCloud, auditFileStorage)
 				return nil
 			},
 		},
@@ -59,7 +66,7 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile := retrieveBackup(c.Args().First()); backupFile != "" {
+				if backupFile := retrieveBackup(c.Args().First(), awsCloud); backupFile != "" {
 					fmt.Printf("Backup recovered at %s\n", backupFile)
 				}
 				return nil
@@ -71,7 +78,7 @@ func main() {
 			Usage:     "remove a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				removeBackup(c.Args().First())
+				removeBackup(c.Args().First(), awsCloud, auditFileStorage)
 				return nil
 			},
 		},
@@ -86,7 +93,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				backups := listBackups(c.Bool("remote"))
+				backups := listBackups(c.Bool("remote"), awsCloud, auditFileStorage)
 				if len(backups) > 0 {
 					fmt.Println("Date             | Vault Name       | Archive ID")
 					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
@@ -127,7 +134,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func backup() {
+func backup(c cloud.Cloud, s storage.Storage) {
 	archive, err := archive.Build(backupPaths...)
 	if err != nil {
 		log.Println(err)
@@ -135,33 +142,20 @@ func backup() {
 	}
 	defer os.Remove(archive)
 
-	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
 	backup, err := c.Send(archive)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	a := storage.NewAuditFile(auditFile)
-	if err := a.Save(backup); err != nil {
+	if err := s.Save(backup); err != nil {
 		log.Println(err)
 		return
 	}
 }
 
-func listBackups(remote bool) []cloud.Backup {
+func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 	if remote {
-		c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
-		if err != nil {
-			log.Println(err)
-			return nil
-		}
-
 		backups, err := c.List()
 		if err != nil {
 			log.Printf("error retrieving remote backups. details: %s", err)
@@ -169,8 +163,7 @@ func listBackups(remote bool) []cloud.Backup {
 		return backups
 	}
 
-	a := storage.NewAuditFile(auditFile)
-	backups, err := a.List()
+	backups, err := s.List()
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -178,13 +171,7 @@ func listBackups(remote bool) []cloud.Backup {
 	return backups
 }
 
-func retrieveBackup(id string) string {
-	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
-	if err != nil {
-		log.Println(err)
-		return ""
-	}
-
+func retrieveBackup(id string, c cloud.Cloud) string {
 	backupFile, err := c.Get(id)
 	if err != nil {
 		log.Println(err)
@@ -194,28 +181,21 @@ func retrieveBackup(id string) string {
 	return backupFile
 }
 
-func removeBackup(id string) {
-	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
+func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 	if err := c.Remove(id); err != nil {
 		log.Println(err)
 		return
 	}
 
-	a := storage.NewAuditFile(auditFile)
-	if err := a.Remove(id); err != nil {
+	if err := s.Remove(id); err != nil {
 		log.Println(err)
 		return
 	}
 }
 
-func removeOldBackups() {
-	backups := listBackups(true)
+func removeOldBackups(c cloud.Cloud, s storage.Storage) {
+	backups := listBackups(true, c, s)
 	for i := keepBackups; i < len(backups); i++ {
-		removeBackup(backups[i].ID)
+		removeBackup(backups[i].ID, c, s)
 	}
 }
