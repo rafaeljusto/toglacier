@@ -133,6 +133,7 @@ func backup() {
 		log.Println(err)
 		return
 	}
+	defer os.Remove(archive)
 
 	c, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
 	if err != nil {
