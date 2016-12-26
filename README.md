@@ -93,7 +93,7 @@ A simple shell script that could help you running the program in Unix
 environments:
 
 ```shell
-#!/bin/sh
+#!/bin/bash
 
 AWS_ACCOUNT_ID="encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==" \
 AWS_ACCESS_KEY_ID="encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ" \
@@ -103,7 +103,7 @@ AWS_VAULT_NAME="backup" \
 TOGLACIER_PATH="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
-toglacier $@ &>> /var/log/toglacier/error.log
+toglacier $@ 2> >(tee /var/log/toglacier/error.log)
 ```
 
 With that you can just run the following command to start the scheduler:
