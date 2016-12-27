@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,16 @@ const multipartUploadLimit int64 = 102400 // 100 MB
 // partSize the size of each part of the multipart upload except the last, in
 // bytes. The last part can be smaller than this part size.
 const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
+
+var now = func() time.Time {
+	return time.Now()
+}
+
+type AWSCloud struct {
+	accountID string
+	vaultName string
+	glacier   glacieriface.GlacierAPI
+}
 
 func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	var err error
@@ -76,12 +87,6 @@ func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	}, nil
 }
 
-type AWSCloud struct {
-	accountID string
-	vaultName string
-	glacier   glacieriface.GlacierAPI
-}
-
 func (a *AWSCloud) Send(filename string) (Backup, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
@@ -102,7 +107,7 @@ func (a *AWSCloud) Send(filename string) (Backup, error) {
 
 func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	backup := Backup{
-		CreatedAt: time.Now(),
+		CreatedAt: now(),
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -123,7 +128,7 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	}
 
 	if hex.EncodeToString(hash.LinearHash) != *archiveCreationOutput.Checksum {
-		return Backup{}, fmt.Errorf("error comparing checksums")
+		return Backup{}, errors.New("error comparing checksums")
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -135,7 +140,7 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 
 func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) {
 	backup := Backup{
-		CreatedAt: time.Now(),
+		CreatedAt: now(),
 	}
 
 	initiateMultipartUploadInput := glacier.InitiateMultipartUploadInput{
@@ -194,7 +199,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	}
 
 	if hex.EncodeToString(hash.LinearHash) != *archiveCreationOutput.Checksum {
-		return Backup{}, fmt.Errorf("error comparing checksums")
+		return Backup{}, errors.New("error comparing checksums")
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -349,7 +354,7 @@ func (a *AWSCloud) waitJob(jobID string) error {
 		}
 
 		if !jobFound {
-			return fmt.Errorf("job not found in aws")
+			return errors.New("job not found in aws")
 		}
 
 		// Wait for the job to complete, as it takes some time, we will sleep for a
