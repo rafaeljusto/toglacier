@@ -1,6 +1,9 @@
 package cloud
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -8,8 +11,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"encoding/base64"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -237,6 +238,315 @@ func TestAWSCloud_Send(t *testing.T) {
 			backup, err := scenario.awsCloud.Send(scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
+			}
+			if !reflect.DeepEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestAWSCloud_List(t *testing.T) {
+	originalWaitJobTime := waitJobTime
+	defer func() {
+		waitJobTime = originalWaitJobTime
+	}()
+	waitJobTime = 100 * time.Millisecond
+
+	scenarios := []struct {
+		description   string
+		awsCloud      AWSCloud
+		expected      []Backup
+		expectedError error
+	}{
+		{
+			description: "it should list all backups correctly",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						iventory := struct {
+							VaultARN      string `json:"VaultARN"`
+							InventoryDate string `json:"InventoryDate"`
+							ArchiveList   awsIventoryArchiveList
+						}{
+							ArchiveList: awsIventoryArchiveList{
+								{
+									ArchiveID:          "AWSID123",
+									ArchiveDescription: "another test backup",
+									CreationDate:       time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+									Size:               4000,
+									SHA256TreeHash:     "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+								},
+								{
+									ArchiveID:          "AWSID122",
+									ArchiveDescription: "great test",
+									CreationDate:       time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
+									Size:               2456,
+									SHA256TreeHash:     "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
+								},
+							},
+						}
+
+						body, err := json.Marshal(iventory)
+						if err != nil {
+							t.Fatalf("error build job output response. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBuffer(body)),
+						}, nil
+					},
+				},
+			},
+			expected: []Backup{
+				{
+					ID:        "AWSID122",
+					CreatedAt: time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
+					Checksum:  "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
+					VaultName: "vault",
+				},
+				{
+					ID:        "AWSID123",
+					CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+					Checksum:  "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+					VaultName: "vault",
+				},
+			},
+		},
+		{
+			description: "it should detect an error while initiating the job",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return nil, errors.New("a crazy error")
+					},
+				},
+			},
+			expectedError: errors.New("error initiating the job. details: a crazy error"),
+		},
+		{
+			description: "it should detect when there's an error listing the existing jobs",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return nil, errors.New("another crazy error")
+					},
+				},
+			},
+			expectedError: errors.New("error retrieving the job from aws. details: another crazy error"),
+		},
+		{
+			description: "it should detect when the job failed",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:         aws.String("JOBID123"),
+									Completed:     aws.Bool(true),
+									StatusCode:    aws.String("Failed"),
+									StatusMessage: aws.String("something went wrong"),
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			expectedError: errors.New("error retrieving the job from aws. details: something went wrong"),
+		},
+		{
+			description: "it should detect when the job was not found",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID321"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			expectedError: errors.New("job not found in aws"),
+		},
+		{
+			description: "it should continue checking jobs until it completes",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						iventory := struct {
+							VaultARN      string `json:"VaultARN"`
+							InventoryDate string `json:"InventoryDate"`
+							ArchiveList   awsIventoryArchiveList
+						}{
+							ArchiveList: awsIventoryArchiveList{
+								{
+									ArchiveID:          "AWSID123",
+									ArchiveDescription: "another test backup",
+									CreationDate:       time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+									Size:               4000,
+									SHA256TreeHash:     "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+								},
+							},
+						}
+
+						body, err := json.Marshal(iventory)
+						if err != nil {
+							t.Fatalf("error build job output response. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBuffer(body)),
+						}, nil
+					},
+				},
+			},
+			expected: []Backup{
+				{
+					ID:        "AWSID123",
+					CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+					Checksum:  "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+					VaultName: "vault",
+				},
+			},
+		},
+		{
+			description: "it should detect an error while retrieving the job data",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						return nil, errors.New("job corrupted")
+					},
+				},
+			},
+			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
+		},
+		{
+			description: "it should detect an error while decoding the job data",
+			awsCloud: AWSCloud{
+				accountID: "account",
+				vaultName: "vault",
+				glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString(`{{{invalid json`)),
+						}, nil
+					},
+				},
+			},
+			// *json.SyntaxError doesn't export the msg attribute, so we need to
+			// hard-coded the error message here
+			expectedError: errors.New(`error decoding the iventory. details: invalid character '{' looking for beginning of object key string`),
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			backups, err := scenario.awsCloud.List()
+			if !reflect.DeepEqual(scenario.expected, backups) {
+				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
 			}
 			if !reflect.DeepEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)

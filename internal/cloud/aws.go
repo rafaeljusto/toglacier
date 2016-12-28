@@ -28,6 +28,10 @@ const multipartUploadLimit int64 = 102400 // 100 MB
 // bytes. The last part can be smaller than this part size.
 const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 
+// waitJobTime is the amount of time that we wait for the job to complete, as it
+// takes some time, we will sleep for a long time before we check again.
+var waitJobTime time.Duration = time.Minute
+
 var now = func() time.Time {
 	return time.Now()
 }
@@ -357,9 +361,7 @@ func (a *AWSCloud) waitJob(jobID string) error {
 			return errors.New("job not found in aws")
 		}
 
-		// Wait for the job to complete, as it takes some time, we will sleep for a
-		// long time before we check again
-		time.Sleep(1 * time.Minute)
+		time.Sleep(waitJobTime)
 	}
 }
 
