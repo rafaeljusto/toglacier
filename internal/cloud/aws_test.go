@@ -1,4 +1,4 @@
-package cloud
+package cloud_test
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/kr/pretty"
+	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
 func TestNewAWSCloud(t *testing.T) {
@@ -25,7 +26,7 @@ func TestNewAWSCloud(t *testing.T) {
 		vaultName     string
 		debug         bool
 		env           map[string]string
-		expected      *AWSCloud
+		expected      *cloud.AWSCloud
 		expectedEnv   map[string]string
 		expectedError error
 	}{
@@ -38,9 +39,9 @@ func TestNewAWSCloud(t *testing.T) {
 				"AWS_ACCESS_KEY_ID":     "encrypted:70kFcm/ppZ4tHIspcH3ucbgzSsKQ",
 				"AWS_SECRET_ACCESS_KEY": "encrypted:tddsKQECwhIVLDAhXsgaT97NsPlN4Q==",
 			},
-			expected: &AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
+			expected: &cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
 			},
 			expectedEnv: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "keyid",
@@ -101,11 +102,13 @@ func TestNewAWSCloud(t *testing.T) {
 				os.Setenv(key, value)
 			}
 
-			awsCloud, err := NewAWSCloud(scenario.accountID, scenario.vaultName, scenario.debug)
+			awsCloud, err := cloud.NewAWSCloud(scenario.accountID, scenario.vaultName, scenario.debug)
 
 			// we are not interested on testing low level structures from AWS library
+			// or clock controlling layer
 			if scenario.expected != nil {
-				scenario.expected.glacier = awsCloud.glacier
+				scenario.expected.Glacier = awsCloud.Glacier
+				scenario.expected.Clock = awsCloud.Clock
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
@@ -124,20 +127,11 @@ func TestNewAWSCloud(t *testing.T) {
 }
 
 func TestAWSCloud_Send(t *testing.T) {
-	originalNow := now
-	defer func() {
-		now = originalNow
-	}()
-
-	now = func() time.Time {
-		return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
-	}
-
 	scenarios := []struct {
 		description   string
 		filename      string
-		awsCloud      AWSCloud
-		expected      Backup
+		awsCloud      cloud.AWSCloud
+		expected      cloud.Backup
 		expectedError error
 	}{
 		{
@@ -161,10 +155,10 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
@@ -173,8 +167,13 @@ func TestAWSCloud_Send(t *testing.T) {
 						}, nil
 					},
 				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
 			},
-			expected: Backup{
+			expected: cloud.Backup{
 				ID:        "AWSID123",
 				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 				Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
@@ -193,12 +192,17 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return nil, errors.New("connection error")
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
 					},
 				},
 			},
@@ -216,16 +220,21 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
 							Location:  aws.String("/archive/AWSID123"),
 						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
 					},
 				},
 			},
@@ -247,24 +256,23 @@ func TestAWSCloud_Send(t *testing.T) {
 }
 
 func TestAWSCloud_List(t *testing.T) {
-	originalWaitJobTime := waitJobTime
 	defer func() {
-		waitJobTime = originalWaitJobTime
+		cloud.WaitJobTime(time.Minute)
 	}()
-	waitJobTime = 100 * time.Millisecond
+	cloud.WaitJobTime(100 * time.Millisecond)
 
 	scenarios := []struct {
 		description   string
-		awsCloud      AWSCloud
-		expected      []Backup
+		awsCloud      cloud.AWSCloud
+		expected      []cloud.Backup
 		expectedError error
 	}{
 		{
 			description: "it should list all backups correctly",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -285,9 +293,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   awsIventoryArchiveList
+							ArchiveList   cloud.AWSIventoryArchiveList
 						}{
-							ArchiveList: awsIventoryArchiveList{
+							ArchiveList: cloud.AWSIventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -316,7 +324,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expected: []Backup{
+			expected: []cloud.Backup{
 				{
 					ID:        "AWSID122",
 					CreatedAt: time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
@@ -333,10 +341,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while initiating the job",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return nil, errors.New("a crazy error")
 					},
@@ -346,10 +354,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when there's an error listing the existing jobs",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -364,10 +372,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when the job failed",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -391,10 +399,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when the job was not found",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -417,10 +425,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should continue checking jobs until it completes",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -445,9 +453,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   awsIventoryArchiveList
+							ArchiveList   cloud.AWSIventoryArchiveList
 						}{
-							ArchiveList: awsIventoryArchiveList{
+							ArchiveList: cloud.AWSIventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -469,7 +477,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expected: []Backup{
+			expected: []cloud.Backup{
 				{
 					ID:        "AWSID123",
 					CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
@@ -480,10 +488,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while retrieving the job data",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -509,10 +517,10 @@ func TestAWSCloud_List(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while decoding the job data",
-			awsCloud: AWSCloud{
-				accountID: "account",
-				vaultName: "vault",
-				glacier: glacierAPIMock{
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -896,4 +904,12 @@ func (g glacierAPIMock) WaitUntilVaultExists(d *glacier.DescribeVaultInput) erro
 
 func (g glacierAPIMock) WaitUntilVaultNotExists(d *glacier.DescribeVaultInput) error {
 	return g.mockWaitUntilVaultNotExists(d)
+}
+
+type fakeClock struct {
+	mockNow func() time.Time
+}
+
+func (f fakeClock) Now() time.Time {
+	return f.mockNow()
 }

@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,26 +22,45 @@ import (
 	"github.com/aws/aws-sdk-go/service/glacier/glacieriface"
 )
 
-// multipartUploadLimit defines the limit where we decide if we will send the
-// file in one shot or if we will use multipart upload strategy.
-const multipartUploadLimit int64 = 102400 // 100 MB
+var multipartUploadLimit int64 = 102400 // 100 MB
 
-// partSize the size of each part of the multipart upload except the last, in
-// bytes. The last part can be smaller than this part size.
-const partSize int64 = 4096 // 4 MB will limit the archive in 40GB
+// MultipartUploadLimit defines the limit where we decide if we will send the
+// file in one shot or if we will use multipart upload strategy. By default we
+// use 100 MB.
+func MultipartUploadLimit(value int64) {
+	atomic.StoreInt64(&multipartUploadLimit, value)
+}
 
-// waitJobTime is the amount of time that we wait for the job to complete, as it
-// takes some time, we will sleep for a long time before we check again.
-var waitJobTime time.Duration = time.Minute
+var partSize int64 = 4096 // 4 MB will limit the archive in 40GB
 
-var now = func() time.Time {
-	return time.Now()
+// PartSize the size of each part of the multipart upload except the last, in
+// bytes. The last part can be smaller than this part size. By default we use
+// 4MB.
+func PartSize(value int64) {
+	atomic.StoreInt64(&partSize, value)
+}
+
+var waitJobTime = struct {
+	time.Duration
+	sync.RWMutex
+}{
+	Duration: time.Minute,
+}
+
+// WaitJobTime is the amount of time that we wait for the job to complete, as it
+// takes some time, we will sleep for a long time before we check again. By
+// default we use 1 minute.
+func WaitJobTime(value time.Duration) {
+	waitJobTime.Lock()
+	defer waitJobTime.Unlock()
+	waitJobTime.Duration = value
 }
 
 type AWSCloud struct {
-	accountID string
-	vaultName string
-	glacier   glacieriface.GlacierAPI
+	AccountID string
+	VaultName string
+	Glacier   glacieriface.GlacierAPI
+	Clock     Clock
 }
 
 func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
@@ -85,9 +106,10 @@ func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	}
 
 	return &AWSCloud{
-		accountID: accountID,
-		vaultName: vaultName,
-		glacier:   awsGlacier,
+		AccountID: accountID,
+		VaultName: vaultName,
+		Glacier:   awsGlacier,
+		Clock:     realClock{},
 	}, nil
 }
 
@@ -111,7 +133,7 @@ func (a *AWSCloud) Send(filename string) (Backup, error) {
 
 func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	backup := Backup{
-		CreatedAt: now(),
+		CreatedAt: a.Clock.Now(),
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -119,14 +141,14 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	hash := glacier.ComputeHashes(archive)
 
 	uploadArchiveInput := glacier.UploadArchiveInput{
-		AccountId:          aws.String(a.accountID),
+		AccountId:          aws.String(a.AccountID),
 		ArchiveDescription: aws.String(fmt.Sprintf("backup file from %s", backup.CreatedAt.Format(time.RFC3339))),
 		Body:               archive,
 		Checksum:           aws.String(hex.EncodeToString(hash.TreeHash)),
-		VaultName:          aws.String(a.vaultName),
+		VaultName:          aws.String(a.VaultName),
 	}
 
-	archiveCreationOutput, err := a.glacier.UploadArchive(&uploadArchiveInput)
+	archiveCreationOutput, err := a.Glacier.UploadArchive(&uploadArchiveInput)
 	if err != nil {
 		return Backup{}, fmt.Errorf("error sending archive to aws glacier. details: %s", err)
 	}
@@ -138,23 +160,23 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
 	backup.ID = locationParts[len(locationParts)-1]
 	backup.Checksum = *archiveCreationOutput.Checksum
-	backup.VaultName = a.vaultName
+	backup.VaultName = a.VaultName
 	return backup, nil
 }
 
 func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) {
 	backup := Backup{
-		CreatedAt: now(),
+		CreatedAt: a.Clock.Now(),
 	}
 
 	initiateMultipartUploadInput := glacier.InitiateMultipartUploadInput{
-		AccountId:          aws.String(a.accountID),
+		AccountId:          aws.String(a.AccountID),
 		ArchiveDescription: aws.String(fmt.Sprintf("backup file from %s", backup.CreatedAt.Format(time.RFC3339))),
 		PartSize:           aws.String(strconv.FormatInt(partSize, 10)),
-		VaultName:          aws.String(a.vaultName),
+		VaultName:          aws.String(a.VaultName),
 	}
 
-	initiateMultipartUploadOutput, err := a.glacier.InitiateMultipartUpload(&initiateMultipartUploadInput)
+	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUpload(&initiateMultipartUploadInput)
 	if err != nil {
 		return Backup{}, fmt.Errorf("error initializing multipart upload. details: %s", err)
 	}
@@ -172,15 +194,15 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		hash := glacier.ComputeHashes(body)
 
 		awsArchivePart := glacier.UploadMultipartPartInput{
-			AccountId: aws.String(a.accountID),
+			AccountId: aws.String(a.AccountID),
 			Body:      body,
 			Checksum:  aws.String(hex.EncodeToString(hash.TreeHash)),
 			Range:     aws.String(fmt.Sprintf("%d-%d/%d", offset, offset+int64(n), archiveSize)),
 			UploadId:  initiateMultipartUploadOutput.UploadId,
-			VaultName: aws.String(a.vaultName),
+			VaultName: aws.String(a.VaultName),
 		}
 
-		if _, err := a.glacier.UploadMultipartPart(&awsArchivePart); err != nil {
+		if _, err := a.Glacier.UploadMultipartPart(&awsArchivePart); err != nil {
 			return Backup{}, fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
 		}
 	}
@@ -190,14 +212,14 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	hash := glacier.ComputeHashes(archive)
 
 	completeMultipartUploadInput := glacier.CompleteMultipartUploadInput{
-		AccountId:   aws.String(a.accountID),
+		AccountId:   aws.String(a.AccountID),
 		ArchiveSize: aws.String(strconv.FormatInt(archiveSize, 10)),
 		Checksum:    aws.String(hex.EncodeToString(hash.TreeHash)),
 		UploadId:    initiateMultipartUploadOutput.UploadId,
-		VaultName:   aws.String(a.vaultName),
+		VaultName:   aws.String(a.VaultName),
 	}
 
-	archiveCreationOutput, err := a.glacier.CompleteMultipartUpload(&completeMultipartUploadInput)
+	archiveCreationOutput, err := a.Glacier.CompleteMultipartUpload(&completeMultipartUploadInput)
 	if err != nil {
 		return Backup{}, fmt.Errorf("error completing multipart upload. details: %s", err)
 	}
@@ -209,21 +231,21 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
 	backup.ID = locationParts[len(locationParts)-1]
 	backup.Checksum = *archiveCreationOutput.Checksum
-	backup.VaultName = a.vaultName
+	backup.VaultName = a.VaultName
 	return backup, nil
 }
 
 func (a *AWSCloud) List() ([]Backup, error) {
 	initiateJobInput := glacier.InitiateJobInput{
-		AccountId: aws.String(a.accountID),
+		AccountId: aws.String(a.AccountID),
 		JobParameters: &glacier.JobParameters{
 			Format: aws.String("JSON"),
 			Type:   aws.String("inventory-retrieval"),
 		},
-		VaultName: aws.String(a.vaultName),
+		VaultName: aws.String(a.VaultName),
 	}
 
-	initiateJobOutput, err := a.glacier.InitiateJob(&initiateJobInput)
+	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
 		return nil, fmt.Errorf("error initiating the job. details: %s", err)
 	}
@@ -233,12 +255,12 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	}
 
 	jobOutputInput := glacier.GetJobOutputInput{
-		AccountId: aws.String(a.accountID),
+		AccountId: aws.String(a.AccountID),
 		JobId:     initiateJobOutput.JobId,
-		VaultName: aws.String(a.vaultName),
+		VaultName: aws.String(a.VaultName),
 	}
 
-	jobOutputOutput, err := a.glacier.GetJobOutput(&jobOutputInput)
+	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving the job information. details: %s", err)
 	}
@@ -248,7 +270,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	iventory := struct {
 		VaultARN      string `json:"VaultARN"`
 		InventoryDate string `json:"InventoryDate"`
-		ArchiveList   awsIventoryArchiveList
+		ArchiveList   AWSIventoryArchiveList
 	}{}
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
@@ -264,23 +286,23 @@ func (a *AWSCloud) List() ([]Backup, error) {
 			ID:        archive.ArchiveID,
 			CreatedAt: archive.CreationDate,
 			Checksum:  archive.SHA256TreeHash,
-			VaultName: a.vaultName,
+			VaultName: a.VaultName,
 		})
 	}
 	return backups, nil
 }
 
-func (a *AWSCloud) Get(id string) (filename string, err error) {
+func (a *AWSCloud) Get(id string) (string, error) {
 	initiateJobInput := glacier.InitiateJobInput{
-		AccountId: aws.String(a.accountID),
+		AccountId: aws.String(a.AccountID),
 		JobParameters: &glacier.JobParameters{
 			ArchiveId: aws.String(id),
 			Type:      aws.String("archive-retrieval"),
 		},
-		VaultName: aws.String(a.vaultName),
+		VaultName: aws.String(a.VaultName),
 	}
 
-	initiateJobOutput, err := a.glacier.InitiateJob(&initiateJobInput)
+	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
 		return "", fmt.Errorf("error initiating the job. details: %s", err)
 	}
@@ -290,12 +312,12 @@ func (a *AWSCloud) Get(id string) (filename string, err error) {
 	}
 
 	jobOutputInput := glacier.GetJobOutputInput{
-		AccountId: aws.String(a.accountID),
+		AccountId: aws.String(a.AccountID),
 		JobId:     initiateJobOutput.JobId,
-		VaultName: aws.String(a.vaultName),
+		VaultName: aws.String(a.VaultName),
 	}
 
-	jobOutputOutput, err := a.glacier.GetJobOutput(&jobOutputInput)
+	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
 		return "", fmt.Errorf("error retrieving the job information. details: %s", err)
 	}
@@ -316,12 +338,12 @@ func (a *AWSCloud) Get(id string) (filename string, err error) {
 
 func (a *AWSCloud) Remove(id string) error {
 	deleteArchiveInput := glacier.DeleteArchiveInput{
-		AccountId: aws.String(a.accountID),
+		AccountId: aws.String(a.AccountID),
 		ArchiveId: aws.String(id),
-		VaultName: aws.String(a.vaultName),
+		VaultName: aws.String(a.VaultName),
 	}
 
-	if _, err := a.glacier.DeleteArchive(&deleteArchiveInput); err != nil {
+	if _, err := a.Glacier.DeleteArchive(&deleteArchiveInput); err != nil {
 		return fmt.Errorf("error removing old backup. details: %s", err)
 	}
 
@@ -329,13 +351,17 @@ func (a *AWSCloud) Remove(id string) error {
 }
 
 func (a *AWSCloud) waitJob(jobID string) error {
+	waitJobTime.RLock()
+	sleep := waitJobTime.Duration
+	waitJobTime.RUnlock()
+
 	for {
 		listJobsInput := glacier.ListJobsInput{
-			AccountId: aws.String(a.accountID),
-			VaultName: aws.String(a.vaultName),
+			AccountId: aws.String(a.AccountID),
+			VaultName: aws.String(a.VaultName),
 		}
 
-		listJobsOutput, err := a.glacier.ListJobs(&listJobsInput)
+		listJobsOutput, err := a.Glacier.ListJobs(&listJobsInput)
 		if err != nil {
 			return fmt.Errorf("error retrieving the job from aws. details: %s", err)
 		}
@@ -361,11 +387,13 @@ func (a *AWSCloud) waitJob(jobID string) error {
 			return errors.New("job not found in aws")
 		}
 
-		time.Sleep(waitJobTime)
+		time.Sleep(sleep)
 	}
 }
 
-type awsIventoryArchiveList []struct {
+// AWSIventoryArchiveList stores the archive information retrieved from AWS
+// Glacier service.
+type AWSIventoryArchiveList []struct {
 	ArchiveID          string    `json:"ArchiveId"`
 	ArchiveDescription string    `json:"ArchiveDescription"`
 	CreationDate       time.Time `json:"CreationDate"`
@@ -373,14 +401,14 @@ type awsIventoryArchiveList []struct {
 	SHA256TreeHash     string    `json:"SHA256TreeHash"`
 }
 
-func (a awsIventoryArchiveList) Len() int {
+func (a AWSIventoryArchiveList) Len() int {
 	return len(a)
 }
 
-func (a awsIventoryArchiveList) Less(i, j int) bool {
+func (a AWSIventoryArchiveList) Less(i, j int) bool {
 	return a[i].CreationDate.Before(a[j].CreationDate)
 }
 
-func (a awsIventoryArchiveList) Swap(i, j int) {
+func (a AWSIventoryArchiveList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
