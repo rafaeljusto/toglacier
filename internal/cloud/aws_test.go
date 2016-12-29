@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,16 +128,23 @@ func TestNewAWSCloud(t *testing.T) {
 }
 
 func TestAWSCloud_Send(t *testing.T) {
+	defer cloud.MultipartUploadLimit(102400)
+	defer cloud.PartSize(4096)
+
 	scenarios := []struct {
-		description   string
-		filename      string
-		awsCloud      cloud.AWSCloud
-		expected      cloud.Backup
-		expectedError error
+		description          string
+		filename             string
+		multipartUploadLimit int64
+		partSize             int64
+		awsCloud             cloud.AWSCloud
+		expected             cloud.Backup
+		expectedError        error
 	}{
 		{
-			description: "it should detect when the file doesn't exist",
-			filename:    "toglacier-idontexist.tmp",
+			description:          "it should detect when the file doesn't exist",
+			filename:             "toglacier-idontexist.tmp",
+			multipartUploadLimit: 102400,
+			partSize:             4096,
 			expectedError: fmt.Errorf("error opening archive. details: %s", &os.PathError{
 				Op:   "open",
 				Path: "toglacier-idontexist.tmp",
@@ -155,6 +163,8 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
 				AccountID: "account",
 				VaultName: "vault",
@@ -192,6 +202,8 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
 				AccountID: "account",
 				VaultName: "vault",
@@ -220,6 +232,8 @@ func TestAWSCloud_Send(t *testing.T) {
 				f.WriteString("Important information for the test backup")
 				return f.Name()
 			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
 				AccountID: "account",
 				VaultName: "vault",
@@ -240,10 +254,213 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 			expectedError: errors.New("error comparing checksums"),
 		},
+		{
+			description: "it should send a big backup correctly",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return &glacier.UploadMultipartPartOutput{}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expected: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+				Checksum:  "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+				VaultName: "vault",
+			},
+		},
+		{
+			description: "it should detect an error initiating a big backup upload",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return nil, errors.New("aws is out")
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error initializing multipart upload. details: aws is out"),
+		},
+		{
+			description: "it should detect an error while sending big backup part",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func() func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						var i int
+						return func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+							i++
+							if i >= 5 {
+								return nil, errors.New("part rejected")
+							} else {
+								return &glacier.UploadMultipartPartOutput{}, nil
+							}
+						}
+					}(),
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error sending an archive part (400). details: part rejected"),
+		},
+		{
+			description: "it should detect an error while completing a big backup upload",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return &glacier.UploadMultipartPartOutput{}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return nil, errors.New("backup too big")
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error completing multipart upload. details: backup too big"),
+		},
+		{
+			description: "it should detect when a big backup checksum don't match",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return &glacier.UploadMultipartPartOutput{}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error comparing checksums"),
+		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
+			cloud.MultipartUploadLimit(scenario.multipartUploadLimit)
+			cloud.PartSize(scenario.partSize)
+
 			backup, err := scenario.awsCloud.Send(scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
@@ -256,9 +473,7 @@ func TestAWSCloud_Send(t *testing.T) {
 }
 
 func TestAWSCloud_List(t *testing.T) {
-	defer func() {
-		cloud.WaitJobTime(time.Minute)
-	}()
+	defer cloud.WaitJobTime(time.Minute)
 	cloud.WaitJobTime(100 * time.Millisecond)
 
 	scenarios := []struct {

@@ -193,7 +193,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		body := bytes.NewReader(part[:n])
 		hash := glacier.ComputeHashes(body)
 
-		awsArchivePart := glacier.UploadMultipartPartInput{
+		uploadMultipartPartInput := glacier.UploadMultipartPartInput{
 			AccountId: aws.String(a.AccountID),
 			Body:      body,
 			Checksum:  aws.String(hex.EncodeToString(hash.TreeHash)),
@@ -202,9 +202,11 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 			VaultName: aws.String(a.VaultName),
 		}
 
-		if _, err := a.Glacier.UploadMultipartPart(&awsArchivePart); err != nil {
+		if _, err := a.Glacier.UploadMultipartPart(&uploadMultipartPartInput); err != nil {
 			return Backup{}, fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
 		}
+
+		// TODO: Verify checksum of each uploaded part
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
