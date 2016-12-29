@@ -991,6 +991,52 @@ func TestAWSCloud_Get(t *testing.T) {
 	}
 }
 
+func TestAWSCloud_Remove(t *testing.T) {
+	scenarios := []struct {
+		description   string
+		id            string
+		awsCloud      cloud.AWSCloud
+		expectedError error
+	}{
+		{
+			description: "it should remove a backup correctly",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						return &glacier.DeleteArchiveOutput{}, nil
+					},
+				},
+			},
+		},
+		{
+			description: "it should detect an error while removing a backup",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						return nil, errors.New("no backup here")
+					},
+				},
+			},
+			expectedError: errors.New("error removing old backup. details: no backup here"),
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			err := scenario.awsCloud.Remove(scenario.id)
+			if !reflect.DeepEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
 type glacierAPIMock struct {
 	mockAbortMultipartUploadRequest     func(*glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput)
 	mockAbortMultipartUpload            func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error)
