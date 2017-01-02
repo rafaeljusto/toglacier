@@ -11,7 +11,7 @@ import (
 
 // passwordKey returns the shared secret used to encrypt and decrypt the
 // passwords. For safety, you should change this numbers before deploying this
-// project. It's importante that the secret has 16 characters, so that we can
+// project. It's important that the secret has 16 characters, so that we can
 // generate an AES-128.
 func passwordKey() []byte {
 	a0 := []byte{0x90, 0x19, 0x14, 0xa0, 0x94, 0x23, 0xb1, 0xa4, 0x98, 0x27, 0xb5, 0xa8, 0xd3, 0x31, 0xb9, 0xe2}
