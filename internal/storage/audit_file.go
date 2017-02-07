@@ -10,16 +10,19 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
+// AuditFile stores all backup informations in a simple text file.
 type AuditFile struct {
 	Filename string
 }
 
+// NewAuditFile initializes a new AuditFile object.
 func NewAuditFile(filename string) *AuditFile {
 	return &AuditFile{
 		Filename: filename,
 	}
 }
 
+// Save a backup information.
 func (a *AuditFile) Save(backup cloud.Backup) error {
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
@@ -35,6 +38,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 	return nil
 }
 
+// List all backup informations in the storage.
 func (a *AuditFile) List() ([]cloud.Backup, error) {
 	auditFile, err := os.Open(a.Filename)
 	if err != nil {
@@ -71,6 +75,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	return backups, nil
 }
 
+// Remove a specific backup information from the storage.
 func (a *AuditFile) Remove(id string) error {
 	backups, err := a.List()
 	if err != nil {

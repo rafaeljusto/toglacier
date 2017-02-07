@@ -56,6 +56,8 @@ func WaitJobTime(value time.Duration) {
 	waitJobTime.Duration = value
 }
 
+// AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
+// the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
 	AccountID string
 	VaultName string
@@ -63,6 +65,10 @@ type AWSCloud struct {
 	Clock     Clock
 }
 
+// NewAWSCloud initializes the Amazon cloud object, defining the account ID and
+// vault name that are going to be used in the AWS Glacier service. For more
+// details set the debug flag to receive low level information in the standard
+// output.
 func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	var err error
 
@@ -113,6 +119,9 @@ func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	}, nil
 }
 
+// Send uploads the file to the cloud and return the backup archive information.
+// It already has the logic to send directly if it's a small file or use
+// multipart strategy if it's a large file.
 func (a *AWSCloud) Send(filename string) (Backup, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
@@ -237,6 +246,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	return backup, nil
 }
 
+// List retrieves all the uploaded backups information in the cloud.
 func (a *AWSCloud) List() ([]Backup, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(a.AccountID),
@@ -294,6 +304,8 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	return backups, nil
 }
 
+// Get retrieves a specific backup file and stores it locally in a file. The
+// filename storing the location of the file is returned.
 func (a *AWSCloud) Get(id string) (string, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(a.AccountID),
@@ -338,6 +350,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 	return backup.Name(), nil
 }
 
+// Remove erase a specific backup from the cloud.
 func (a *AWSCloud) Remove(id string) error {
 	deleteArchiveInput := glacier.DeleteArchiveInput{
 		AccountId: aws.String(a.AccountID),
