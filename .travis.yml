@@ -1,0 +1,22 @@
+language: go
+
+go:
+  - tip
+
+env:
+  global:
+    - secure: "wQ3BORO8zjlx3aMl3zrQCoimKsnisMwnKERA+t7I0YNcpwfz4R4twM3FROT2tq3I7FfLwjKv9xPuFL+4VwNU8JbjZrTeoN5IsQ/D8q82S0Mgd8tiLX+X/VaRB4sCbpSHk0B7X0VBXVs0MzGuUoW+dhIc/KNy7ijvb5wF4HJMQpe1o58t/jcD3aX9IQ92U9FgVl/OJxSaT9svkDeIgRLHS69pD+nm91FJMiw0fyHA3yu1oV7ufoScc3kyG0fCv41+AF4TLRo3GJLK0WSzC7lI7u83uY132e6qxF+Iy6GtWgmpXWN4c+r6fNd22qT64AwVqAbUSueZPrEpQ08hgj6eO93tD9CymgNjQRwFG1h/659FMxrrApPK4/f9vrE11GwAEyAIje1eMpyISrZ1HApMFpVuJUI9CSWECGykkmjYTGEdKur4SU+bGUzpjkpDDIslJ6wbW9uxIBWnyVzRhqp/uGNfbNbvMozNFe2wDiT4f+7ondYgOA3PiMsM3xdtbbpiL8oZPKecQdQOcLzgjDJijMp5N7IEC9dYvwyofapUmFbay6pOM4XfPw9QlvDRAEPuBLIikLDY1fTQLELvD0GFqtdSxaoamuwpd0QwxJUFxjfKan8UbHwh+C1m2m7b6vQvQ37fDDu1PVbu7m7U4r/HKnOb3Jhm7wnzuawA/WKCpYY="
+
+install:
+  - go get github.com/mattn/goveralls
+
+script:
+  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then go test -v -cover $(go list ./... | grep -v vendor); fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then go test -v -covermode=count -coverprofile=coverage.out $(go list ./... | grep -v vendor) && $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN; fi'
+
+notifications:
+  email:
+    recipients:
+      - adm@rafael.net.br
+    on_success: change
+    on_failure: always

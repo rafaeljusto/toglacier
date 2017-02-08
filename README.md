@@ -1,3 +1,10 @@
+[![GoDoc](https://godoc.org/github.com/rafaeljusto/toglacier?status.png)](https://godoc.org/github.com/rafaeljusto/toglacier)
+[![license](http://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/rafaeljusto/toglacier/master/LICENSE)
+[![Build Status](https://travis-ci.org/rafaeljusto/toglacier.png?branch=master)](https://travis-ci.org/rafaeljusto/toglacier)
+[![Coverage Status](https://coveralls.io/repos/github/rafaeljusto/toglacier/badge.svg?branch=master)](https://coveralls.io/github/rafaeljusto/toglacier?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rafaeljusto/toglacier)](https://goreportcard.com/report/github.com/rafaeljusto/toglacier)
+[![codebeat badge](https://codebeat.co/badges/f772925e-c2b3-4631-9f19-83cca1dc3a4b)](https://codebeat.co/projects/github-com-rafaeljusto-toglacier)
+
 ![toglacier](https://raw.githubusercontent.com/rafaeljusto/toglacier/master/toglacier.png)
 
 # toglacier
