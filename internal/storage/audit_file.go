@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -22,7 +23,10 @@ func NewAuditFile(filename string) *AuditFile {
 	}
 }
 
-// Save a backup information.
+// Save a backup information. It stores the backup information one per line with
+// the following columns:
+//
+//     [datetime] [vaultName] [archiveID] [checksum]
 func (a *AuditFile) Save(backup cloud.Backup) error {
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
@@ -52,7 +56,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	for scanner.Scan() {
 		lineParts := strings.Split(scanner.Text(), " ")
 		if len(lineParts) != 4 {
-			return nil, fmt.Errorf("corrupted audit file. wrong number of columns")
+			return nil, errors.New("corrupted audit file. wrong number of columns")
 		}
 
 		backup := cloud.Backup{
