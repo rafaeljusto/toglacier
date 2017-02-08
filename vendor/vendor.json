@@ -139,6 +139,18 @@
 			"revisionTime": "2016-08-03T19:07:31Z"
 		},
 		{
+			"checksumSHA1": "eOXF2PEvYLMeD8DSzLZJWbjYzco=",
+			"path": "github.com/kr/pretty",
+			"revision": "cfb55aafdaf3ec08f0db22699ab822c50091b1c4",
+			"revisionTime": "2016-08-23T17:07:15Z"
+		},
+		{
+			"checksumSHA1": "uulQHQ7IsRKqDudBC8Go9J0gtAc=",
+			"path": "github.com/kr/text",
+			"revision": "7cafcd837844e784b526369c9bce262804aebc60",
+			"revisionTime": "2016-05-04T02:26:26Z"
+		},
+		{
 			"checksumSHA1": "LMu1NsthSqcXfKu0m6YGPAmwBcY=",
 			"path": "github.com/urfave/cli",
 			"revision": "0bdeddeeb0f650497d603c4ad7b20cfe685682f6",
