@@ -74,7 +74,7 @@ func buildArchiveLevels(tarArchive *tar.Writer, basePath, currentPath string) er
 			return fmt.Errorf("error writing content in tar for file %s. details: %s", filename, err)
 
 		} else if n != file.Size() {
-			return fmt.Errorf("wrong number of bytes writen in file %s", filename)
+			return fmt.Errorf("wrong number of bytes written in file %s", filename)
 		}
 
 		if err := fd.Close(); err != nil {
