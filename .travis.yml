@@ -11,8 +11,20 @@ install:
   - go get github.com/mattn/goveralls
 
 script:
-  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then go test -v -cover $(go list ./... | grep -v vendor); fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then go test -v -covermode=count -coverprofile=coverage.out $(go list ./... | grep -v vendor) && $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN; fi'
+  - >
+    if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+      go test -v -cover $(go list ./... | grep -v vendor);
+    fi
+  - >
+    if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then
+      echo "mode: count" > coverage.out
+      for pkg in `go list ./... | grep -v vendor`; do
+        go test -v -covermode=count -coverprofile=coverage-tmp.out $pkg
+        tail -n +2 coverage-tmp.out >> coverage.out
+      done
+
+      $HOME/gopath/bin/goveralls -coverprofile=coverage.out -service=travis-ci -repotoken $COVERALLS_TOKEN;
+    fi
 
 notifications:
   email:
