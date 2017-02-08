@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Use multipart upload strategy when the archive is bigger than 100MB (was 1GB)
 - Remove temporary tarball after synchronization
 
+### Changed
+- Major refactory on the project structure, with unit tests and documentation
+
 ## [1.0.0] - 2016-12-08
 ### Added
 - Allow multiple backup paths
