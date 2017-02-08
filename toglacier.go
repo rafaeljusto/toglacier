@@ -158,7 +158,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 	if remote {
 		backups, err := c.List()
 		if err != nil {
-			log.Printf("error retrieving remote backups. details: %s", err)
+			log.Println(err)
 		}
 		return backups
 	}
