@@ -102,7 +102,11 @@ func TestBuild(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedError: errors.New(`error reading path “idontexist12345”. details: open idontexist12345: no such file or directory`),
+			expectedError: fmt.Errorf("error reading path “idontexist12345”. details: %s", &os.PathError{
+				Op:   "open",
+				Path: "idontexist12345",
+				Err:  errors.New("no such file or directory"),
+			}),
 		},
 	}
 
