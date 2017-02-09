@@ -383,19 +383,23 @@ func (a *AWSCloud) waitJob(jobID string) error {
 
 		jobFound := false
 		for _, jobDescription := range listJobsOutput.JobList {
-			if *jobDescription.JobId == jobID {
-				jobFound = true
+			if *jobDescription.JobId != jobID {
+				continue
+			}
 
-				if *jobDescription.Completed {
-					if *jobDescription.StatusCode == "Succeeded" {
-						return nil
-					} else if *jobDescription.StatusCode == "Failed" {
-						return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
-					}
-				}
+			jobFound = true
 
+			if !*jobDescription.Completed {
 				break
 			}
+
+			if *jobDescription.StatusCode == "Succeeded" {
+				return nil
+			} else if *jobDescription.StatusCode == "Failed" {
+				return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+			}
+
+			break
 		}
 
 		if !jobFound {
