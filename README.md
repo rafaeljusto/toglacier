@@ -143,3 +143,25 @@ You can also build a package for the FreeBSD
 here to build the package.
 
     ./package-txz.sh <version>-<release>
+
+### Windows
+
+To make your life easier you can use the tool [NSSM](http://nssm.cc) to build a
+Windows service to run the toglacier tool in background. The following commands
+would install the service (replace the necessary parameters):
+
+```
+c:\> nssm.exe install toglacier c:\programs\toglacier.exe start
+
+c:\> nssm.exe set toglacier AppEnvironmentExtra ^
+  AWS_ACCOUNT_ID=encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w== ^
+  AWS_ACCESS_KEY_ID=encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ ^
+  AWS_SECRET_ACCESS_KEY=encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA= ^
+  AWS_REGION=us-east-1 ^
+  AWS_VAULT_NAME=backup ^
+  TOGLACIER_PATH=c:\data\important-files-1,c:\data\important-files-2 ^
+  TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
+  TOGLACIER_KEEP_BACKUPS=10
+
+c:\> nssm.exe start toglacier
+```
