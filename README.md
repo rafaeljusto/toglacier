@@ -28,7 +28,8 @@ follow the AWS suggestion and send multipart when the tarball gets bigger than
 The maximum archive size is 40GB (but we can increase this).
 
 Old backups will also be removed automatically, to avoid keeping many files in
-AWS Glacier service, and consequently saving you some money.
+AWS Glacier service, and consequently saving you some money. Periodically, the
+tool will request the remote backups in AWS to synchronize the local storage.
 
 ## Install
 
@@ -94,7 +95,8 @@ to wait for the iventory).
 When running the scheduler (start command), **the tool will backup the files
 once a day at midnight**. This information isn't configurable yet (the library
 that I'm using for cron tasks isn't so flexible). Also, **old backups are
-removed once a week at 1 AM** (yep, not configurable yet).
+removed once a week at 1 AM** (yep, not configurable yet). To keep the
+consistency, **local storage synchronization will occur once a month at 12 PM**.
 
 A simple shell script that could help you running the program in Unix
 environments:

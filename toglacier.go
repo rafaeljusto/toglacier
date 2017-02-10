@@ -109,8 +109,9 @@ func main() {
 			Usage: "run the scheduler (will block forever)",
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
-				scheduler.Every(1).Day().At("00:00").Do(backup, nil)
-				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, nil)
+				scheduler.Every(1).Day().At("00:00").Do(backup, awsCloud, auditFileStorage)
+				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, awsCloud, auditFileStorage)
+				scheduler.Every(4).Weeks().At("12:00").Do(listBackups, true, awsCloud, auditFileStorage)
 				<-scheduler.Start()
 				return nil
 			},
@@ -232,7 +233,7 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 }
 
 func removeOldBackups(c cloud.Cloud, s storage.Storage) {
-	backups := listBackups(true, c, s)
+	backups := listBackups(false, c, s)
 	for i := keepBackups; i < len(backups); i++ {
 		removeBackup(backups[i].ID, c, s)
 	}
