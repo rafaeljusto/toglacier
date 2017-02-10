@@ -10,6 +10,7 @@ import (
 	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/config"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
 )
@@ -35,12 +36,8 @@ func init() {
 }
 
 func main() {
-	awsCloud, err := cloud.NewAWSCloud(awsAccountID, awsVaultName, false)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	auditFileStorage := storage.NewAuditFile(auditFile)
+	var awsCloud cloud.Cloud
+	var auditFileStorage storage.Storage
 
 	app := cli.NewApp()
 	app.Name = "toglacier"
@@ -51,6 +48,37 @@ func main() {
 			Name:  "Rafael Dantas Justo",
 			Email: "adm@rafael.net.br",
 		},
+	}
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "config, c",
+			Usage: "Tool configuration file (YAML)",
+		},
+	}
+	app.Before = func(c *cli.Context) error {
+		config.Default()
+
+		var err error
+
+		if c.String("config") != "" {
+			if err = config.LoadFromFile(c.String("config")); err != nil {
+				fmt.Printf("error loading configuration file. details: %s\n", err)
+				return nil
+			}
+		}
+
+		if err = config.LoadFromEnvironment(); err != nil {
+			fmt.Printf("error loading configuration from environment variables. details: %s\n", err)
+			return nil
+		}
+
+		if awsCloud, err = cloud.NewAWSCloud(config.Current(), false); err != nil {
+			fmt.Printf("error initializing AWS cloud. details: %s\n", err)
+			return nil
+		}
+
+		auditFileStorage = storage.NewAuditFile(auditFile)
+		return nil
 	}
 	app.Commands = []cli.Command{
 		{
@@ -122,7 +150,7 @@ func main() {
 			Usage:     "encrypt a password or secret",
 			ArgsUsage: "<password>",
 			Action: func(c *cli.Context) error {
-				if pwd, err := cloud.PasswordEncrypt(c.Args().First()); err == nil {
+				if pwd, err := config.PasswordEncrypt(c.Args().First()); err == nil {
 					fmt.Printf("encrypted:%s\n", pwd)
 				} else {
 					fmt.Printf("error encrypting password. details: %s\n", err)
