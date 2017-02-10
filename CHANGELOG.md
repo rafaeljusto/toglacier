@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Major refactory on the project structure, with unit tests and documentation
+- Local storage is synchronized when the remote backup information is requested
 
 ## [1.0.0] - 2016-12-08
 ### Added
