@@ -169,6 +169,38 @@ func TestListBackups(t *testing.T) {
 					}, nil
 				},
 			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					if b.ID != "123456" {
+						return fmt.Errorf("adding unexpected id %s", b.ID)
+					}
+
+					return nil
+				},
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123454",
+							CreatedAt: now.Add(-time.Second),
+							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+							VaultName: "test",
+						},
+						{
+							ID:        "123455",
+							CreatedAt: now.Add(-time.Minute),
+							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+							VaultName: "test",
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					if id != "123454" && id != "123455" {
+						return fmt.Errorf("removing unexpected id %s", id)
+					}
+
+					return nil
+				},
+			},
 			expected: []cloud.Backup{
 				{
 					ID:        "123456",
@@ -207,6 +239,24 @@ func TestListBackups(t *testing.T) {
 			cloud: mockCloud{
 				mockList: func() ([]cloud.Backup, error) {
 					return nil, errors.New("error listing backups")
+				},
+			},
+			storage: mockStorage{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123454",
+							CreatedAt: now.Add(-time.Second),
+							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+							VaultName: "test",
+						},
+						{
+							ID:        "123455",
+							CreatedAt: now.Add(-time.Minute),
+							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+							VaultName: "test",
+						},
+					}, nil
 				},
 			},
 			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error listing backups`),
@@ -407,9 +457,32 @@ func TestRemoveOldBackups(t *testing.T) {
 				},
 			},
 			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					if b.ID != "123456" && b.ID != "123457" && b.ID != "123458" {
+						return fmt.Errorf("adding unexpected id %s", b.ID)
+					}
+
+					return nil
+				},
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123454",
+							CreatedAt: now.Add(-time.Second),
+							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+							VaultName: "test",
+						},
+						{
+							ID:        "123455",
+							CreatedAt: now.Add(-time.Minute),
+							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+							VaultName: "test",
+						},
+					}, nil
+				},
 				mockRemove: func(id string) error {
-					if id != "123458" {
-						return fmt.Errorf("unexpected id %s", id)
+					if id != "123454" && id != "123455" && id != "123458" {
+						return fmt.Errorf("removing unexpected id %s", id)
 					}
 					return nil
 				},

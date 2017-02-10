@@ -155,20 +155,48 @@ func backup(c cloud.Cloud, s storage.Storage) {
 }
 
 func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
-	if remote {
-		backups, err := c.List()
-		if err != nil {
-			log.Println(err)
-		}
-		return backups
-	}
-
 	backups, err := s.List()
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
-	return backups
+
+	if !remote {
+		return backups
+	}
+
+	remoteBackups, err := c.List()
+	if err != nil {
+		log.Println(err)
+		return nil
+	}
+
+	// http://docs.aws.amazon.com/amazonglacier/latest/dev/working-with-archives.html#client-side-key-map-concept
+	//
+	// If you maintain client-side archive metadata, note that Amazon Glacier
+	// maintains a vault inventory that includes archive IDs and any
+	// descriptions you provided during the archive upload. You might
+	// occasionally download the vault inventory to reconcile any issues in your
+	// client-side database you maintain for the archive metadata. However,
+	// Amazon Glacier takes vault inventory approximately daily. When you
+	// request a vault inventory, Amazon Glacier returns the last inventory it
+	// prepared, a point in time snapshot.
+
+	for _, backup := range backups {
+		if err := s.Remove(backup.ID); err != nil {
+			log.Println(err)
+			return nil
+		}
+	}
+
+	for _, backup := range remoteBackups {
+		if err := s.Save(backup); err != nil {
+			log.Println(err)
+			return nil
+		}
+	}
+
+	return remoteBackups
 }
 
 func retrieveBackup(id string, c cloud.Cloud) string {
