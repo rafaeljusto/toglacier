@@ -37,6 +37,7 @@ func TestNewAWSCloud(t *testing.T) {
 				c.AWS.AccountID.Value = "account"
 				c.AWS.AccessKeyID.Value = "keyid"
 				c.AWS.SecretAccessKey.Value = "secret"
+				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "vault"
 				return c
 			}(),
@@ -48,6 +49,7 @@ func TestNewAWSCloud(t *testing.T) {
 			expectedEnv: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "keyid",
 				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_REGION":            "us-east-1",
 			},
 		},
 	}

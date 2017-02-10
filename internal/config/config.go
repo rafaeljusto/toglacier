@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/rafaeljusto/envconfig"
+	"github.com/kelseyhightower/envconfig"
 	"gopkg.in/yaml.v2"
 )
 
@@ -20,7 +20,7 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Path        []string `yaml:"path" envconfig:"path"`
+	Paths       []string `yaml:"paths" envconfig:"paths"`
 	AuditFile   string   `yaml:"audit file" envconfig:"audit_file"`
 	KeepBackups int      `yaml:"keep backups" envconfig:"keep_backups"`
 	AWS         struct {

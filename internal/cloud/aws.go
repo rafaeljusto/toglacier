@@ -77,6 +77,7 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 	// them in plain text
 	os.Setenv("AWS_ACCESS_KEY_ID", c.AWS.AccessKeyID.Value)
 	os.Setenv("AWS_SECRET_ACCESS_KEY", c.AWS.SecretAccessKey.Value)
+	os.Setenv("AWS_REGION", c.AWS.Region)
 
 	awsSession, err := session.NewSession()
 	if err != nil {

@@ -1,4 +1,6 @@
-path: /usr/local/important-files-1,/usr/local/important-files-2
+path:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
 aws:

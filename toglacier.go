@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/jasonlvhit/gocron"
@@ -14,26 +13,6 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
 )
-
-var awsAccountID, awsVaultName, auditFile string
-var backupPaths []string
-var keepBackups = 10
-
-func init() {
-	var err error
-
-	awsAccountID = os.Getenv("AWS_ACCOUNT_ID")
-	awsVaultName = os.Getenv("AWS_VAULT_NAME")
-	backupPaths = strings.Split(os.Getenv("TOGLACIER_PATH"), ",")
-	auditFile = os.Getenv("TOGLACIER_AUDIT")
-
-	if os.Getenv("TOGLACIER_KEEP_BACKUPS") != "" {
-		if keepBackups, err = strconv.Atoi(os.Getenv("TOGLACIER_KEEP_BACKUPS")); err != nil {
-			fmt.Printf("invalid number of backups to keep. details: %s", err)
-			os.Exit(1)
-		}
-	}
-}
 
 func main() {
 	var awsCloud cloud.Cloud
@@ -63,21 +42,21 @@ func main() {
 		if c.String("config") != "" {
 			if err = config.LoadFromFile(c.String("config")); err != nil {
 				fmt.Printf("error loading configuration file. details: %s\n", err)
-				return nil
+				return err
 			}
 		}
 
 		if err = config.LoadFromEnvironment(); err != nil {
 			fmt.Printf("error loading configuration from environment variables. details: %s\n", err)
-			return nil
+			return err
 		}
 
 		if awsCloud, err = cloud.NewAWSCloud(config.Current(), false); err != nil {
 			fmt.Printf("error initializing AWS cloud. details: %s\n", err)
-			return nil
+			return err
 		}
 
-		auditFileStorage = storage.NewAuditFile(auditFile)
+		auditFileStorage = storage.NewAuditFile(config.Current().AuditFile)
 		return nil
 	}
 	app.Commands = []cli.Command{
@@ -85,7 +64,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				backup(awsCloud, auditFileStorage)
+				backup(config.Current().Paths, awsCloud, auditFileStorage)
 				return nil
 			},
 		},
@@ -137,8 +116,8 @@ func main() {
 			Usage: "run the scheduler (will block forever)",
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
-				scheduler.Every(1).Day().At("00:00").Do(backup, awsCloud, auditFileStorage)
-				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, awsCloud, auditFileStorage)
+				scheduler.Every(1).Day().At("00:00").Do(backup, config.Current().Paths, awsCloud, auditFileStorage)
+				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, config.Current().KeepBackups, awsCloud, auditFileStorage)
 				scheduler.Every(4).Weeks().At("12:00").Do(listBackups, true, awsCloud, auditFileStorage)
 				<-scheduler.Start()
 				return nil
@@ -163,7 +142,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func backup(c cloud.Cloud, s storage.Storage) {
+func backup(backupPaths []string, c cloud.Cloud, s storage.Storage) {
 	archive, err := archive.Build(backupPaths...)
 	if err != nil {
 		log.Println(err)
@@ -260,7 +239,7 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 	}
 }
 
-func removeOldBackups(c cloud.Cloud, s storage.Storage) {
+func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
 	backups := listBackups(false, c, s)
 	for i := keepBackups; i < len(backups); i++ {
 		removeBackup(backups[i].ID, c, s)
