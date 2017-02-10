@@ -241,24 +241,6 @@ func TestListBackups(t *testing.T) {
 					return nil, errors.New("error listing backups")
 				},
 			},
-			storage: mockStorage{
-				mockList: func() ([]cloud.Backup, error) {
-					return []cloud.Backup{
-						{
-							ID:        "123454",
-							CreatedAt: now.Add(-time.Second),
-							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
-							VaultName: "test",
-						},
-						{
-							ID:        "123455",
-							CreatedAt: now.Add(-time.Minute),
-							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
-							VaultName: "test",
-						},
-					}, nil
-				},
-			},
 			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error listing backups`),
 		},
 		{

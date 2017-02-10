@@ -155,17 +155,27 @@ func backup(c cloud.Cloud, s storage.Storage) {
 }
 
 func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
-	backups, err := s.List()
+	if !remote {
+		backups, err := s.List()
+		if err != nil {
+			log.Println(err)
+			return nil
+		}
+
+		return backups
+	}
+
+	remoteBackups, err := c.List()
 	if err != nil {
 		log.Println(err)
 		return nil
 	}
 
-	if !remote {
-		return backups
-	}
+	// retrieve local backups information only after the remote backups, because the
+	// remote backups operations can take a while, and a concurrent action could
+	// change the local backups during this time
 
-	remoteBackups, err := c.List()
+	backups, err := s.List()
 	if err != nil {
 		log.Println(err)
 		return nil
