@@ -21,7 +21,7 @@ var config unsafe.Pointer
 // keep track in the local storage.
 type Config struct {
 	Paths       []string `yaml:"paths" envconfig:"paths"`
-	AuditFile   string   `yaml:"audit file" envconfig:"audit_file"`
+	AuditFile   string   `yaml:"audit file" envconfig:"audit"`
 	KeepBackups int      `yaml:"keep backups" envconfig:"keep_backups"`
 	AWS         struct {
 		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`

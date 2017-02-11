@@ -1,4 +1,4 @@
-path:
+paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
