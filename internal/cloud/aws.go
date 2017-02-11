@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/aws/aws-sdk-go/service/glacier/glacieriface"
+	"github.com/rafaeljusto/toglacier/internal/config"
 )
 
 var multipartUploadLimit int64 = 102400 // 100 MB
@@ -69,37 +70,14 @@ type AWSCloud struct {
 // vault name that are going to be used in the AWS Glacier service. For more
 // details set the debug flag to receive low level information in the standard
 // output.
-func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
+func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 	var err error
 
-	awsAccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	if strings.HasPrefix(awsAccessKeyID, "encrypted:") {
-		awsAccessKeyID, err = passwordDecrypt(strings.TrimPrefix(awsAccessKeyID, "encrypted:"))
-		if err != nil {
-			return nil, fmt.Errorf("error decrypting aws access key id. details: %s", err)
-		}
-		// this environment variable is used by the AWS library, so we neede to set
-		// it again in plain text
-		os.Setenv("AWS_ACCESS_KEY_ID", awsAccessKeyID)
-	}
-
-	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	if strings.HasPrefix(awsSecretAccessKey, "encrypted:") {
-		awsSecretAccessKey, err = passwordDecrypt(strings.TrimPrefix(awsSecretAccessKey, "encrypted:"))
-		if err != nil {
-			return nil, fmt.Errorf("error decrypting aws secret access key. details: %s", err)
-		}
-		// this environment variable is used by the AWS library, so we neede to set
-		// it again in plain text
-		os.Setenv("AWS_SECRET_ACCESS_KEY", awsSecretAccessKey)
-	}
-
-	if strings.HasPrefix(accountID, "encrypted:") {
-		accountID, err = passwordDecrypt(strings.TrimPrefix(accountID, "encrypted:"))
-		if err != nil {
-			return nil, fmt.Errorf("error decrypting aws account id. details: %s", err)
-		}
-	}
+	// this environment variables are used by the AWS library, so we need to set
+	// them in plain text
+	os.Setenv("AWS_ACCESS_KEY_ID", c.AWS.AccessKeyID.Value)
+	os.Setenv("AWS_SECRET_ACCESS_KEY", c.AWS.SecretAccessKey.Value)
+	os.Setenv("AWS_REGION", c.AWS.Region)
 
 	awsSession, err := session.NewSession()
 	if err != nil {
@@ -112,8 +90,8 @@ func NewAWSCloud(accountID, vaultName string, debug bool) (*AWSCloud, error) {
 	}
 
 	return &AWSCloud{
-		AccountID: accountID,
-		VaultName: vaultName,
+		AccountID: c.AWS.AccountID.Value,
+		VaultName: c.AWS.VaultName,
 		Glacier:   awsGlacier,
 		Clock:     realClock{},
 	}, nil

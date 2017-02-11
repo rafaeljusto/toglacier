@@ -53,19 +53,20 @@ startup (you don't want your backup scheduler to stop working after a reboot).
 
 ## Usage
 
-For now this program will only work with environment variables. So you need to
-set the following before running the program:
+The program will work with environment variables or/and with a YAML
+configuration file. You can find the configuration file example on
+`toglacier.yml`, for the environment variables check bellow:
 
-| Environment Variable   | Description                             |
-| ---------------------- | --------------------------------------- |
-| AWS_ACCOUNT_ID         | AWS account ID                          |
-| AWS_ACCESS_KEY_ID      | AWS access key ID                       |
-| AWS_SECRET_ACCESS_KEY  | AWS secret access key                   |
-| AWS_REGION             | AWS region                              |
-| AWS_VAULT_NAME         | AWS vault name                          |
-| TOGLACIER_PATH         | Paths to backup (separated by comma)    |
-| TOGLACIER_AUDIT        | Path where we keep track of the backups |
-| TOGLACIER_KEEP_BACKUPS | Number of backups to keep (default 10)  |
+| Environment Variable             | Description                             |
+| -------------------------------- | --------------------------------------- |
+| TOGLACIER_AWS_ACCOUNT_ID         | AWS account ID                          |
+| TOGLACIER_AWS_ACCESS_KEY_ID      | AWS access key ID                       |
+| TOGLACIER_AWS_SECRET_ACCESS_KEY  | AWS secret access key                   |
+| TOGLACIER_AWS_REGION             | AWS region                              |
+| TOGLACIER_AWS_VAULT_NAME         | AWS vault name                          |
+| TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
+| TOGLACIER_AUDIT                  | Path where we keep track of the backups |
+| TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -81,9 +82,10 @@ There are some commands in the tool to manage the backups:
   * **encrypt or enc**: encrypt a password or secret to improve security
 
 You can improve the security by encrypting the values (use encrypt command) of
-the variables `AWS_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
-The tool will detect an encrypted value when it starts with the label
-`encrypted:`.
+the variables `TOGLACIER_AWS_ACCOUNT_ID`, `TOGLACIER_AWS_ACCESS_KEY_ID` and
+`TOGLACIER_AWS_SECRET_ACCESS_KEY`, or the respective variables in the
+configuration file. The tool will detect an encrypted value when it starts with
+the label `encrypted:`.
 
 The audit file that keeps track of all backups has the format bellow. It's a
 good idea to periodically copy this audit file somewhere else, so if you lose
@@ -104,12 +106,12 @@ environments:
 ```shell
 #!/bin/bash
 
-AWS_ACCOUNT_ID="encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==" \
-AWS_ACCESS_KEY_ID="encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ" \
-AWS_SECRET_ACCESS_KEY="encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=" \
-AWS_REGION="us-east-1" \
-AWS_VAULT_NAME="backup" \
-TOGLACIER_PATH="/usr/local/important-files-1,/usr/local/important-files-2" \
+TOGLACIER_AWS_ACCOUNT_ID="encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==" \
+TOGLACIER_AWS_ACCESS_KEY_ID="encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ" \
+TOGLACIER_AWS_SECRET_ACCESS_KEY="encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=" \
+TOGLACIER_AWS_REGION="us-east-1" \
+TOGLACIER_AWS_VAULT_NAME="backup" \
+TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
 toglacier $@ 2> >(tee /var/log/toglacier/error.log)
@@ -156,12 +158,12 @@ would install the service (replace the necessary parameters):
 c:\> nssm.exe install toglacier c:\programs\toglacier.exe start
 
 c:\> nssm.exe set toglacier AppEnvironmentExtra ^
-  AWS_ACCOUNT_ID=encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w== ^
-  AWS_ACCESS_KEY_ID=encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ ^
-  AWS_SECRET_ACCESS_KEY=encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA= ^
-  AWS_REGION=us-east-1 ^
-  AWS_VAULT_NAME=backup ^
-  TOGLACIER_PATH=c:\data\important-files-1,c:\data\important-files-2 ^
+  TOGLACIER_AWS_ACCOUNT_ID=encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w== ^
+  TOGLACIER_AWS_ACCESS_KEY_ID=encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ ^
+  TOGLACIER_AWS_SECRET_ACCESS_KEY=encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA= ^
+  TOGLACIER_AWS_REGION=us-east-1 ^
+  TOGLACIER_AWS_VAULT_NAME=backup ^
+  TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
   TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
   TOGLACIER_KEEP_BACKUPS=10
 

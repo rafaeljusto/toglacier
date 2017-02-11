@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Subcommands to manage the backups (sync, get, list, remove, start, encrypt)
 - Sensitive parameters can now be encrypted
 - Periodically request remote backups information
+- Support to YAML configuration file
 
 ### Fixed
 - Use multipart upload strategy when the archive is bigger than 100MB (was 1GB)
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Major refactory on the project structure, with unit tests and documentation
 - Local storage is synchronized when the remote backups information is requested
+- New environment variable names for AWS parameters (added TOGLACIER prefix)
 
 ## [1.0.0] - 2016-12-08
 ### Added

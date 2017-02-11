@@ -120,11 +120,6 @@ func TestBackup(t *testing.T) {
 		},
 	}
 
-	originalBackupPaths := backupPaths
-	defer func() {
-		backupPaths = originalBackupPaths
-	}()
-
 	var output bytes.Buffer
 	log.SetOutput(&output)
 
@@ -132,8 +127,7 @@ func TestBackup(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			backupPaths = scenario.backupPaths
-			backup(scenario.cloud, scenario.storage)
+			backup(scenario.backupPaths, scenario.cloud, scenario.storage)
 
 			o := strings.TrimSpace(output.String())
 			if scenario.expectedLog != nil && !scenario.expectedLog.MatchString(o) {
@@ -449,11 +443,6 @@ func TestRemoveOldBackups(t *testing.T) {
 		},
 	}
 
-	originalKeepBackups := keepBackups
-	defer func() {
-		keepBackups = originalKeepBackups
-	}()
-
 	var output bytes.Buffer
 	log.SetOutput(&output)
 
@@ -461,8 +450,7 @@ func TestRemoveOldBackups(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			keepBackups = scenario.keepBackups
-			removeOldBackups(scenario.cloud, scenario.storage)
+			removeOldBackups(scenario.keepBackups, scenario.cloud, scenario.storage)
 
 			o := strings.TrimSpace(output.String())
 			if scenario.expectedLog != nil && !scenario.expectedLog.MatchString(o) {

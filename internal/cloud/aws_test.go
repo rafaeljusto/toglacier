@@ -2,7 +2,6 @@ package cloud_test
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,28 +18,30 @@ import (
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/kr/pretty"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/config"
 )
 
 func TestNewAWSCloud(t *testing.T) {
 	scenarios := []struct {
 		description   string
-		accountID     string
-		vaultName     string
+		config        *config.Config
 		debug         bool
-		env           map[string]string
 		expected      *cloud.AWSCloud
 		expectedEnv   map[string]string
 		expectedError error
 	}{
 		{
-			description: "it should decrypt secrets and build a AWS cloud instance correctly",
-			accountID:   "encrypted:gqUkdJOn1fPhRtDRMwoUfQACs7Ugh3E=",
-			vaultName:   "vault",
-			debug:       true,
-			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "encrypted:70kFcm/ppZ4tHIspcH3ucbgzSsKQ",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:tddsKQECwhIVLDAhXsgaT97NsPlN4Q==",
-			},
+			description: "it should build a AWS cloud instance correctly",
+			config: func() *config.Config {
+				c := new(config.Config)
+				c.AWS.AccountID.Value = "account"
+				c.AWS.AccessKeyID.Value = "keyid"
+				c.AWS.SecretAccessKey.Value = "secret"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "vault"
+				return c
+			}(),
+			debug: true,
 			expected: &cloud.AWSCloud{
 				AccountID: "account",
 				VaultName: "vault",
@@ -48,63 +49,16 @@ func TestNewAWSCloud(t *testing.T) {
 			expectedEnv: map[string]string{
 				"AWS_ACCESS_KEY_ID":     "keyid",
 				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_REGION":            "us-east-1",
 			},
-		},
-		{
-			description: "it should detect an error while decrypting an invalid AWS access key ID",
-			accountID:   "encrypted:gqUkdJOn1fPhRtDRMwoUfQACs7Ugh3E=",
-			vaultName:   "vault",
-			debug:       true,
-			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "encrypted:xxxxxxxxxxxxxxxxxxxxxxxxx",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:tddsKQECwhIVLDAhXsgaT97NsPlN4Q==",
-			},
-			expectedEnv: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "encrypted:xxxxxxxxxxxxxxxxxxxxxxxxx",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:tddsKQECwhIVLDAhXsgaT97NsPlN4Q==",
-			},
-			expectedError: fmt.Errorf("error decrypting aws access key id. details: %s", base64.CorruptInputError(24)),
-		},
-		{
-			description: "it should detect an error while decrypting an invalid AWS secret access key",
-			accountID:   "encrypted:gqUkdJOn1fPhRtDRMwoUfQACs7Ugh3E=",
-			vaultName:   "vault",
-			debug:       true,
-			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "encrypted:70kFcm/ppZ4tHIspcH3ucbgzSsKQ",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:xxxxxxxxxxxxxxxxxxxxxxxxx",
-			},
-			expectedEnv: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "keyid",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:xxxxxxxxxxxxxxxxxxxxxxxxx",
-			},
-			expectedError: fmt.Errorf("error decrypting aws secret access key. details: %s", base64.CorruptInputError(24)),
-		},
-		{
-			description: "it should detect an error while decrypting an invalid AWS account ID",
-			accountID:   "encrypted:xxxxxxxxxxxxxxxxxxxxxxxxx=",
-			vaultName:   "vault",
-			debug:       true,
-			env: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "encrypted:70kFcm/ppZ4tHIspcH3ucbgzSsKQ",
-				"AWS_SECRET_ACCESS_KEY": "encrypted:tddsKQECwhIVLDAhXsgaT97NsPlN4Q==",
-			},
-			expectedEnv: map[string]string{
-				"AWS_ACCESS_KEY_ID":     "keyid",
-				"AWS_SECRET_ACCESS_KEY": "secret",
-			},
-			expectedError: fmt.Errorf("error decrypting aws account id. details: %s", base64.CorruptInputError(25)),
 		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			os.Clearenv()
-			for key, value := range scenario.env {
-				os.Setenv(key, value)
-			}
 
-			awsCloud, err := cloud.NewAWSCloud(scenario.accountID, scenario.vaultName, scenario.debug)
+			awsCloud, err := cloud.NewAWSCloud(scenario.config, scenario.debug)
 
 			// we are not interested on testing low level structures from AWS library
 			// or clock controlling layer

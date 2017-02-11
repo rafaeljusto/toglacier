@@ -1,0 +1,11 @@
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+audit file: /var/log/toglacier/audit.log
+keep backups: 10
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
