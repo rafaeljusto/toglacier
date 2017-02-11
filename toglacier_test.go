@@ -246,6 +246,132 @@ func TestListBackups(t *testing.T) {
 			},
 			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error listing backups`),
 		},
+		{
+			description: "it should detect an error while retrieving local backups for synch",
+			remote:      true,
+			cloud: mockCloud{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					if b.ID != "123456" {
+						return fmt.Errorf("adding unexpected id %s", b.ID)
+					}
+
+					return nil
+				},
+				mockList: func() ([]cloud.Backup, error) {
+					return nil, errors.New("error retrieving backups")
+				},
+				mockRemove: func(id string) error {
+					if id != "123454" && id != "123455" {
+						return fmt.Errorf("removing unexpected id %s", id)
+					}
+
+					return nil
+				},
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error retrieving backups`),
+		},
+		{
+			description: "it should detect an error while removing local backups due to synch",
+			remote:      true,
+			cloud: mockCloud{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					if b.ID != "123456" {
+						return fmt.Errorf("adding unexpected id %s", b.ID)
+					}
+
+					return nil
+				},
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123454",
+							CreatedAt: now.Add(-time.Second),
+							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+							VaultName: "test",
+						},
+						{
+							ID:        "123455",
+							CreatedAt: now.Add(-time.Minute),
+							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+							VaultName: "test",
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					return errors.New("error removing backup")
+				},
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error removing backup`),
+		},
+		{
+			description: "it should detect an error while adding new backups due to synch",
+			remote:      true,
+			cloud: mockCloud{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					return errors.New("error adding backup")
+				},
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123454",
+							CreatedAt: now.Add(-time.Second),
+							Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+							VaultName: "test",
+						},
+						{
+							ID:        "123455",
+							CreatedAt: now.Add(-time.Minute),
+							Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+							VaultName: "test",
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					if id != "123454" && id != "123455" {
+						return fmt.Errorf("removing unexpected id %s", id)
+					}
+
+					return nil
+				},
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error adding backup`),
+		},
 	}
 
 	var output bytes.Buffer
