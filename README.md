@@ -21,11 +21,12 @@ program is really only a dummy layer to make your life easier, all honors go to
 the [Amazon developers](https://github.com/orgs/aws/people).
 
 The program will first add all files to a
-[tarball](https://en.wikipedia.org/wiki/Tar_(computing)) and then decide to send
-it in one shot or use a multipart strategy for larger files. For now we will
-follow the AWS suggestion and send multipart when the tarball gets bigger than
-100MB. When using multipart, each part will have 4MB (except for the last one).
-The maximum archive size is 40GB (but we can increase this).
+[tarball](https://en.wikipedia.org/wiki/Tar_(computing)) and then, if a secret
+was defined, it will encrypt the archive. After that it will decide to send it
+in one shot or use a multipart strategy for larger files. For now we will follow
+the AWS suggestion and send multipart when the tarball gets bigger than 100MB.
+When using multipart, each part will have 4MB (except for the last one). The
+maximum archive size is 40GB (but we can increase this).
 
 Old backups will also be removed automatically, to avoid keeping many files in
 AWS Glacier service, and consequently saving you some money. Periodically, the
@@ -67,6 +68,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
 | TOGLACIER_AUDIT                  | Path where we keep track of the backups |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
+| TOGLACIER_ENCRYPT_SECRET         | Encrypt backups with this secret        |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -82,10 +84,10 @@ There are some commands in the tool to manage the backups:
   * **encrypt or enc**: encrypt a password or secret to improve security
 
 You can improve the security by encrypting the values (use encrypt command) of
-the variables `TOGLACIER_AWS_ACCOUNT_ID`, `TOGLACIER_AWS_ACCESS_KEY_ID` and
-`TOGLACIER_AWS_SECRET_ACCESS_KEY`, or the respective variables in the
-configuration file. The tool will detect an encrypted value when it starts with
-the label `encrypted:`.
+the variables `TOGLACIER_AWS_ACCOUNT_ID`, `TOGLACIER_AWS_ACCESS_KEY_ID`,
+`TOGLACIER_AWS_SECRET_ACCESS_KEY` and `TOGLACIER_ENCRYPT_SECRET`, or the
+respective variables in the configuration file. The tool will detect an
+encrypted value when it starts with the label `encrypted:`.
 
 The audit file that keeps track of all backups has the format bellow. It's a
 good idea to periodically copy this audit file somewhere else, so if you lose
@@ -114,6 +116,7 @@ TOGLACIER_AWS_VAULT_NAME="backup" \
 TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
+TOGLACIER_ENCRYPT_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 toglacier $@ 2> >(tee /var/log/toglacier/error.log)
 ```
 
@@ -165,7 +168,8 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_AWS_VAULT_NAME=backup ^
   TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
   TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
-  TOGLACIER_KEEP_BACKUPS=10
+  TOGLACIER_KEEP_BACKUPS=10 ^
+  TOGLACIER_ENCRYPT_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
 
 c:\> nssm.exe start toglacier
 ```

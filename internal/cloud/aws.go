@@ -2,11 +2,14 @@ package cloud
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -60,10 +63,11 @@ func WaitJobTime(value time.Duration) {
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
-	AccountID string
-	VaultName string
-	Glacier   glacieriface.GlacierAPI
-	Clock     Clock
+	EncryptSecret string
+	AccountID     string
+	VaultName     string
+	Glacier       glacieriface.GlacierAPI
+	Clock         Clock
 }
 
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
@@ -90,10 +94,11 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 	}
 
 	return &AWSCloud{
-		AccountID: c.AWS.AccountID.Value,
-		VaultName: c.AWS.VaultName,
-		Glacier:   awsGlacier,
-		Clock:     realClock{},
+		EncryptSecret: c.EncryptSecret.Value,
+		AccountID:     c.AWS.AccountID.Value,
+		VaultName:     c.AWS.VaultName,
+		Glacier:       awsGlacier,
+		Clock:         realClock{},
 	}, nil
 }
 
@@ -101,6 +106,19 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 // It already has the logic to send directly if it's a small file or use
 // multipart strategy if it's a large file.
 func (a *AWSCloud) Send(filename string) (Backup, error) {
+	if a.EncryptSecret != "" {
+		var err error
+		if filename, err = encrypt(filename, a.EncryptSecret); err != nil {
+			return Backup{}, fmt.Errorf("error encrypting archive. details: %s", err)
+		}
+
+		defer func() {
+			// this function is responsable for removing the encrypted file after
+			// uploading it to the cloud
+			os.Remove(filename)
+		}()
+	}
+
 	archive, err := os.Open(filename)
 	if err != nil {
 		return Backup{}, fmt.Errorf("error opening archive. details: %s", err)
@@ -325,7 +343,20 @@ func (a *AWSCloud) Get(id string) (string, error) {
 		return "", fmt.Errorf("error copying data to the backup file. details: %s", err)
 	}
 
-	return backup.Name(), nil
+	filename := backup.Name()
+
+	if a.EncryptSecret != "" {
+		var decryptedFilename string
+		if decryptedFilename, err = decrypt(filename, a.EncryptSecret); err != nil {
+			return "", fmt.Errorf("error decrypting archive. details: %s", err)
+		}
+
+		if err := os.Rename(decryptedFilename, filename); err != nil {
+			return "", fmt.Errorf("error renaming decrypted archive. details: %s", err)
+		}
+	}
+
+	return filename, nil
 }
 
 // Remove erase a specific backup from the cloud.
@@ -386,6 +417,66 @@ func (a *AWSCloud) waitJob(jobID string) error {
 
 		time.Sleep(sleep)
 	}
+}
+
+func encrypt(filename string, secret string) (encryptedFilename string, err error) {
+	archive, err := os.Open(filename)
+	if err != nil {
+		return "", err
+	}
+	defer archive.Close()
+
+	encryptedArchive, err := ioutil.TempFile("", "toglacier-")
+	if err != nil {
+		return "", err
+	}
+	defer encryptedArchive.Close()
+
+	block, err := aes.NewCipher([]byte(secret))
+	if err != nil {
+		return "", err
+	}
+
+	writer := cipher.StreamWriter{
+		S: cipher.NewOFB(block, make([]byte, aes.BlockSize)),
+		W: encryptedArchive,
+	}
+
+	if _, err := io.Copy(&writer, archive); err != nil {
+		return "", err
+	}
+
+	return encryptedArchive.Name(), nil
+}
+
+func decrypt(encryptedFilename string, secret string) (filename string, err error) {
+	encryptedArchive, err := os.Open(encryptedFilename)
+	if err != nil {
+		return "", err
+	}
+	defer encryptedArchive.Close()
+
+	archive, err := ioutil.TempFile("", "toglacier-")
+	if err != nil {
+		return "", err
+	}
+	defer archive.Close()
+
+	block, err := aes.NewCipher([]byte(secret))
+	if err != nil {
+		return "", err
+	}
+
+	reader := cipher.StreamReader{
+		S: cipher.NewOFB(block, make([]byte, aes.BlockSize)),
+		R: encryptedArchive,
+	}
+
+	if _, err := io.Copy(archive, reader); err != nil {
+		return "", err
+	}
+
+	return archive.Name(), nil
 }
 
 // AWSIventoryArchiveList stores the archive information retrieved from AWS

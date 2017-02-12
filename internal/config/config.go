@@ -20,10 +20,11 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths       []string `yaml:"paths" envconfig:"paths"`
-	AuditFile   string   `yaml:"audit file" envconfig:"audit"`
-	KeepBackups int      `yaml:"keep backups" envconfig:"keep_backups"`
-	AWS         struct {
+	Paths         []string  `yaml:"paths" envconfig:"paths"`
+	AuditFile     string    `yaml:"audit file" envconfig:"audit"`
+	KeepBackups   int       `yaml:"keep backups" envconfig:"keep_backups"`
+	EncryptSecret encrypted `yaml:"encrypt secret" envconfig:"encrypt_secret"`
+	AWS           struct {
 		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`
 		AccessKeyID     encrypted `yaml:"access key id" envconfig:"access_key_id"`
 		SecretAccessKey encrypted `yaml:"secret access key" envconfig:"secret_access_key"`

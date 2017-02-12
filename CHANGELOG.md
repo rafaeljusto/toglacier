@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Sensitive parameters can now be encrypted
 - Periodically request remote backups information
 - Support to YAML configuration file
+- Encrypt/decrypt backup with a shared secret
 
 ### Fixed
 - Use multipart upload strategy when the archive is bigger than 100MB (was 1GB)
