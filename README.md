@@ -68,7 +68,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
 | TOGLACIER_AUDIT                  | Path where we keep track of the backups |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
-| TOGLACIER_ENCRYPT_SECRET         | Encrypt backups with this secret        |
+| TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -85,7 +85,7 @@ There are some commands in the tool to manage the backups:
 
 You can improve the security by encrypting the values (use encrypt command) of
 the variables `TOGLACIER_AWS_ACCOUNT_ID`, `TOGLACIER_AWS_ACCESS_KEY_ID`,
-`TOGLACIER_AWS_SECRET_ACCESS_KEY` and `TOGLACIER_ENCRYPT_SECRET`, or the
+`TOGLACIER_AWS_SECRET_ACCESS_KEY` and `TOGLACIER_BACKUP_SECRET`, or the
 respective variables in the configuration file. The tool will detect an
 encrypted value when it starts with the label `encrypted:`.
 
@@ -116,7 +116,7 @@ TOGLACIER_AWS_VAULT_NAME="backup" \
 TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
-TOGLACIER_ENCRYPT_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
+TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 toglacier $@ 2> >(tee /var/log/toglacier/error.log)
 ```
 
@@ -169,7 +169,7 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
   TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
   TOGLACIER_KEEP_BACKUPS=10 ^
-  TOGLACIER_ENCRYPT_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
+  TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
 
 c:\> nssm.exe start toglacier
 ```

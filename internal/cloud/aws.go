@@ -63,11 +63,11 @@ func WaitJobTime(value time.Duration) {
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
-	EncryptSecret string
-	AccountID     string
-	VaultName     string
-	Glacier       glacieriface.GlacierAPI
-	Clock         Clock
+	BackupSecret string
+	AccountID    string
+	VaultName    string
+	Glacier      glacieriface.GlacierAPI
+	Clock        Clock
 }
 
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
@@ -93,12 +93,23 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 		awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
 	}
 
+	// The key argument should be the AES key, either 16, 24, or 32 bytes to
+	// select AES-128, AES-192, or AES-256. We will always force AES-256.
+	encryptSecret := c.BackupSecret.Value
+	if encryptSecret != "" {
+		if len(encryptSecret) < 32 {
+			encryptSecret = encryptSecret + strings.Repeat("0", 32-len(encryptSecret))
+		} else if len(encryptSecret) > 32 {
+			encryptSecret = encryptSecret[:32]
+		}
+	}
+
 	return &AWSCloud{
-		EncryptSecret: c.EncryptSecret.Value,
-		AccountID:     c.AWS.AccountID.Value,
-		VaultName:     c.AWS.VaultName,
-		Glacier:       awsGlacier,
-		Clock:         realClock{},
+		BackupSecret: encryptSecret,
+		AccountID:    c.AWS.AccountID.Value,
+		VaultName:    c.AWS.VaultName,
+		Glacier:      awsGlacier,
+		Clock:        realClock{},
 	}, nil
 }
 
@@ -106,9 +117,9 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 // It already has the logic to send directly if it's a small file or use
 // multipart strategy if it's a large file.
 func (a *AWSCloud) Send(filename string) (Backup, error) {
-	if a.EncryptSecret != "" {
+	if a.BackupSecret != "" {
 		var err error
-		if filename, err = encrypt(filename, a.EncryptSecret); err != nil {
+		if filename, err = encrypt(filename, a.BackupSecret); err != nil {
 			return Backup{}, fmt.Errorf("error encrypting archive. details: %s", err)
 		}
 
@@ -345,9 +356,9 @@ func (a *AWSCloud) Get(id string) (string, error) {
 
 	filename := backup.Name()
 
-	if a.EncryptSecret != "" {
+	if a.BackupSecret != "" {
 		var decryptedFilename string
-		if decryptedFilename, err = decrypt(filename, a.EncryptSecret); err != nil {
+		if decryptedFilename, err = decrypt(filename, a.BackupSecret); err != nil {
 			return "", fmt.Errorf("error decrypting archive. details: %s", err)
 		}
 
