@@ -4,13 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Added
+- Encrypt/decrypt backup with a shared secret
+
 ## [2.0.0] - 2017-02-16
 ### Added
 - Subcommands to manage the backups (sync, get, list, remove, start, encrypt)
 - Sensitive parameters can now be encrypted
 - Periodically request remote backups information
 - Support to YAML configuration file
-- Encrypt/decrypt backup with a shared secret
 
 ### Fixed
 - Use multipart upload strategy when the archive is bigger than 100MB (was 1GB)
