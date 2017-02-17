@@ -200,6 +200,9 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 	// request a vault inventory, Amazon Glacier returns the last inventory it
 	// prepared, a point in time snapshot.
 
+	// TODO: if the change is greater than 20% something is really wrong, and
+	// maybe the best approach is to do nothing and report the problem.
+
 	for _, backup := range backups {
 		if err := s.Remove(backup.ID); err != nil {
 			log.Println(err)
