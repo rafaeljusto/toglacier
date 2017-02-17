@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -59,6 +60,10 @@ func WaitJobTime(value time.Duration) {
 	defer waitJobTime.Unlock()
 	waitJobTime.Duration = value
 }
+
+// RandomSource defines from where we are going to read random values to encrypt
+// the archives.
+var RandomSource = rand.Reader
 
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
@@ -443,15 +448,25 @@ func encrypt(filename string, secret string) (encryptedFilename string, err erro
 	}
 	defer encryptedArchive.Close()
 
+	iv := make([]byte, aes.BlockSize)
+	if _, err := io.ReadFull(RandomSource, iv); err != nil {
+		return "", err
+	}
+
+	if _, err := encryptedArchive.Write(iv); err != nil {
+		return "", err
+	}
+
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		return "", err
 	}
 
 	writer := cipher.StreamWriter{
-		S: cipher.NewOFB(block, make([]byte, aes.BlockSize)),
+		S: cipher.NewOFB(block, iv),
 		W: encryptedArchive,
 	}
+	defer writer.Close()
 
 	if _, err := io.Copy(&writer, archive); err != nil {
 		return "", err
@@ -473,13 +488,18 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 	}
 	defer archive.Close()
 
+	iv := make([]byte, aes.BlockSize)
+	if _, err := encryptedArchive.Read(iv); err != nil {
+		return "", err
+	}
+
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
 		return "", err
 	}
 
 	reader := cipher.StreamReader{
-		S: cipher.NewOFB(block, make([]byte, aes.BlockSize)),
+		S: cipher.NewOFB(block, iv),
 		R: encryptedArchive,
 	}
 

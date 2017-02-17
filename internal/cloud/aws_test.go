@@ -1142,7 +1142,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
-							Checksum:  aws.String("87afb3dfbb2b7f86a4a37d5b5defdbb23090e542ff4db9f3aff526cdb4309297"),
+							Checksum:  aws.String("52ae0c12ad0eedd8ca081aa4a48d0f8aa1e8027eea5304d1bd7df937b32c0ee8"),
 							Location:  aws.String("/archive/AWSID123"),
 						}, nil
 					},
@@ -1163,7 +1163,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						archive, err := hex.DecodeString("91d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						archive, err := hex.DecodeString("0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 						if err != nil {
 							t.Fatalf("error decoding encrypted archive. details: %s", err)
 						}
@@ -1182,12 +1182,18 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 			expectedSendBackup: cloud.Backup{
 				ID:        "AWSID123",
 				CreatedAt: time.Date(2017, 2, 15, 8, 38, 10, 0, time.UTC),
-				Checksum:  "87afb3dfbb2b7f86a4a37d5b5defdbb23090e542ff4db9f3aff526cdb4309297",
+				Checksum:  "52ae0c12ad0eedd8ca081aa4a48d0f8aa1e8027eea5304d1bd7df937b32c0ee8",
 				VaultName: "vault",
 			},
 			expectedGetFile: `Important information for the test backup`,
 		},
 	}
+
+	originalRandomSource := cloud.RandomSource
+	defer func() {
+		cloud.RandomSource = originalRandomSource
+	}()
+	cloud.RandomSource = mockReader{}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
@@ -1570,4 +1576,15 @@ type fakeClock struct {
 
 func (f fakeClock) Now() time.Time {
 	return f.mockNow()
+}
+
+type mockReader struct {
+}
+
+func (m mockReader) Read(p []byte) (n int, err error) {
+	for i := range p {
+		p[i] = 0
+	}
+
+	return len(p), nil
 }
