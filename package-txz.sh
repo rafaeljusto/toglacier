@@ -10,7 +10,8 @@ readonly DESCRIPTION="Send data to Amazon Glacier service periodically."
 
 # install information
 readonly TMP_PATH="/tmp/toglacier/"
-readonly INSTALL_PATH="$TMP_PATH/usr/local/bin/"
+readonly BIN_PATH="$TMP_PATH/usr/local/bin/"
+readonly CONF_PATH="$TMP_PATH/etc/"
 
 exit_error() {
   echo "$1. Abort" 1>&2
@@ -18,13 +19,11 @@ exit_error() {
 }
 
 prepare() {
-  mkdir -p $INSTALL_PATH
+  mkdir -p $BIN_PATH || exit_error "Cannot create the temporary path"
+  mkdir -p $CONF_PATH || exit_error "Cannot create the temporary path"
 }
 
 copy_files() {
-  local project_path=`echo $GOPATH | cut -d: -f1`
-  project_path=$project_path/src/github.com/rafaeljusto/toglacier
-
   local version=`echo "$VERSION" | awk -F "-" '{ print $1 }'`
   local release=`echo "$VERSION" | awk -F "-" '{ print $2 }'`
 
@@ -92,7 +91,8 @@ compile() {
   cd $project_path || exit_error "Cannot change directory"
   env GOOS=freebsd GOARCH=amd64 go build || exit_error "Compilation error"
 
-  mv $project_path/toglacier $INSTALL_PATH/ || exit_error "Error copying binary"
+  mv $project_path/toglacier $BIN_PATH || exit_error "Error copying binary"
+  cp $project_path/toglacier.yml $CONF_PATH/toglacier.yml.sample || exit_error "Error copying configuration sample"
   cd - 1>/dev/null
 }
 
@@ -108,7 +108,7 @@ build_txz() {
 }
 
 cleanup() {
-  rm -rf /tmp/toglacier
+  rm -rf $TMP_PATH
 }
 
 VERSION=$1
