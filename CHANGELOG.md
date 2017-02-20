@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Encrypt/decrypt backup with a shared secret
 
+### Fixed
+- Add sample configuration file to deb and txz packages
+
 ## [2.0.0] - 2017-02-16
 ### Added
 - Subcommands to manage the backups (sync, get, list, remove, start, encrypt)
