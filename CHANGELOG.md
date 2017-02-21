@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Added
+- Encrypt/decrypt backup with a shared secret
+
 ### Fixed
 - Add sample configuration file to deb and txz packages
 

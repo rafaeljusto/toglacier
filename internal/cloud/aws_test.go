@@ -2,9 +2,13 @@ package cloud_test
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -52,6 +56,54 @@ func TestNewAWSCloud(t *testing.T) {
 				"AWS_REGION":            "us-east-1",
 			},
 		},
+		{
+			description: "it should fill the backup secret when is less than 32 bytes",
+			config: func() *config.Config {
+				c := new(config.Config)
+				c.BackupSecret.Value = "123456"
+				c.AWS.AccountID.Value = "account"
+				c.AWS.AccessKeyID.Value = "keyid"
+				c.AWS.SecretAccessKey.Value = "secret"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "vault"
+				return c
+			}(),
+			debug: true,
+			expected: &cloud.AWSCloud{
+				BackupSecret: "12345600000000000000000000000000",
+				AccountID:    "account",
+				VaultName:    "vault",
+			},
+			expectedEnv: map[string]string{
+				"AWS_ACCESS_KEY_ID":     "keyid",
+				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_REGION":            "us-east-1",
+			},
+		},
+		{
+			description: "it should truncate the backup secret when is more than 32 bytes",
+			config: func() *config.Config {
+				c := new(config.Config)
+				c.BackupSecret.Value = "123456789012345678901234567890123"
+				c.AWS.AccountID.Value = "account"
+				c.AWS.AccessKeyID.Value = "keyid"
+				c.AWS.SecretAccessKey.Value = "secret"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "vault"
+				return c
+			}(),
+			debug: true,
+			expected: &cloud.AWSCloud{
+				BackupSecret: "12345678901234567890123456789012",
+				AccountID:    "account",
+				VaultName:    "vault",
+			},
+			expectedEnv: map[string]string{
+				"AWS_ACCESS_KEY_ID":     "keyid",
+				"AWS_SECRET_ACCESS_KEY": "secret",
+				"AWS_REGION":            "us-east-1",
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -92,6 +144,7 @@ func TestAWSCloud_Send(t *testing.T) {
 		multipartUploadLimit int64
 		partSize             int64
 		awsCloud             cloud.AWSCloud
+		randomSource         io.Reader
 		expected             cloud.Backup
 		expectedError        error
 	}{
@@ -105,6 +158,92 @@ func TestAWSCloud_Send(t *testing.T) {
 				Path: "toglacier-idontexist.tmp",
 				Err:  errors.New("no such file or directory"),
 			}),
+		},
+		{
+			description:          "it should detect when it tries to encrypt a file that doesn't exist",
+			filename:             "toglacier-idontexist.tmp",
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "12345678901234567890123456789012",
+			},
+			expectedError: fmt.Errorf("error encrypting archive. details: %s", &os.PathError{
+				Op:   "open",
+				Path: "toglacier-idontexist.tmp",
+				Err:  errors.New("no such file or directory"),
+			}),
+		},
+		{
+			description: "it should detect when the archive has no read permission",
+			filename: func() string {
+				n := path.Join(os.TempDir(), "toglacier-test-send-noperm")
+				if _, err := os.Stat(n); os.IsNotExist(err) {
+					f, err := os.OpenFile(n, os.O_CREATE, os.FileMode(0077))
+					if err != nil {
+						t.Fatalf("error creating a temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					f.WriteString("Important information for the test backup")
+				}
+
+				return n
+			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "1234567890123456",
+			},
+			randomSource: rand.Reader,
+			expectedError: fmt.Errorf("error encrypting archive. details: %s", &os.PathError{
+				Op:   "open",
+				Path: path.Join(os.TempDir(), "toglacier-test-send-noperm"),
+				Err:  errors.New("permission denied"),
+			}),
+		},
+		{
+			description: "it should detect when the random source generates an error",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString("Important information for the test backup")
+				return f.Name()
+			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "1234567890123456",
+			},
+			randomSource: mockReader{
+				mockRead: func(p []byte) (n int, err error) {
+					return 0, errors.New("random error")
+				},
+			},
+			expectedError: errors.New("error encrypting archive. details: random error"),
+		},
+		{
+			description: "it should detect when the AES secret length is invalid",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString("Important information for the test backup")
+				return f.Name()
+			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "123456",
+			},
+			randomSource:  rand.Reader,
+			expectedError: fmt.Errorf("error encrypting archive. details: %s", aes.KeySizeError(6)),
 		},
 		{
 			description: "it should send a small backup correctly",
@@ -411,8 +550,14 @@ func TestAWSCloud_Send(t *testing.T) {
 		},
 	}
 
+	originalRandomSource := cloud.RandomSource
+	defer func() {
+		cloud.RandomSource = originalRandomSource
+	}()
+
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
+			cloud.RandomSource = scenario.randomSource
 			cloud.MultipartUploadLimit(scenario.multipartUploadLimit)
 			cloud.PartSize(scenario.partSize)
 
@@ -777,6 +922,39 @@ func TestAWSCloud_Get(t *testing.T) {
 			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
 		},
 		{
+			description: "it should retrieve an unencrypted backup correctly when backup secret is defined",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "12345678901234567890123456789012",
+				AccountID:    "account",
+				VaultName:    "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
+		},
+		{
 			description: "it should detect an error while initiating the job",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
@@ -930,6 +1108,44 @@ func TestAWSCloud_Get(t *testing.T) {
 			},
 			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
 		},
+		{
+			description: "it should detect when the backup decrypt key has an invalid AES length",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "123456",
+				AccountID:    "account",
+				VaultName:    "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						if err != nil {
+							t.Fatalf("error decoding encrypted archive. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewReader(archive)),
+						}, nil
+					},
+				},
+			},
+			expectedError: fmt.Errorf("error decrypting archive. details: %s", aes.KeySizeError(6)),
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -986,6 +1202,128 @@ func TestAWSCloud_Remove(t *testing.T) {
 			err := scenario.awsCloud.Remove(scenario.id)
 			if !reflect.DeepEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestAWSCloud_EncryptDecrypt(t *testing.T) {
+	scenarios := []struct {
+		description        string
+		filename           string
+		awsCloud           cloud.AWSCloud
+		expectedSendBackup cloud.Backup
+		expectedSendError  error
+		expectedGetFile    string
+		expectedGetError   error
+	}{
+		{
+			description: "it should encrypt and decrypt the archive correctly",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString("Important information for the test backup")
+				return f.Name()
+			}(),
+			awsCloud: cloud.AWSCloud{
+				AccountID:    "account",
+				VaultName:    "vault",
+				BackupSecret: "1234567890123456",
+				Glacier: glacierAPIMock{
+					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						if err != nil {
+							t.Fatalf("error decoding encrypted archive. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewReader(archive)),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2017, 2, 15, 8, 38, 10, 0, time.UTC)
+					},
+				},
+			},
+			expectedSendBackup: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2017, 2, 15, 8, 38, 10, 0, time.UTC),
+				Checksum:  "534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1",
+				VaultName: "vault",
+			},
+			expectedGetFile: `Important information for the test backup`,
+		},
+	}
+
+	originalRandomSource := cloud.RandomSource
+	defer func() {
+		cloud.RandomSource = originalRandomSource
+	}()
+	cloud.RandomSource = mockReader{
+		mockRead: func(p []byte) (n int, err error) {
+			for i := range p {
+				p[i] = 0
+			}
+			return len(p), nil
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			backup, err := scenario.awsCloud.Send(scenario.filename)
+			if !reflect.DeepEqual(scenario.expectedSendBackup, backup) {
+				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expectedSendBackup, backup))
+			}
+			if !reflect.DeepEqual(scenario.expectedSendError, err) {
+				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedSendError, err)
+			}
+
+			if err != nil {
+				return
+			}
+
+			filename, err := scenario.awsCloud.Get(backup.ID)
+
+			archiveFileContent, archiveFileErr := ioutil.ReadFile(filename)
+			if archiveFileErr != nil && scenario.expectedGetError == nil {
+				t.Errorf("error reading archive file. details: %s", archiveFileErr)
+			}
+
+			if !reflect.DeepEqual(scenario.expectedGetFile, string(archiveFileContent)) {
+				t.Errorf("archive file don't match. expected “%s” and got “%s”", scenario.expectedGetFile, string(archiveFileContent))
+			}
+
+			if !reflect.DeepEqual(scenario.expectedGetError, err) {
+				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedGetError, err)
 			}
 		})
 	}
@@ -1340,4 +1678,12 @@ type fakeClock struct {
 
 func (f fakeClock) Now() time.Time {
 	return f.mockNow()
+}
+
+type mockReader struct {
+	mockRead func(p []byte) (n int, err error)
+}
+
+func (m mockReader) Read(p []byte) (n int, err error) {
+	return m.mockRead(p)
 }

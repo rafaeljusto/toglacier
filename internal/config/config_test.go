@@ -68,6 +68,7 @@ paths:
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 aws:
   account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
@@ -86,6 +87,7 @@ aws:
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
 				c.KeepBackups = 10
+				c.BackupSecret.Value = "abc123"
 				c.AWS.AccountID.Value = "000000000000"
 				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -140,6 +142,7 @@ paths:
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 aws:
   account id: encrypted:invalid
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
@@ -193,6 +196,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -202,6 +206,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
 				c.KeepBackups = 10
+				c.BackupSecret.Value = "abc123"
 				c.AWS.AccountID.Value = "000000000000"
 				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -221,6 +226,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
 			expectedError: &envconfig.ParseError{
 				KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
