@@ -3,10 +3,12 @@ package cloud_test
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -142,6 +144,7 @@ func TestAWSCloud_Send(t *testing.T) {
 		multipartUploadLimit int64
 		partSize             int64
 		awsCloud             cloud.AWSCloud
+		randomSource         io.Reader
 		expected             cloud.Backup
 		expectedError        error
 	}{
@@ -171,6 +174,58 @@ func TestAWSCloud_Send(t *testing.T) {
 			}),
 		},
 		{
+			description: "it should detect when the archive has no read permission",
+			filename: func() string {
+				n := path.Join(os.TempDir(), "toglacier-test-send-noperm")
+				if _, err := os.Stat(n); os.IsNotExist(err) {
+					f, err := os.OpenFile(n, os.O_CREATE, os.FileMode(0077))
+					if err != nil {
+						t.Fatalf("error creating a temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					f.WriteString("Important information for the test backup")
+				}
+
+				return n
+			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "1234567890123456",
+			},
+			randomSource: rand.Reader,
+			expectedError: fmt.Errorf("error encrypting archive. details: %s", &os.PathError{
+				Op:   "open",
+				Path: path.Join(os.TempDir(), "toglacier-test-send-noperm"),
+				Err:  errors.New("permission denied"),
+			}),
+		},
+		{
+			description: "it should detect when the random source generates an error",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString("Important information for the test backup")
+				return f.Name()
+			}(),
+			multipartUploadLimit: 102400,
+			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "1234567890123456",
+			},
+			randomSource: mockReader{
+				mockRead: func(p []byte) (n int, err error) {
+					return 0, errors.New("random error")
+				},
+			},
+			expectedError: errors.New("error encrypting archive. details: random error"),
+		},
+		{
 			description: "it should detect when the AES secret length is invalid",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
@@ -187,6 +242,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			awsCloud: cloud.AWSCloud{
 				BackupSecret: "123456",
 			},
+			randomSource:  rand.Reader,
 			expectedError: fmt.Errorf("error encrypting archive. details: %s", aes.KeySizeError(6)),
 		},
 		{
@@ -494,8 +550,14 @@ func TestAWSCloud_Send(t *testing.T) {
 		},
 	}
 
+	originalRandomSource := cloud.RandomSource
+	defer func() {
+		cloud.RandomSource = originalRandomSource
+	}()
+
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
+			cloud.RandomSource = scenario.randomSource
 			cloud.MultipartUploadLimit(scenario.multipartUploadLimit)
 			cloud.PartSize(scenario.partSize)
 
@@ -1226,7 +1288,14 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 	defer func() {
 		cloud.RandomSource = originalRandomSource
 	}()
-	cloud.RandomSource = mockReader{}
+	cloud.RandomSource = mockReader{
+		mockRead: func(p []byte) (n int, err error) {
+			for i := range p {
+				p[i] = 0
+			}
+			return len(p), nil
+		},
+	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
@@ -1612,12 +1681,9 @@ func (f fakeClock) Now() time.Time {
 }
 
 type mockReader struct {
+	mockRead func(p []byte) (n int, err error)
 }
 
 func (m mockReader) Read(p []byte) (n int, err error) {
-	for i := range p {
-		p[i] = 0
-	}
-
-	return len(p), nil
+	return m.mockRead(p)
 }
