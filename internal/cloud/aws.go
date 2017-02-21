@@ -65,6 +65,9 @@ func WaitJobTime(value time.Duration) {
 // the archives.
 var RandomSource = rand.Reader
 
+// encryptedLabel is used to identify if an archive was encrypted or not.
+const encryptedLabel = "encrypted:"
+
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
@@ -129,7 +132,7 @@ func (a *AWSCloud) Send(filename string) (Backup, error) {
 		}
 
 		defer func() {
-			// this function is responsable for removing the encrypted file after
+			// this function is responsible for removing the encrypted file after
 			// uploading it to the cloud
 			os.Remove(filename)
 		}()
@@ -453,6 +456,10 @@ func encrypt(filename string, secret string) (encryptedFilename string, err erro
 		return "", err
 	}
 
+	if _, err := encryptedArchive.WriteString(encryptedLabel); err != nil {
+		return "", err
+	}
+
 	if _, err := encryptedArchive.Write(iv); err != nil {
 		return "", err
 	}
@@ -487,6 +494,16 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 		return "", err
 	}
 	defer archive.Close()
+
+	encryptedLabelBuffer := make([]byte, len(encryptedLabel))
+	if _, err := encryptedArchive.Read(encryptedLabelBuffer); err == io.EOF || string(encryptedLabelBuffer) != encryptedLabel {
+		// if we couldn't read the encrypted label, maybe the file isn't encrypted,
+		// so let's return it as it is
+		return encryptedFilename, nil
+
+	} else if err != nil {
+		return "", err
+	}
 
 	iv := make([]byte, aes.BlockSize)
 	if _, err := encryptedArchive.Read(iv); err != nil {

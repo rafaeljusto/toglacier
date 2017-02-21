@@ -860,6 +860,39 @@ func TestAWSCloud_Get(t *testing.T) {
 			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
 		},
 		{
+			description: "it should retrieve an unencrypted backup correctly when backup secret is defined",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "12345678901234567890123456789012",
+				AccountID:    "account",
+				VaultName:    "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
+		},
+		{
 			description: "it should detect an error while initiating the job",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
@@ -1014,7 +1047,7 @@ func TestAWSCloud_Get(t *testing.T) {
 			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
 		},
 		{
-			description: "it should detect when the backupo decrypt key has an invalid AES length",
+			description: "it should detect when the backup decrypt key has an invalid AES length",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
 				BackupSecret: "123456",
@@ -1038,7 +1071,7 @@ func TestAWSCloud_Get(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						archive, err := hex.DecodeString("91d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 						if err != nil {
 							t.Fatalf("error decoding encrypted archive. details: %s", err)
 						}
@@ -1142,7 +1175,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
-							Checksum:  aws.String("52ae0c12ad0eedd8ca081aa4a48d0f8aa1e8027eea5304d1bd7df937b32c0ee8"),
+							Checksum:  aws.String("534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1"),
 							Location:  aws.String("/archive/AWSID123"),
 						}, nil
 					},
@@ -1163,7 +1196,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						archive, err := hex.DecodeString("0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 						if err != nil {
 							t.Fatalf("error decoding encrypted archive. details: %s", err)
 						}
@@ -1182,7 +1215,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 			expectedSendBackup: cloud.Backup{
 				ID:        "AWSID123",
 				CreatedAt: time.Date(2017, 2, 15, 8, 38, 10, 0, time.UTC),
-				Checksum:  "52ae0c12ad0eedd8ca081aa4a48d0f8aa1e8027eea5304d1bd7df937b32c0ee8",
+				Checksum:  "534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1",
 				VaultName: "vault",
 			},
 			expectedGetFile: `Important information for the test backup`,
