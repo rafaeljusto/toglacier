@@ -64,7 +64,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				backup(config.Current().Paths, awsCloud, auditFileStorage)
+				backup(config.Current().Paths, config.Current().BackupSecret.Value, awsCloud, auditFileStorage)
 				return nil
 			},
 		},
@@ -73,7 +73,7 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile := retrieveBackup(c.Args().First(), awsCloud); backupFile != "" {
+				if backupFile := retrieveBackup(c.Args().First(), config.Current().BackupSecret.Value, awsCloud); backupFile != "" {
 					fmt.Printf("Backup recovered at %s\n", backupFile)
 				}
 				return nil
@@ -142,15 +142,30 @@ func main() {
 	app.Run(os.Args)
 }
 
-func backup(backupPaths []string, c cloud.Cloud, s storage.Storage) {
-	archive, err := archive.Build(backupPaths...)
+func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.Storage) {
+	filename, err := archive.Build(backupPaths...)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	defer os.Remove(archive)
+	defer os.Remove(filename)
 
-	backup, err := c.Send(archive)
+	if backupSecret != "" {
+		var err error
+		var encryptedFillename string
+
+		if encryptedFillename, err = archive.Encrypt(filename, backupSecret); err != nil {
+			log.Println(err)
+			return
+		}
+
+		if err := os.Rename(encryptedFillename, filename); err != nil {
+			log.Println(err)
+			return
+		}
+	}
+
+	backup, err := c.Send(filename)
 	if err != nil {
 		log.Println(err)
 		return
@@ -220,11 +235,24 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 	return remoteBackups
 }
 
-func retrieveBackup(id string, c cloud.Cloud) string {
+func retrieveBackup(id, backupSecret string, c cloud.Cloud) string {
 	backupFile, err := c.Get(id)
 	if err != nil {
 		log.Println(err)
 		return ""
+	}
+
+	if backupSecret != "" {
+		var filename string
+		if filename, err = archive.Decrypt(backupFile, backupSecret); err != nil {
+			log.Println(err)
+			return ""
+		}
+
+		if err := os.Rename(backupFile, filename); err != nil {
+			log.Println(err)
+			return ""
+		}
 	}
 
 	return backupFile

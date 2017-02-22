@@ -2,15 +2,11 @@ package cloud
 
 import (
 	"bytes"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"sort"
@@ -61,21 +57,13 @@ func WaitJobTime(value time.Duration) {
 	waitJobTime.Duration = value
 }
 
-// RandomSource defines from where we are going to read random values to encrypt
-// the archives.
-var RandomSource = rand.Reader
-
-// encryptedLabel is used to identify if an archive was encrypted or not.
-const encryptedLabel = "encrypted:"
-
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
-	BackupSecret string
-	AccountID    string
-	VaultName    string
-	Glacier      glacieriface.GlacierAPI
-	Clock        Clock
+	AccountID string
+	VaultName string
+	Glacier   glacieriface.GlacierAPI
+	Clock     Clock
 }
 
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
@@ -101,23 +89,11 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 		awsGlacier.Config.WithLogLevel(aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestErrors | aws.LogDebugWithRequestRetries | aws.LogDebugWithSigning)
 	}
 
-	// The key argument should be the AES key, either 16, 24, or 32 bytes to
-	// select AES-128, AES-192, or AES-256. We will always force AES-256.
-	encryptSecret := c.BackupSecret.Value
-	if encryptSecret != "" {
-		if len(encryptSecret) < 32 {
-			encryptSecret = encryptSecret + strings.Repeat("0", 32-len(encryptSecret))
-		} else if len(encryptSecret) > 32 {
-			encryptSecret = encryptSecret[:32]
-		}
-	}
-
 	return &AWSCloud{
-		BackupSecret: encryptSecret,
-		AccountID:    c.AWS.AccountID.Value,
-		VaultName:    c.AWS.VaultName,
-		Glacier:      awsGlacier,
-		Clock:        realClock{},
+		AccountID: c.AWS.AccountID.Value,
+		VaultName: c.AWS.VaultName,
+		Glacier:   awsGlacier,
+		Clock:     realClock{},
 	}, nil
 }
 
@@ -125,19 +101,6 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 // It already has the logic to send directly if it's a small file or use
 // multipart strategy if it's a large file.
 func (a *AWSCloud) Send(filename string) (Backup, error) {
-	if a.BackupSecret != "" {
-		var err error
-		if filename, err = encrypt(filename, a.BackupSecret); err != nil {
-			return Backup{}, fmt.Errorf("error encrypting archive. details: %s", err)
-		}
-
-		defer func() {
-			// this function is responsible for removing the encrypted file after
-			// uploading it to the cloud
-			os.Remove(filename)
-		}()
-	}
-
 	archive, err := os.Open(filename)
 	if err != nil {
 		return Backup{}, fmt.Errorf("error opening archive. details: %s", err)
@@ -297,7 +260,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	iventory := struct {
 		VaultARN      string `json:"VaultARN"`
 		InventoryDate string `json:"InventoryDate"`
-		ArchiveList   AWSIventoryArchiveList
+		ArchiveList   AWSInventoryArchiveList
 	}{}
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
@@ -362,20 +325,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 		return "", fmt.Errorf("error copying data to the backup file. details: %s", err)
 	}
 
-	filename := backup.Name()
-
-	if a.BackupSecret != "" {
-		var decryptedFilename string
-		if decryptedFilename, err = decrypt(filename, a.BackupSecret); err != nil {
-			return "", fmt.Errorf("error decrypting archive. details: %s", err)
-		}
-
-		if err := os.Rename(decryptedFilename, filename); err != nil {
-			return "", fmt.Errorf("error renaming decrypted archive. details: %s", err)
-		}
-	}
-
-	return filename, nil
+	return backup.Name(), nil
 }
 
 // Remove erase a specific backup from the cloud.
@@ -438,98 +388,9 @@ func (a *AWSCloud) waitJob(jobID string) error {
 	}
 }
 
-func encrypt(filename string, secret string) (encryptedFilename string, err error) {
-	archive, err := os.Open(filename)
-	if err != nil {
-		return "", err
-	}
-	defer archive.Close()
-
-	encryptedArchive, err := ioutil.TempFile("", "toglacier-")
-	if err != nil {
-		return "", err
-	}
-	defer encryptedArchive.Close()
-
-	iv := make([]byte, aes.BlockSize)
-	if _, err := io.ReadFull(RandomSource, iv); err != nil {
-		return "", err
-	}
-
-	if _, err := encryptedArchive.WriteString(encryptedLabel); err != nil {
-		return "", err
-	}
-
-	if _, err := encryptedArchive.Write(iv); err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher([]byte(secret))
-	if err != nil {
-		return "", err
-	}
-
-	writer := cipher.StreamWriter{
-		S: cipher.NewOFB(block, iv),
-		W: encryptedArchive,
-	}
-	defer writer.Close()
-
-	if _, err := io.Copy(&writer, archive); err != nil {
-		return "", err
-	}
-
-	return encryptedArchive.Name(), nil
-}
-
-func decrypt(encryptedFilename string, secret string) (filename string, err error) {
-	encryptedArchive, err := os.Open(encryptedFilename)
-	if err != nil {
-		return "", err
-	}
-	defer encryptedArchive.Close()
-
-	archive, err := ioutil.TempFile("", "toglacier-")
-	if err != nil {
-		return "", err
-	}
-	defer archive.Close()
-
-	encryptedLabelBuffer := make([]byte, len(encryptedLabel))
-	if _, err := encryptedArchive.Read(encryptedLabelBuffer); err == io.EOF || string(encryptedLabelBuffer) != encryptedLabel {
-		// if we couldn't read the encrypted label, maybe the file isn't encrypted,
-		// so let's return it as it is
-		return encryptedFilename, nil
-
-	} else if err != nil {
-		return "", err
-	}
-
-	iv := make([]byte, aes.BlockSize)
-	if _, err := encryptedArchive.Read(iv); err != nil {
-		return "", err
-	}
-
-	block, err := aes.NewCipher([]byte(secret))
-	if err != nil {
-		return "", err
-	}
-
-	reader := cipher.StreamReader{
-		S: cipher.NewOFB(block, iv),
-		R: encryptedArchive,
-	}
-
-	if _, err := io.Copy(archive, reader); err != nil {
-		return "", err
-	}
-
-	return archive.Name(), nil
-}
-
-// AWSIventoryArchiveList stores the archive information retrieved from AWS
+// AWSInventoryArchiveList stores the archive information retrieved from AWS
 // Glacier service.
-type AWSIventoryArchiveList []struct {
+type AWSInventoryArchiveList []struct {
 	ArchiveID          string    `json:"ArchiveId"`
 	ArchiveDescription string    `json:"ArchiveDescription"`
 	CreationDate       time.Time `json:"CreationDate"`
@@ -537,14 +398,14 @@ type AWSIventoryArchiveList []struct {
 	SHA256TreeHash     string    `json:"SHA256TreeHash"`
 }
 
-func (a AWSIventoryArchiveList) Len() int {
+func (a AWSInventoryArchiveList) Len() int {
 	return len(a)
 }
 
-func (a AWSIventoryArchiveList) Less(i, j int) bool {
+func (a AWSInventoryArchiveList) Less(i, j int) bool {
 	return a[i].CreationDate.Before(a[j].CreationDate)
 }
 
-func (a AWSIventoryArchiveList) Swap(i, j int) {
+func (a AWSInventoryArchiveList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
