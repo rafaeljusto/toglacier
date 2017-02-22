@@ -299,7 +299,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	iventory := struct {
 		VaultARN      string `json:"VaultARN"`
 		InventoryDate string `json:"InventoryDate"`
-		ArchiveList   AWSIventoryArchiveList
+		ArchiveList   AWSInventoryArchiveList
 	}{}
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
@@ -440,7 +440,10 @@ func (a *AWSCloud) waitJob(jobID string) error {
 	}
 }
 
-func encrypt(filename string, secret string) (encryptedFilename string, err error) {
+// encrypted do what we expect, encrypting the content with a shared secret. It
+// add authentication using an HMAC-SHA256. It will return the encrypted
+// filename or an error.
+func encrypt(filename string, secret string) (string, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
 		return "", err
@@ -497,7 +500,10 @@ func encrypt(filename string, secret string) (encryptedFilename string, err erro
 	return encryptedArchive.Name(), nil
 }
 
-func decrypt(encryptedFilename string, secret string) (filename string, err error) {
+// decrypt do what we expect, decrypting the content with a shared secret. It
+// authenticates the data using an HMAC-SHA256. It will return the decrypted
+// filename or an error.
+func decrypt(encryptedFilename string, secret string) (string, error) {
 	encryptedArchive, err := os.Open(encryptedFilename)
 	if err != nil {
 		return "", err
@@ -560,9 +566,9 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 	return archive.Name(), nil
 }
 
-// AWSIventoryArchiveList stores the archive information retrieved from AWS
+// AWSInventoryArchiveList stores the archive information retrieved from AWS
 // Glacier service.
-type AWSIventoryArchiveList []struct {
+type AWSInventoryArchiveList []struct {
 	ArchiveID          string    `json:"ArchiveId"`
 	ArchiveDescription string    `json:"ArchiveDescription"`
 	CreationDate       time.Time `json:"CreationDate"`
@@ -570,14 +576,14 @@ type AWSIventoryArchiveList []struct {
 	SHA256TreeHash     string    `json:"SHA256TreeHash"`
 }
 
-func (a AWSIventoryArchiveList) Len() int {
+func (a AWSInventoryArchiveList) Len() int {
 	return len(a)
 }
 
-func (a AWSIventoryArchiveList) Less(i, j int) bool {
+func (a AWSInventoryArchiveList) Less(i, j int) bool {
 	return a[i].CreationDate.Before(a[j].CreationDate)
 }
 
-func (a AWSIventoryArchiveList) Swap(i, j int) {
+func (a AWSInventoryArchiveList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }

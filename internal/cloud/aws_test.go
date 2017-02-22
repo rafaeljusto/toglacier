@@ -608,9 +608,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -768,9 +768,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
