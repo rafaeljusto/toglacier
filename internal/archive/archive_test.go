@@ -276,12 +276,12 @@ func TestDecrypt(t *testing.T) {
 				}
 				defer f.Close()
 
-				archive, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+				content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 				if err != nil {
 					t.Fatalf("error decoding encrypted archive. details: %s", err)
 				}
 
-				f.Write(archive)
+				f.Write(content)
 				return f.Name()
 			}(),
 			expectedError: errors.New("error initializing cipher. details: crypto/aes: invalid key size 6"),
@@ -296,12 +296,12 @@ func TestDecrypt(t *testing.T) {
 				}
 				defer f.Close()
 
-				archive, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+				content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 				if err != nil {
 					t.Fatalf("error decoding encrypted archive. details: %s", err)
 				}
 
-				f.Write(archive)
+				f.Write(content)
 				return f.Name()
 			}(),
 			expectedError: errors.New("encrypted content authentication failed"),
