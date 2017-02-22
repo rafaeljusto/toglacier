@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - Encrypt/decrypt backup with a shared secret
+- Encryption data authentication (HMAC-SHA256)
 
 ### Fixed
 - Add sample configuration file to deb and txz packages

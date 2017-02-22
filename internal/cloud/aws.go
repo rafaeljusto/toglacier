@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -451,16 +453,29 @@ func encrypt(filename string, secret string) (encryptedFilename string, err erro
 	}
 	defer encryptedArchive.Close()
 
+	hash := hmac.New(sha256.New, []byte(secret))
+	if _, err = io.Copy(hash, archive); err != nil {
+		return "", err
+	}
+
+	if _, err = archive.Seek(0, 0); err != nil {
+		return "", err
+	}
+
 	iv := make([]byte, aes.BlockSize)
-	if _, err := io.ReadFull(RandomSource, iv); err != nil {
+	if _, err = io.ReadFull(RandomSource, iv); err != nil {
 		return "", err
 	}
 
-	if _, err := encryptedArchive.WriteString(encryptedLabel); err != nil {
+	if _, err = encryptedArchive.WriteString(encryptedLabel); err != nil {
 		return "", err
 	}
 
-	if _, err := encryptedArchive.Write(iv); err != nil {
+	if _, err = encryptedArchive.Write(hash.Sum(nil)); err != nil {
+		return "", err
+	}
+
+	if _, err = encryptedArchive.Write(iv); err != nil {
 		return "", err
 	}
 
@@ -475,7 +490,7 @@ func encrypt(filename string, secret string) (encryptedFilename string, err erro
 	}
 	defer writer.Close()
 
-	if _, err := io.Copy(&writer, archive); err != nil {
+	if _, err = io.Copy(&writer, archive); err != nil {
 		return "", err
 	}
 
@@ -496,7 +511,7 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 	defer archive.Close()
 
 	encryptedLabelBuffer := make([]byte, len(encryptedLabel))
-	if _, err := encryptedArchive.Read(encryptedLabelBuffer); err == io.EOF || string(encryptedLabelBuffer) != encryptedLabel {
+	if _, err = encryptedArchive.Read(encryptedLabelBuffer); err == io.EOF || string(encryptedLabelBuffer) != encryptedLabel {
 		// if we couldn't read the encrypted label, maybe the file isn't encrypted,
 		// so let's return it as it is
 		return encryptedFilename, nil
@@ -505,8 +520,13 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 		return "", err
 	}
 
+	authHash := make([]byte, sha256.Size)
+	if _, err = encryptedArchive.Read(authHash); err != nil {
+		return "", err
+	}
+
 	iv := make([]byte, aes.BlockSize)
-	if _, err := encryptedArchive.Read(iv); err != nil {
+	if _, err = encryptedArchive.Read(iv); err != nil {
 		return "", err
 	}
 
@@ -520,8 +540,21 @@ func decrypt(encryptedFilename string, secret string) (filename string, err erro
 		R: encryptedArchive,
 	}
 
-	if _, err := io.Copy(archive, reader); err != nil {
+	if _, err = io.Copy(archive, reader); err != nil {
 		return "", err
+	}
+
+	if _, err = archive.Seek(0, 0); err != nil {
+		return "", err
+	}
+
+	hash := hmac.New(sha256.New, []byte(secret))
+	if _, err = io.Copy(hash, archive); err != nil {
+		return "", err
+	}
+
+	if !hmac.Equal(authHash, hash.Sum(nil)) {
+		return "", errors.New("encrypted content authentication failed")
 	}
 
 	return archive.Name(), nil

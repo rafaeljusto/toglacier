@@ -1133,7 +1133,7 @@ func TestAWSCloud_Get(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						archive, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95bf65bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 						if err != nil {
 							t.Fatalf("error decoding encrypted archive. details: %s", err)
 						}
@@ -1145,6 +1145,44 @@ func TestAWSCloud_Get(t *testing.T) {
 				},
 			},
 			expectedError: fmt.Errorf("error decrypting archive. details: %s", aes.KeySizeError(6)),
+		},
+		{
+			description: "it should detect when the decrypt authentication data is invalid",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				BackupSecret: "1234567890123456",
+				AccountID:    "account",
+				VaultName:    "vault",
+				Glacier: glacierAPIMock{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						archive, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						if err != nil {
+							t.Fatalf("error decoding encrypted archive. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewReader(archive)),
+						}, nil
+					},
+				},
+			},
+			expectedError: errors.New("error decrypting archive. details: encrypted content authentication failed"),
 		},
 	}
 
@@ -1237,7 +1275,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
-							Checksum:  aws.String("534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1"),
+							Checksum:  aws.String("fb13e6ae1cc084afb4a3aceba7891f10343e461cbac25b5bb3c08fba5d82da5c"),
 							Location:  aws.String("/archive/AWSID123"),
 						}, nil
 					},
@@ -1258,7 +1296,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						archive, err := hex.DecodeString("656e637279707465643a0000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						archive, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95bf65bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
 						if err != nil {
 							t.Fatalf("error decoding encrypted archive. details: %s", err)
 						}
@@ -1277,7 +1315,7 @@ func TestAWSCloud_EncryptDecrypt(t *testing.T) {
 			expectedSendBackup: cloud.Backup{
 				ID:        "AWSID123",
 				CreatedAt: time.Date(2017, 2, 15, 8, 38, 10, 0, time.UTC),
-				Checksum:  "534f714443e91d632801125c22ab12b57c493e3b9d4e06d2db04916a571323d1",
+				Checksum:  "fb13e6ae1cc084afb4a3aceba7891f10343e461cbac25b5bb3c08fba5d82da5c",
 				VaultName: "vault",
 			},
 			expectedGetFile: `Important information for the test backup`,
