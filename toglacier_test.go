@@ -23,11 +23,12 @@ func TestBackup(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
-		description string
-		backupPaths []string
-		cloud       cloud.Cloud
-		storage     storage.Storage
-		expectedLog *regexp.Regexp
+		description  string
+		backupPaths  []string
+		backupSecret string
+		cloud        cloud.Cloud
+		storage      storage.Storage
+		expectedLog  *regexp.Regexp
 	}{
 		{
 			description: "it should backup correctly an archive",
@@ -127,7 +128,7 @@ func TestBackup(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			backup(scenario.backupPaths, scenario.cloud, scenario.storage)
+			backup(scenario.backupPaths, scenario.backupSecret, scenario.cloud, scenario.storage)
 
 			o := strings.TrimSpace(output.String())
 			if scenario.expectedLog != nil && !scenario.expectedLog.MatchString(o) {
@@ -397,11 +398,12 @@ func TestListBackups(t *testing.T) {
 
 func TestRetrieveBackup(t *testing.T) {
 	scenarios := []struct {
-		description string
-		id          string
-		cloud       cloud.Cloud
-		expected    string
-		expectedLog *regexp.Regexp
+		description  string
+		id           string
+		backupSecret string
+		cloud        cloud.Cloud
+		expected     string
+		expectedLog  *regexp.Regexp
 	}{
 		{
 			description: "it should retrieve a backup correctly",
@@ -430,7 +432,7 @@ func TestRetrieveBackup(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			filename := retrieveBackup(scenario.id, scenario.cloud)
+			filename := retrieveBackup(scenario.id, scenario.backupSecret, scenario.cloud)
 
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)
