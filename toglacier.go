@@ -121,6 +121,9 @@ func main() {
 				scheduler.Every(1).Day().At("00:00").Do(backup, config.Current().Paths, awsCloud, auditFileStorage)
 				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, config.Current().KeepBackups, awsCloud, auditFileStorage)
 				scheduler.Every(4).Weeks().At("12:00").Do(listBackups, true, awsCloud, auditFileStorage)
+
+				// TODO: Create a graceful shutdown when receiving a signal (SIGINT,
+				// SIGKILL, SIGTERM, SIGSTOP).
 				<-scheduler.Start()
 				return nil
 			},
