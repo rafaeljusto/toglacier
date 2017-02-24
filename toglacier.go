@@ -5,11 +5,13 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
 )
@@ -143,35 +145,50 @@ func main() {
 }
 
 func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.Storage) {
+	backupReport := report.NewSendBackup()
+	defer func() {
+		report.AddReport(backupReport)
+	}()
+
+	timeMark := time.Now()
 	filename, err := archive.Build(backupPaths...)
 	if err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
 	defer os.Remove(filename)
+	backupReport.Durations.Build = time.Now().Sub(timeMark)
 
 	if backupSecret != "" {
 		var err error
 		var encryptedFillename string
 
+		timeMark = time.Now()
 		if encryptedFillename, err = archive.Encrypt(filename, backupSecret); err != nil {
+			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
 		}
+		backupReport.Durations.Encrypt = time.Now().Sub(timeMark)
 
 		if err := os.Rename(encryptedFillename, filename); err != nil {
+			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
 		}
 	}
 
-	backup, err := c.Send(filename)
-	if err != nil {
+	timeMark = time.Now()
+	if backupReport.Backup, err = c.Send(filename); err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
+	backupReport.Durations.Send = time.Now().Sub(timeMark)
 
-	if err := s.Save(backup); err != nil {
+	if err := s.Save(backupReport.Backup); err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
@@ -188,11 +205,19 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 		return backups
 	}
 
+	listBackupsReport := report.NewListBackups()
+	defer func() {
+		report.AddReport(listBackupsReport)
+	}()
+
+	timeMark := time.Now()
 	remoteBackups, err := c.List()
 	if err != nil {
+		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		log.Println(err)
 		return nil
 	}
+	listBackupsReport.Durations.List = time.Now().Sub(timeMark)
 
 	// retrieve local backups information only after the remote backups, because the
 	// remote backups operations can take a while, and a concurrent action could
@@ -200,6 +225,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	backups, err := s.List()
 	if err != nil {
+		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		log.Println(err)
 		return nil
 	}
@@ -220,6 +246,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	for _, backup := range backups {
 		if err := s.Remove(backup.ID); err != nil {
+			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			log.Println(err)
 			return nil
 		}
@@ -227,6 +254,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	for _, backup := range remoteBackups {
 		if err := s.Save(backup); err != nil {
+			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			log.Println(err)
 			return nil
 		}
@@ -271,8 +299,19 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 }
 
 func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
+	removeOldBackupsReport := report.NewRemoveOldBackups()
+	defer func() {
+		report.AddReport(removeOldBackupsReport)
+	}()
+
+	timeMark := time.Now()
 	backups := listBackups(false, c, s)
+	removeOldBackupsReport.Durations.List = time.Now().Sub(timeMark)
+
+	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
+		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
 		removeBackup(backups[i].ID, c, s)
 	}
+	removeOldBackupsReport.Durations.Remove = time.Now().Sub(timeMark)
 }
