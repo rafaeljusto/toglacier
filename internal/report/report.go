@@ -1,7 +1,10 @@
 package report
 
 import (
+	"bytes"
+	"fmt"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/rafaeljusto/toglacier/internal/cloud"
@@ -13,7 +16,7 @@ var (
 )
 
 type Report interface {
-	// TODO
+	Build() (string, error)
 }
 
 type basic struct {
@@ -32,7 +35,12 @@ func newBasic() basic {
 type SendBackup struct {
 	basic
 
-	Backup    cloud.Backup
+	Backup cloud.Backup
+
+	// Paths list of directories that were used in this backup.
+	// TODO: Move this to cloud.Backup type?
+	Paths []string
+
 	Durations struct {
 		Build   time.Duration
 		Encrypt time.Duration
@@ -45,6 +53,43 @@ func NewSendBackup() SendBackup {
 	return SendBackup{
 		basic: newBasic(),
 	}
+}
+
+func (s SendBackup) Build() (string, error) {
+	tmpl := `
+{{.CreatedAt}} Backups Sent
+
+  Backup
+  ------
+
+    ID:          {{.Backup.ID}}
+    Date:        {{.Backup.CreatedAt}}
+    Vault:       {{.Backup.VaultName}}
+    Checksum:    {{.Backup.Checksum}}
+    Paths:       {{range $path := .Paths}}{{path}} {{end}}
+
+  Durations
+  ---------
+    Build:       {{.Durations.Build}}
+    Encrypt:     {{.Durations.Encrypt}}
+    Send:        {{.Durations.Send}}
+
+  {{if .Errors -}}
+  Errors
+  ------
+
+    {{- range $err := .Errors}}
+    * {{$err}}
+    {{end -}}
+  {{- end}}
+	`
+	t := template.Must(template.New("report").Parse(tmpl))
+
+	var buffer bytes.Buffer
+	if err := t.Execute(&buffer, s); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
 // ListBackups stores statistics and errors when the remote backups information
@@ -62,6 +107,32 @@ func NewListBackups() ListBackups {
 	return ListBackups{
 		basic: newBasic(),
 	}
+}
+
+func (l ListBackups) Build() (string, error) {
+	tmpl := `
+{{.CreatedAt}} List Backup
+
+  Durations
+  ---------
+    List:        {{.Durations.List}}
+
+  {{if .Errors -}}
+  Errors
+  ------
+
+    {{- range $err := .Errors}}
+    * {{$err}}
+    {{end -}}
+  {{- end}}
+	`
+	t := template.Must(template.New("report").Parse(tmpl))
+
+	var buffer bytes.Buffer
+	if err := t.Execute(&buffer, l); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
 }
 
 // RemoveOldBackups stores useful information about the removed backups,
@@ -84,6 +155,78 @@ func NewRemoveOldBackups() RemoveOldBackups {
 	}
 }
 
+func (r RemoveOldBackups) Build() (string, error) {
+	tmpl := `
+{{.CreatedAt}} Remove Old Backups
+
+  Backups
+  -------
+
+    {{range $backup := .Backups}}
+    * ID:        {{$backup.ID}}
+      Date:      {{$backup.CreatedAt}}
+      Vault:     {{$backup.VaultName}}
+      Checksum:  {{$backup.Checksum}}
+    {{end}}
+
+  Durations
+  ---------
+    List:        {{.Durations.List}}
+    Remove:      {{.Durations.Remove}}
+
+  {{if .Errors -}}
+  Errors
+  ------
+
+    {{- range $err := .Errors}}
+    * {{$err}}
+    {{end -}}
+  {{- end}}
+	`
+	t := template.Must(template.New("report").Parse(tmpl))
+
+	var buffer bytes.Buffer
+	if err := t.Execute(&buffer, r); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
+}
+
+type TestReport struct {
+	basic
+}
+
+// NewTest initialize a new test report to verify the notification mechanisms.
+func NewTest() TestReport {
+	return TestReport{
+		basic: newBasic(),
+	}
+}
+
+func (tr TestReport) Build() (string, error) {
+	tmpl := `
+{{.CreatedAt}} Test report
+
+  Testing the notification mechanisms.
+
+  {{if .Errors -}}
+  Errors
+  ------
+
+    {{- range $err := .Errors}}
+    * {{$err}}
+    {{end -}}
+  {{- end}}
+	`
+	t := template.Must(template.New("report").Parse(tmpl))
+
+	var buffer bytes.Buffer
+	if err := t.Execute(&buffer, tr); err != nil {
+		return "", err
+	}
+	return buffer.String(), nil
+}
+
 // AddReport store the report information to be retrieved later.
 func AddReport(r Report) {
 	reportsLock.Lock()
@@ -92,14 +235,25 @@ func AddReport(r Report) {
 	reports = append(reports, r)
 }
 
-// GetReport return all reports stored. Every time this function is called the
+// Build generates the report in text format. Every time this function is called the
 // internal cache of reports is cleared.
-func GetReport() []Report {
+func Build() (string, error) {
 	reportsLock.Lock()
 	defer reportsLock.Unlock()
 	defer func() {
 		reports = nil
 	}()
 
-	return reports
+	var buffer string
+	for _, r := range reports {
+		tmp, err := r.Build()
+		if err != nil {
+			return "", err
+		}
+
+		// using fmt.Sprintln to create a cross platform line break
+		buffer += fmt.Sprintln(tmp)
+	}
+
+	return buffer, nil
 }

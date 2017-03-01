@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/smtp"
 	"os"
 	"strings"
 	"time"
@@ -121,10 +122,20 @@ func main() {
 				scheduler.Every(1).Day().At("00:00").Do(backup, config.Current().Paths, awsCloud, auditFileStorage)
 				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, config.Current().KeepBackups, awsCloud, auditFileStorage)
 				scheduler.Every(4).Weeks().At("12:00").Do(listBackups, true, awsCloud, auditFileStorage)
+				scheduler.Every(1).Weeks().At("06:00").Do(sendReport, config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 
 				// TODO: Create a graceful shutdown when receiving a signal (SIGINT,
 				// SIGKILL, SIGTERM, SIGSTOP).
 				<-scheduler.Start()
+				return nil
+			},
+		},
+		{
+			Name:  "report",
+			Usage: "test report notification",
+			Action: func(c *cli.Context) error {
+				report.AddReport(report.NewTest())
+				sendReport(config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 				return nil
 			},
 		},
@@ -149,6 +160,8 @@ func main() {
 
 func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.Storage) {
 	backupReport := report.NewSendBackup()
+	backupReport.Paths = backupPaths
+
 	defer func() {
 		report.AddReport(backupReport)
 	}()
@@ -165,17 +178,17 @@ func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.
 
 	if backupSecret != "" {
 		var err error
-		var encryptedFillename string
+		var encryptedFilename string
 
 		timeMark = time.Now()
-		if encryptedFillename, err = archive.Encrypt(filename, backupSecret); err != nil {
+		if encryptedFilename, err = archive.Encrypt(filename, backupSecret); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
 		}
 		backupReport.Durations.Encrypt = time.Now().Sub(timeMark)
 
-		if err := os.Rename(encryptedFillename, filename); err != nil {
+		if err := os.Rename(encryptedFilename, filename); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
@@ -317,4 +330,25 @@ func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
 		removeBackup(backups[i].ID, c, s)
 	}
 	removeOldBackupsReport.Durations.Remove = time.Now().Sub(timeMark)
+}
+
+func sendReport(emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) {
+	r, err := report.Build()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	body := fmt.Sprintf(`From: %s
+To: %s
+Subject: toglacier report
+
+%s`, emailFrom, strings.Join(emailTo, ","), r)
+
+	auth := smtp.PlainAuth("", emailUsername, emailPassword, emailServer)
+
+	if err := smtp.SendMail(fmt.Sprintf("%s:%d", emailServer, emailPort), auth, emailFrom, emailTo, []byte(body)); err != nil {
+		log.Println(err)
+		return
+	}
 }

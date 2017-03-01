@@ -69,6 +69,12 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_AUDIT                  | Path where we keep track of the backups |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 | TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
+| TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
+| TOGLACIER_EMAIL_PORT             | SMTP server port                        |
+| TOGLACIER_EMAIL_USERNAME         | Username for e-mail authentication      |
+| TOGLACIER_EMAIL_PASSWORD         | Password for e-mail authentication      |
+| TOGLACIER_EMAIL_FROM             | E-mail used when sending the reports    |
+| TOGLACIER_EMAIL_TO               | List of e-mails to send the report to   |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -81,18 +87,20 @@ There are some commands in the tool to manage the backups:
   * **list or ls**: list the current backups using a local audit file or remotly
   * **remove or rm**: remove a backup from AWS Glacier service
   * **start**: initialize the scheduler (will block forever)
+  * **report**: test report notification
   * **encrypt or enc**: encrypt a password or secret to improve security
 
 You can improve the security by encrypting the values (use encrypt command) of
 the variables `TOGLACIER_AWS_ACCOUNT_ID`, `TOGLACIER_AWS_ACCESS_KEY_ID`,
-`TOGLACIER_AWS_SECRET_ACCESS_KEY` and `TOGLACIER_BACKUP_SECRET`, or the
-respective variables in the configuration file. The tool will detect an
-encrypted value when it starts with the label `encrypted:`.
+`TOGLACIER_AWS_SECRET_ACCESS_KEY`, `TOGLACIER_BACKUP_SECRET` and
+`TOGLACIER_EMAIL_PASSWORD`, or the respective variables in the configuration
+file. The tool will detect an encrypted value when it starts with the label
+`encrypted:`.
 
 The audit file that keeps track of all backups has the format bellow. It's a
 good idea to periodically copy this audit file somewhere else, so if you lose
-your server you can recorver the files faster from the AWS Glacier (don't need
-to wait for the iventory).
+your server you can recover the files faster from the AWS Glacier (don't need
+to wait for the inventory).
 
     [datetime] [vaultName] [archiveID] [checksum]
 
@@ -101,6 +109,8 @@ once a day at midnight**. This information isn't configurable yet (the library
 that I'm using for cron tasks isn't so flexible). Also, **old backups are
 removed once a week at 1 AM** (yep, not configurable yet). To keep the
 consistency, **local storage synchronization will occur once a month at 12 PM**.
+A **report will be generated and sent once a week at 6 AM** with all the
+scheduler occurrences.
 
 A simple shell script that could help you running the program in Unix
 environments:
@@ -117,6 +127,12 @@ TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
+TOGLACIER_EMAIL_SERVER="smtp.example.com" \
+TOGLACIER_EMAIL_PORT="587" \
+TOGLACIER_EMAIL_USERNAME="user@example.com" \
+TOGLACIER_EMAIL_PASSWORD="encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==" \
+TOGLACIER_EMAIL_FROM="user@example.com" \
+TOGLACIER_EMAIL_TO="report1@example.com,report2@example.com" \
 toglacier $@ 2> >(tee /var/log/toglacier/error.log)
 ```
 
@@ -169,7 +185,13 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
   TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
   TOGLACIER_KEEP_BACKUPS=10 ^
-  TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
+  TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ== ^
+  TOGLACIER_EMAIL_SERVER=smtp.example.com ^
+  TOGLACIER_EMAIL_PORT=587 ^
+  TOGLACIER_EMAIL_USERNAME=user@example.com ^
+  TOGLACIER_EMAIL_PASSWORD=encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA== ^
+  TOGLACIER_EMAIL_FROM=user@example.com ^
+  TOGLACIER_EMAIL_TO=report1@example.com,report2@example.com
 
 c:\> nssm.exe start toglacier
 ```
