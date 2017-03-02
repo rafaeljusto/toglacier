@@ -78,7 +78,7 @@ func TestAuditFile_Save(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, string(auditFileContent)) {
-				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expectedError, string(auditFileContent))
+				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expected, string(auditFileContent))
 			}
 
 			if !reflect.DeepEqual(scenario.expectedError, err) {

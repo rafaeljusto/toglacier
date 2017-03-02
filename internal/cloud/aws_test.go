@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -93,6 +94,7 @@ func TestAWSCloud_Send(t *testing.T) {
 		multipartUploadLimit int64
 		partSize             int64
 		awsCloud             cloud.AWSCloud
+		randomSource         io.Reader
 		expected             cloud.Backup
 		expectedError        error
 	}{
@@ -475,9 +477,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -635,9 +637,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -1352,4 +1354,12 @@ type fakeClock struct {
 
 func (f fakeClock) Now() time.Time {
 	return f.mockNow()
+}
+
+type mockReader struct {
+	mockRead func(p []byte) (n int, err error)
+}
+
+func (m mockReader) Read(p []byte) (n int, err error) {
+	return m.mockRead(p)
 }

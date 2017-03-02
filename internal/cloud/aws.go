@@ -263,7 +263,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 	iventory := struct {
 		VaultARN      string `json:"VaultARN"`
 		InventoryDate string `json:"InventoryDate"`
-		ArchiveList   AWSIventoryArchiveList
+		ArchiveList   AWSInventoryArchiveList
 	}{}
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
@@ -391,9 +391,9 @@ func (a *AWSCloud) waitJob(jobID string) error {
 	}
 }
 
-// AWSIventoryArchiveList stores the archive information retrieved from AWS
+// AWSInventoryArchiveList stores the archive information retrieved from AWS
 // Glacier service.
-type AWSIventoryArchiveList []struct {
+type AWSInventoryArchiveList []struct {
 	ArchiveID          string    `json:"ArchiveId"`
 	ArchiveDescription string    `json:"ArchiveDescription"`
 	CreationDate       time.Time `json:"CreationDate"`
@@ -401,14 +401,14 @@ type AWSIventoryArchiveList []struct {
 	SHA256TreeHash     string    `json:"SHA256TreeHash"`
 }
 
-func (a AWSIventoryArchiveList) Len() int {
+func (a AWSInventoryArchiveList) Len() int {
 	return len(a)
 }
 
-func (a AWSIventoryArchiveList) Less(i, j int) bool {
+func (a AWSInventoryArchiveList) Less(i, j int) bool {
 	return a[i].CreationDate.Before(a[j].CreationDate)
 }
 
-func (a AWSIventoryArchiveList) Swap(i, j int) {
+func (a AWSInventoryArchiveList) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }

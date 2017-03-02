@@ -10,8 +10,9 @@ readonly LICENSE="MIT"
 readonly DESCRIPTION="Send data to Amazon Glacier service periodically."
 
 # install information
-readonly INSTALL_PATH="/usr/local/bin"
-readonly TMP_PATH="/tmp/toglacier/$INSTALL_PATH"
+readonly TMP_PATH="/tmp/toglacier/"
+readonly BIN_PATH="$TMP_PATH/usr/local/bin/"
+readonly CONF_PATH="$TMP_PATH/etc/"
 
 exit_error() {
   echo "$1. Abort" 1>&2
@@ -21,7 +22,8 @@ exit_error() {
 prepare() {
   rm -f toglacier*.deb 2>/dev/null
 
-  mkdir -p $TMP_PATH || exit_error "Cannot create the temporary path"
+  mkdir -p $BIN_PATH || exit_error "Cannot create the temporary path"
+  mkdir -p $CONF_PATH || exit_error "Cannot create the temporary path"
 }
 
 compile() {
@@ -31,7 +33,8 @@ compile() {
   cd $project_path || exit_error "Cannot change directory"
   go build || exit_error "Compile error"
 
-  mv toglacier $TMP_PATH || exit_error "Error copying binary"
+  mv toglacier $BIN_PATH || exit_error "Error copying binary"
+  cp toglacier.yml $CONF_PATH/toglacier.yml.sample || exit_error "Error copying configuration sample"
   cd - 1>/dev/null
 }
 
@@ -46,11 +49,11 @@ build_deb() {
     -n $PACKAGE_NAME -v "$version" --iteration "$release" --vendor "$VENDOR" \
     --maintainer "$MAINTAINER" --url $URL --license "$LICENSE" --description "$DESCRIPTION" \
     --deb-user root --deb-group root \
-    --prefix / -C /tmp/toglacier usr/local/bin
+    --prefix / -C $TMP_PATH usr/local/bin etc
 }
 
 cleanup() {
-  rm -rf /tmp/toglacier
+  rm -rf $TMP_PATH
 }
 
 VERSION=$1
