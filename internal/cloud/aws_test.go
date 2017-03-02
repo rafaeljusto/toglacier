@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,12 +225,23 @@ func TestAWSCloud_Send(t *testing.T) {
 				return f.Name()
 			}(),
 			multipartUploadLimit: 1024,
-			partSize:             100,
+			partSize:             1048576,
 			awsCloud: cloud.AWSCloud{
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUpload: func(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						partSize, err := strconv.ParseInt(*i.PartSize, 10, 64)
+						if err != nil {
+							return nil, err
+						}
+
+						// Part size must be a power of two and be between 1048576 and
+						// 4294967296 bytes
+						if partSize < 1048576 || partSize > 4294967296 || partSize&(partSize-1) != 0 {
+							return nil, errors.New("Invalid part size")
+						}
+
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
