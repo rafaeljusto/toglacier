@@ -32,12 +32,15 @@ func MultipartUploadLimit(value int64) {
 	atomic.StoreInt64(&multipartUploadLimit, value)
 }
 
-var partSize int64 = 4096 // 4 MB will limit the archive in 40GB
+var partSize int64 = 4194304 // 4 MB will limit the archive in 40GB
 
 // PartSize the size of each part of the multipart upload except the last, in
 // bytes. The last part can be smaller than this part size. By default we use
 // 4MB.
 func PartSize(value int64) {
+	// TODO: Part size must be a power of two and be between 1048576 and
+	// 4294967296 bytes
+
 	atomic.StoreInt64(&partSize, value)
 }
 
