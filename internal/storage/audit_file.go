@@ -46,6 +46,11 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 func (a *AuditFile) List() ([]cloud.Backup, error) {
 	auditFile, err := os.Open(a.Filename)
 	if err != nil {
+		// if the file doesn't exist we can presume that there's no backups yet
+		if pathErr, ok := err.(*os.PathError); ok && os.IsNotExist(pathErr.Err) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("error opening the audit file. details: %s", err)
 	}
 	defer auditFile.Close()
