@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix content range format in multipart strategy
 - Fix hash calculation (tree hash) of the uploaded archive
 - Check if the audit file exists when listing it
+- Remove backup when checksums don't match
 
 ### Added
 - Verifies the hash of each uploaded part in multipart strategy

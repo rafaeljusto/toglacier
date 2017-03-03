@@ -194,13 +194,25 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 
 		uploadMultipartPartOutput, err := a.Glacier.UploadMultipartPart(&uploadMultipartPartInput)
 		if err != nil {
-			// TODO: Cancel multipart upload?
+			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
+				AccountId: aws.String(a.AccountID),
+				UploadId:  initiateMultipartUploadOutput.UploadId,
+				VaultName: aws.String(a.VaultName),
+			}
+
+			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
 			return Backup{}, fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
 		}
 
 		// verify checksum of each uploaded part
 		if *uploadMultipartPartOutput.Checksum != hex.EncodeToString(hash.TreeHash) {
-			// TODO: Cancel multipart upload?
+			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
+				AccountId: aws.String(a.AccountID),
+				UploadId:  initiateMultipartUploadOutput.UploadId,
+				VaultName: aws.String(a.VaultName),
+			}
+
+			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
 			return Backup{}, fmt.Errorf("error comparing checksums on archive part (%d)", offset)
 		}
 	}
@@ -219,11 +231,23 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 
 	archiveCreationOutput, err := a.Glacier.CompleteMultipartUpload(&completeMultipartUploadInput)
 	if err != nil {
+		abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
+			AccountId: aws.String(a.AccountID),
+			UploadId:  initiateMultipartUploadOutput.UploadId,
+			VaultName: aws.String(a.VaultName),
+		}
+
+		a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
 		return Backup{}, fmt.Errorf("error completing multipart upload. details: %s", err)
 	}
 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
-		return Backup{}, errors.New("error comparing checksums")
+		// something went wrong with the uploaded archive, better remove it
+		if err := a.Remove(*initiateMultipartUploadOutput.UploadId); err != nil {
+			return Backup{}, fmt.Errorf("error comparing checksums. fail to remove backup “%s”. details: %s", *initiateMultipartUploadOutput.UploadId, err)
+		}
+
+		return Backup{}, errors.New("error comparing checksums. backup removed")
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -346,7 +370,7 @@ func (a *AWSCloud) Remove(id string) error {
 	}
 
 	if _, err := a.Glacier.DeleteArchive(&deleteArchiveInput); err != nil {
-		return fmt.Errorf("error removing old backup. details: %s", err)
+		return fmt.Errorf("error removing backup. details: %s", err)
 	}
 
 	return nil

@@ -320,6 +320,9 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
@@ -366,6 +369,9 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
@@ -403,6 +409,9 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
@@ -444,6 +453,13 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						if *d.ArchiveId != "UPLOAD123" {
+							return nil, fmt.Errorf("unexpected id %s", *d.ArchiveId)
+						}
+
+						return &glacier.DeleteArchiveOutput{}, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
@@ -469,7 +485,55 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums"),
+			expectedError: errors.New("error comparing checksums. backup removed"),
+		},
+		{
+			description: "it should detect when a big backup checksum don't match and fail to remove it",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						return nil, errors.New("connection error")
+					},
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error comparing checksums. fail to remove backup “UPLOAD123”. details: error removing backup. details: connection error"),
 		},
 	}
 
@@ -1039,7 +1103,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error removing old backup. details: no backup here"),
+			expectedError: errors.New("error removing backup. details: no backup here"),
 		},
 	}
 
