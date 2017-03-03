@@ -143,7 +143,7 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 		return Backup{}, fmt.Errorf("error sending archive to aws glacier. details: %s", err)
 	}
 
-	if hex.EncodeToString(hash.LinearHash) != *archiveCreationOutput.Checksum {
+	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
 		return Backup{}, errors.New("error comparing checksums")
 	}
 
@@ -187,16 +187,22 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 			AccountId: aws.String(a.AccountID),
 			Body:      body,
 			Checksum:  aws.String(hex.EncodeToString(hash.TreeHash)),
-			Range:     aws.String(fmt.Sprintf("%d-%d/%d", offset, offset+int64(n), archiveSize)),
+			Range:     aws.String(fmt.Sprintf("bytes %d-%d/%d", offset, offset+int64(n)-1, archiveSize)),
 			UploadId:  initiateMultipartUploadOutput.UploadId,
 			VaultName: aws.String(a.VaultName),
 		}
 
-		if _, err := a.Glacier.UploadMultipartPart(&uploadMultipartPartInput); err != nil {
+		uploadMultipartPartOutput, err := a.Glacier.UploadMultipartPart(&uploadMultipartPartInput)
+		if err != nil {
+			// TODO: Cancel multipart upload?
 			return Backup{}, fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
 		}
 
-		// TODO: Verify checksum of each uploaded part
+		// verify checksum of each uploaded part
+		if *uploadMultipartPartOutput.Checksum != hex.EncodeToString(hash.TreeHash) {
+			// TODO: Cancel multipart upload?
+			return Backup{}, fmt.Errorf("error comparing checksums on archive part (%d)", offset)
+		}
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -216,7 +222,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		return Backup{}, fmt.Errorf("error completing multipart upload. details: %s", err)
 	}
 
-	if hex.EncodeToString(hash.LinearHash) != *archiveCreationOutput.Checksum {
+	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
 		return Backup{}, errors.New("error comparing checksums")
 	}
 

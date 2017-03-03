@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Fixed
+- Fix content range format in multipart strategy
+- Fix hash calculation (tree hash) of the uploaded archive
+
+### Added
+- Verifies the hash of each uploaded part in multipart strategy
+
 ## [2.0.1] - 2017-03-02
 ### Fixed
 - Default multipart part size in bytes
