@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -23,11 +24,12 @@ func TestBackup(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
-		description string
-		backupPaths []string
-		cloud       cloud.Cloud
-		storage     storage.Storage
-		expectedLog *regexp.Regexp
+		description  string
+		backupPaths  []string
+		backupSecret string
+		cloud        cloud.Cloud
+		storage      storage.Storage
+		expectedLog  *regexp.Regexp
 	}{
 		{
 			description: "it should backup correctly an archive",
@@ -60,11 +62,74 @@ func TestBackup(t *testing.T) {
 			},
 		},
 		{
+			description: "it should backup correctly an archive with encryption",
+			backupPaths: func() []string {
+				d, err := ioutil.TempDir("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "file1"), []byte("file1 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				return []string{d}
+			}(),
+			backupSecret: "12345678901234567890123456789012",
+			cloud: mockCloud{
+				mockSend: func(filename string) (cloud.Backup, error) {
+					return cloud.Backup{
+						ID:        "123456",
+						CreatedAt: now,
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					return nil
+				},
+			},
+		},
+		{
 			description: "it should detect an error while building the package",
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
 			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error retrieving path “idontexist12345” information. details: stat idontexist12345: no such file or directory`),
+		},
+		{
+			description: "it should detect an error while encrypting the package",
+			backupPaths: func() []string {
+				d, err := ioutil.TempDir("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "file1"), []byte("file1 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				return []string{d}
+			}(),
+			backupSecret: "123456",
+			cloud: mockCloud{
+				mockSend: func(filename string) (cloud.Backup, error) {
+					return cloud.Backup{
+						ID:        "123456",
+						CreatedAt: now,
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b cloud.Backup) error {
+					return nil
+				},
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error initializing cipher. details: crypto/aes: invalid key size 6`),
 		},
 		{
 			description: "it should detect an error while sending the backup",
@@ -127,7 +192,7 @@ func TestBackup(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			backup(scenario.backupPaths, scenario.cloud, scenario.storage)
+			backup(scenario.backupPaths, scenario.backupSecret, scenario.cloud, scenario.storage)
 
 			o := strings.TrimSpace(output.String())
 			if scenario.expectedLog != nil && !scenario.expectedLog.MatchString(o) {
@@ -397,11 +462,12 @@ func TestListBackups(t *testing.T) {
 
 func TestRetrieveBackup(t *testing.T) {
 	scenarios := []struct {
-		description string
-		id          string
-		cloud       cloud.Cloud
-		expected    string
-		expectedLog *regexp.Regexp
+		description  string
+		id           string
+		backupSecret string
+		cloud        cloud.Cloud
+		expected     string
+		expectedLog  *regexp.Regexp
 	}{
 		{
 			description: "it should retrieve a backup correctly",
@@ -413,6 +479,32 @@ func TestRetrieveBackup(t *testing.T) {
 			expected: "toglacier-archive.tar.gz",
 		},
 		{
+			description:  "it should retrieve an encrypted backup correctly",
+			backupSecret: "1234567890123456",
+			cloud: mockCloud{
+				mockGet: func(id string) (filename string, err error) {
+					n := path.Join(os.TempDir(), "toglacier-test-getenc")
+					if _, err := os.Stat(n); os.IsNotExist(err) {
+						f, err := os.Create(n)
+						if err != nil {
+							t.Fatalf("error creating a temporary file. details: %s", err)
+						}
+						defer f.Close()
+
+						content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95bf65bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						if err != nil {
+							t.Fatalf("error decoding encrypted archive. details: %s", err)
+						}
+
+						f.Write(content)
+					}
+
+					return n, nil
+				},
+			},
+			expected: path.Join(os.TempDir(), "toglacier-test-getenc"),
+		},
+		{
 			description: "it should detect when there's an error retrieving a backup",
 			cloud: mockCloud{
 				mockGet: func(id string) (filename string, err error) {
@@ -420,6 +512,32 @@ func TestRetrieveBackup(t *testing.T) {
 				},
 			},
 			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error retrieving the backup`),
+		},
+		{
+			description:  "it should detect an error decrypting the backup",
+			backupSecret: "123456",
+			cloud: mockCloud{
+				mockGet: func(id string) (filename string, err error) {
+					n := path.Join(os.TempDir(), "toglacier-test-getenc")
+					if _, err := os.Stat(n); os.IsNotExist(err) {
+						f, err := os.Create(n)
+						if err != nil {
+							t.Fatalf("error creating a temporary file. details: %s", err)
+						}
+						defer f.Close()
+
+						content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95bf65bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+						if err != nil {
+							t.Fatalf("error decoding encrypted archive. details: %s", err)
+						}
+
+						f.Write(content)
+					}
+
+					return n, nil
+				},
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error initializing cipher. details: crypto/aes: invalid key size 6`),
 		},
 	}
 
@@ -430,7 +548,7 @@ func TestRetrieveBackup(t *testing.T) {
 		output.Reset()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			filename := retrieveBackup(scenario.id, scenario.cloud)
+			filename := retrieveBackup(scenario.id, scenario.backupSecret, scenario.cloud)
 
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)

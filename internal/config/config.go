@@ -20,10 +20,11 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths       []string `yaml:"paths" envconfig:"paths"`
-	AuditFile   string   `yaml:"audit file" envconfig:"audit"`
-	KeepBackups int      `yaml:"keep backups" envconfig:"keep_backups"`
-	AWS         struct {
+	Paths        []string `yaml:"paths" envconfig:"paths"`
+	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
+	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
+	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+	AWS          struct {
 		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`
 		AccessKeyID     encrypted `yaml:"access key id" envconfig:"access_key_id"`
 		SecretAccessKey encrypted `yaml:"secret access key" envconfig:"secret_access_key"`
@@ -102,6 +103,28 @@ func (e *encrypted) UnmarshalText(value []byte) error {
 		var err error
 		if e.Value, err = passwordDecrypt(strings.TrimPrefix(e.Value, "encrypted:")); err != nil {
 			return fmt.Errorf("error decrypting value. details: %s", err)
+		}
+	}
+
+	return nil
+}
+
+type aesKey struct {
+	encrypted
+}
+
+func (a *aesKey) UnmarshalText(value []byte) error {
+	if err := a.encrypted.UnmarshalText(value); err != nil {
+		return err
+	}
+
+	// The key argument should be the AES key, either 16, 24, or 32 bytes to
+	// select AES-128, AES-192, or AES-256. We will always force AES-256.
+	if a.Value != "" {
+		if len(a.Value) < 32 {
+			a.Value = a.Value + strings.Repeat("0", 32-len(a.Value))
+		} else if len(a.Value) > 32 {
+			a.Value = a.Value[:32]
 		}
 	}
 
