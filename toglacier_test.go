@@ -97,7 +97,7 @@ func TestBackup(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error reading path “idontexist12345”. details: open idontexist12345: no such file or directory`),
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error retrieving path “idontexist12345” information. details: stat idontexist12345: no such file or directory`),
 		},
 		{
 			description: "it should detect an error while encrypting the package",

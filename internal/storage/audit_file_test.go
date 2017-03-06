@@ -125,6 +125,12 @@ func TestAuditFile_List(t *testing.T) {
 			},
 		},
 		{
+			description: "it should return no backups when the audit file doesn't exist",
+			filename: func() string {
+				return path.Join(os.TempDir(), "toglacier-idontexist")
+			}(),
+		},
+		{
 			description: "it should detect when the audit file has no read permission",
 			filename: func() string {
 				n := path.Join(os.TempDir(), "toglacier-test-noperm")

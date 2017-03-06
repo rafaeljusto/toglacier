@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Add sample configuration file to deb and txz packages
 
+## [2.0.2] - 2017-03-06
+### Fixed
+- Fix content range format in multipart strategy
+- Fix hash calculation (tree hash) of the uploaded archive
+- Check if the audit file exists when listing it
+- Remove backup when checksum does not match
+- Allow to backup only one file
+
+### Added
+- Verifies the hash of each uploaded part in multipart strategy
+
 ## [2.0.1] - 2017-03-02
 ### Fixed
 - Default multipart part size in bytes
