@@ -2,6 +2,7 @@ package cloud_test
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -246,8 +247,11 @@ func TestAWSCloud_Send(t *testing.T) {
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
-						return &glacier.UploadMultipartPartOutput{}, nil
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
 					},
 					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
@@ -318,6 +322,9 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
@@ -325,13 +332,16 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 					mockUploadMultipartPart: func() func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
 						var i int
-						return func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
 							i++
 							if i >= 5 {
 								return nil, errors.New("part rejected")
-							} else {
-								return &glacier.UploadMultipartPartOutput{}, nil
 							}
+
+							hash := glacier.ComputeHashes(u.Body)
+							return &glacier.UploadMultipartPartOutput{
+								Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+							}, nil
 						}
 					}(),
 				},
@@ -342,6 +352,46 @@ func TestAWSCloud_Send(t *testing.T) {
 				},
 			},
 			expectedError: errors.New("error sending an archive part (400). details: part rejected"),
+		},
+		{
+			description: "it should detect when backup part checksum don't match",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error comparing checksums on archive part (0)"),
 		},
 		{
 			description: "it should detect an error while completing a big backup upload",
@@ -361,13 +411,19 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
-						return &glacier.UploadMultipartPartOutput{}, nil
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
 					},
 					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
 						return nil, errors.New("backup too big")
@@ -399,13 +455,23 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						if *d.ArchiveId != "UPLOAD123" {
+							return nil, fmt.Errorf("unexpected id %s", *d.ArchiveId)
+						}
+
+						return &glacier.DeleteArchiveOutput{}, nil
+					},
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
-						return &glacier.UploadMultipartPartOutput{}, nil
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
 					},
 					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
@@ -421,7 +487,55 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums"),
+			expectedError: errors.New("error comparing checksums. backup removed"),
+		},
+		{
+			description: "it should detect when a big backup checksum don't match and fail to remove it",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             100,
+			awsCloud: cloud.AWSCloud{
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: glacierAPIMock{
+					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+						return nil, errors.New("connection error")
+					},
+					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			expectedError: errors.New("error comparing checksums. fail to remove backup “UPLOAD123”. details: error removing backup. details: connection error"),
 		},
 	}
 
@@ -991,7 +1105,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error removing old backup. details: no backup here"),
+			expectedError: errors.New("error removing backup. details: no backup here"),
 		},
 	}
 
