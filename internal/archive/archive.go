@@ -42,45 +42,51 @@ func Build(backupPaths ...string) (string, error) {
 }
 
 func buildArchiveLevels(tarArchive *tar.Writer, basePath, currentPath string) error {
-	files, err := ioutil.ReadDir(currentPath)
+	stat, err := os.Stat(currentPath)
 	if err != nil {
-		return fmt.Errorf("error reading path “%s”. details: %s", currentPath, err)
+		return fmt.Errorf("error retrieving path “%s” information. details: %s", currentPath, err)
 	}
 
-	for _, file := range files {
-		if file.IsDir() {
-			buildArchiveLevels(tarArchive, basePath, path.Join(currentPath, file.Name()))
-			continue
-		}
-
-		tarHeader := tar.Header{
-			Name:    path.Join(basePath, currentPath, file.Name()),
-			Mode:    0600,
-			Size:    file.Size(),
-			ModTime: file.ModTime(),
-		}
-
-		if err := tarArchive.WriteHeader(&tarHeader); err != nil {
-			return fmt.Errorf("error writing header in tar for file %s. details: %s", file.Name(), err)
-		}
-
-		filename := path.Join(currentPath, file.Name())
-
-		fd, err := os.Open(filename)
+	if stat.Mode().IsDir() {
+		files, err := ioutil.ReadDir(currentPath)
 		if err != nil {
-			return fmt.Errorf("error opening file %s. details: %s", filename, err)
+			return fmt.Errorf("error reading path “%s”. details: %s", currentPath, err)
 		}
 
-		if n, err := io.Copy(tarArchive, fd); err != nil {
-			return fmt.Errorf("error writing content in tar for file %s. details: %s", filename, err)
-
-		} else if n != file.Size() {
-			return fmt.Errorf("wrong number of bytes written in file %s", filename)
+		for _, file := range files {
+			if err := buildArchiveLevels(tarArchive, basePath, path.Join(currentPath, file.Name())); err != nil {
+				return err
+			}
 		}
 
-		if err := fd.Close(); err != nil {
-			return fmt.Errorf("error closing file %s. details: %s", filename, err)
-		}
+		return nil
+	}
+
+	tarHeader := tar.Header{
+		Name:    path.Join(basePath, currentPath),
+		Mode:    0600,
+		Size:    stat.Size(),
+		ModTime: stat.ModTime(),
+	}
+
+	if err := tarArchive.WriteHeader(&tarHeader); err != nil {
+		return fmt.Errorf("error writing header in tar for file %s. details: %s", stat.Name(), err)
+	}
+
+	fd, err := os.Open(currentPath)
+	if err != nil {
+		return fmt.Errorf("error opening file %s. details: %s", currentPath, err)
+	}
+
+	if n, err := io.Copy(tarArchive, fd); err != nil {
+		return fmt.Errorf("error writing content in tar for file %s. details: %s", currentPath, err)
+
+	} else if n != stat.Size() {
+		return fmt.Errorf("wrong number of bytes written in file %s", currentPath)
+	}
+
+	if err := fd.Close(); err != nil {
+		return fmt.Errorf("error closing file %s. details: %s", currentPath, err)
 	}
 
 	return nil
