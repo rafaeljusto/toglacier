@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Add sample configuration file to deb and txz packages
 
+### Changed
+- Archive algorithm refactory to simplify the tar file
+
 ## [2.0.2] - 2017-03-06
 ### Fixed
 - Fix content range format in multipart strategy
@@ -22,9 +25,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 - Verifies the hash of each uploaded part in multipart strategy
-
-### Changed
-- Archive algorithm refactory to simplify the tar file
 
 ## [2.0.1] - 2017-03-02
 ### Fixed
