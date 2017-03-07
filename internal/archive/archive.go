@@ -13,7 +13,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -37,12 +38,12 @@ func Build(backupPaths ...string) (string, error) {
 	tarArchive := tar.NewWriter(tarFile)
 	basePath := "backup-" + time.Now().Format("20060102150405")
 
-	for _, currentPath := range backupPaths {
-		if currentPath == "" {
+	for _, path := range backupPaths {
+		if path == "" {
 			continue
 		}
 
-		if err := buildArchiveLevels(tarArchive, basePath, currentPath); err != nil {
+		if err := build(tarArchive, basePath, path); err != nil {
 			return "", err
 		}
 	}
@@ -54,55 +55,53 @@ func Build(backupPaths ...string) (string, error) {
 	return tarFile.Name(), nil
 }
 
-func buildArchiveLevels(tarArchive *tar.Writer, basePath, currentPath string) error {
-	stat, err := os.Stat(currentPath)
-	if err != nil {
-		return fmt.Errorf("error retrieving path “%s” information. details: %s", currentPath, err)
-	}
-
-	if stat.Mode().IsDir() {
-		files, err := ioutil.ReadDir(currentPath)
+func build(tarArchive *tar.Writer, baseDir, source string) error {
+	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("error reading path “%s”. details: %s", currentPath, err)
+			return fmt.Errorf("error retrieving path “%s” information. details: %s", path, err)
 		}
 
-		for _, file := range files {
-			if err := buildArchiveLevels(tarArchive, basePath, path.Join(currentPath, file.Name())); err != nil {
-				return err
+		header, err := tar.FileInfoHeader(info, path)
+		if err != nil {
+			return fmt.Errorf("error creating tar header for path “%s”. details: %s", path, err)
+		}
+
+		if path == source && !info.IsDir() {
+			// when we are building an archive of a single file, we don't need to
+			// create a base directory
+			header.Name = filepath.Base(path)
+
+		} else {
+			header.Name = filepath.Join(baseDir, strings.TrimPrefix(path, source))
+		}
+
+		if info.IsDir() {
+			header.Name += string(os.PathSeparator)
+		}
+
+		if err = tarArchive.WriteHeader(header); err != nil {
+			return fmt.Errorf("error writing header in tar for file %s. details: %s", path, err)
+		}
+
+		if info.IsDir() {
+			return nil
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			file, err := os.Open(path)
+			if err != nil {
+				return fmt.Errorf("error opening file %s. details: %s", path, err)
+			}
+			defer file.Close()
+
+			_, err = io.CopyN(tarArchive, file, info.Size())
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("error writing content in tar for file %s. details: %s", path, err)
 			}
 		}
 
 		return nil
-	}
-
-	tarHeader := tar.Header{
-		Name:    path.Join(basePath, currentPath),
-		Mode:    0600,
-		Size:    stat.Size(),
-		ModTime: stat.ModTime(),
-	}
-
-	if err := tarArchive.WriteHeader(&tarHeader); err != nil {
-		return fmt.Errorf("error writing header in tar for file %s. details: %s", stat.Name(), err)
-	}
-
-	fd, err := os.Open(currentPath)
-	if err != nil {
-		return fmt.Errorf("error opening file %s. details: %s", currentPath, err)
-	}
-
-	if n, err := io.Copy(tarArchive, fd); err != nil {
-		return fmt.Errorf("error writing content in tar for file %s. details: %s", currentPath, err)
-
-	} else if n != stat.Size() {
-		return fmt.Errorf("wrong number of bytes written in file %s", currentPath)
-	}
-
-	if err := fd.Close(); err != nil {
-		return fmt.Errorf("error closing file %s. details: %s", currentPath, err)
-	}
-
-	return nil
+	})
 }
 
 // Encrypt do what we expect, encrypting the content with a shared secret. It

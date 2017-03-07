@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Verifies the hash of each uploaded part in multipart strategy
 
+### Changed
+- Archive algorithm refactory to simplify the tar file
+
 ## [2.0.1] - 2017-03-02
 ### Fixed
 - Default multipart part size in bytes
