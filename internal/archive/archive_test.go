@@ -60,10 +60,10 @@ func TestBuild(t *testing.T) {
 
 				basePath := `backup-[0-9]+`
 				expectedFiles := []*regexp.Regexp{
-					regexp.MustCompile(`^` + basePath + string(os.PathSeparator) + `$`),
+					regexp.MustCompile(`^` + basePath + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file1`) + `$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file2`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `dir1`) + string(os.PathSeparator) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `dir1`) + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `dir1`, `file3`) + `$`),
 				}
 

@@ -76,7 +76,8 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 		}
 
 		if info.IsDir() {
-			header.Name += string(os.PathSeparator)
+			// tar always use slash as a path separator, even on Windows
+			header.Name += "/"
 		}
 
 		if err = tarArchive.WriteHeader(header); err != nil {
