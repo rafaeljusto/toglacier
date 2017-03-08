@@ -58,10 +58,12 @@ func TestBuild(t *testing.T) {
 				}
 				defer f.Close()
 
-				basePath := path.Join(`backup-[0-9]+`, os.TempDir(), `toglacier-test[0-9]+`)
+				basePath := `backup-[0-9]+`
 				expectedFiles := []*regexp.Regexp{
+					regexp.MustCompile(`^` + basePath + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file1`) + `$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file2`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `dir1`) + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `dir1`, `file3`) + `$`),
 				}
 
@@ -119,9 +121,8 @@ func TestBuild(t *testing.T) {
 				}
 				defer f.Close()
 
-				basePath := path.Join(`backup-[0-9]+`, os.TempDir())
 				expectedFiles := []*regexp.Regexp{
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`) + `$`),
+					regexp.MustCompile(`^toglacier-test[0-9]+$`),
 				}
 
 				tr := tar.NewReader(f)
@@ -164,7 +165,7 @@ func TestBuild(t *testing.T) {
 				return []string{"idontexist12345"}
 			}(),
 			expectedError: fmt.Errorf("error retrieving path “idontexist12345” information. details: %s", &os.PathError{
-				Op:   "stat",
+				Op:   "lstat",
 				Path: "idontexist12345",
 				Err:  errors.New("no such file or directory"),
 			}),
@@ -182,7 +183,7 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: fmt.Errorf("error reading path “%s”. details: %s",
+			expectedError: fmt.Errorf("error retrieving path “%s” information. details: %s",
 				path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm"),
 				&os.PathError{
 					Op:   "open",
