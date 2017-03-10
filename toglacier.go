@@ -134,7 +134,7 @@ func main() {
 			Name:  "report",
 			Usage: "test report notification",
 			Action: func(c *cli.Context) error {
-				report.AddReport(report.NewTest())
+				report.Add(report.NewTest())
 				sendReport(config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 				return nil
 			},
@@ -163,7 +163,7 @@ func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.
 	backupReport.Paths = backupPaths
 
 	defer func() {
-		report.AddReport(backupReport)
+		report.Add(backupReport)
 	}()
 
 	timeMark := time.Now()
@@ -223,7 +223,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	listBackupsReport := report.NewListBackups()
 	defer func() {
-		report.AddReport(listBackupsReport)
+		report.Add(listBackupsReport)
 	}()
 
 	timeMark := time.Now()
@@ -317,7 +317,7 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
 	removeOldBackupsReport := report.NewRemoveOldBackups()
 	defer func() {
-		report.AddReport(removeOldBackupsReport)
+		report.Add(removeOldBackupsReport)
 	}()
 
 	timeMark := time.Now()

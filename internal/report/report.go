@@ -1,3 +1,6 @@
+// Package report build a text with all actions performed by the tool. As the
+// tool can work in background, it is useful to periodically retrieve a report
+// with all actions.
 package report
 
 import (
@@ -57,19 +60,20 @@ func NewSendBackup() SendBackup {
 
 func (s SendBackup) Build() (string, error) {
 	tmpl := `
-{{.CreatedAt}} Backups Sent
+[{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
 
   Backup
   ------
 
     ID:          {{.Backup.ID}}
-    Date:        {{.Backup.CreatedAt}}
+    Date:        {{.Backup.CreatedAt.Format "2006-01-02 15:04:05"}}
     Vault:       {{.Backup.VaultName}}
     Checksum:    {{.Backup.Checksum}}
-    Paths:       {{range $path := .Paths}}{{path}} {{end}}
+    Paths:       {{range $path := .Paths}}{{$path}} {{end}}
 
   Durations
   ---------
+
     Build:       {{.Durations.Build}}
     Encrypt:     {{.Durations.Encrypt}}
     Send:        {{.Durations.Send}}
@@ -77,10 +81,9 @@ func (s SendBackup) Build() (string, error) {
   {{if .Errors -}}
   Errors
   ------
-
-    {{- range $err := .Errors}}
+    {{range $err := .Errors}}
     * {{$err}}
-    {{end -}}
+    {{- end -}}
   {{- end}}
 	`
 	t := template.Must(template.New("report").Parse(tmpl))
@@ -111,19 +114,19 @@ func NewListBackups() ListBackups {
 
 func (l ListBackups) Build() (string, error) {
 	tmpl := `
-{{.CreatedAt}} List Backup
+[{{.CreatedAt.Format "2006-01-02 15:04:05"}}] List Backup
 
   Durations
   ---------
+
     List:        {{.Durations.List}}
 
   {{if .Errors -}}
   Errors
   ------
-
-    {{- range $err := .Errors}}
+    {{range $err := .Errors}}
     * {{$err}}
-    {{end -}}
+    {{- end -}}
   {{- end}}
 	`
 	t := template.Must(template.New("report").Parse(tmpl))
@@ -157,30 +160,29 @@ func NewRemoveOldBackups() RemoveOldBackups {
 
 func (r RemoveOldBackups) Build() (string, error) {
 	tmpl := `
-{{.CreatedAt}} Remove Old Backups
+[{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Remove Old Backups
 
   Backups
   -------
-
     {{range $backup := .Backups}}
     * ID:        {{$backup.ID}}
-      Date:      {{$backup.CreatedAt}}
+      Date:      {{$backup.CreatedAt.Format "2006-01-02 15:04:05"}}
       Vault:     {{$backup.VaultName}}
       Checksum:  {{$backup.Checksum}}
-    {{end}}
+    {{- end}}
 
   Durations
   ---------
+
     List:        {{.Durations.List}}
     Remove:      {{.Durations.Remove}}
 
   {{if .Errors -}}
   Errors
   ------
-
-    {{- range $err := .Errors}}
+    {{range $err := .Errors}}
     * {{$err}}
-    {{end -}}
+    {{- end -}}
   {{- end}}
 	`
 	t := template.Must(template.New("report").Parse(tmpl))
@@ -192,30 +194,29 @@ func (r RemoveOldBackups) Build() (string, error) {
 	return buffer.String(), nil
 }
 
-type TestReport struct {
+type Test struct {
 	basic
 }
 
 // NewTest initialize a new test report to verify the notification mechanisms.
-func NewTest() TestReport {
-	return TestReport{
+func NewTest() Test {
+	return Test{
 		basic: newBasic(),
 	}
 }
 
-func (tr TestReport) Build() (string, error) {
+func (tr Test) Build() (string, error) {
 	tmpl := `
-{{.CreatedAt}} Test report
+[{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Test report
 
   Testing the notification mechanisms.
 
   {{if .Errors -}}
   Errors
   ------
-
-    {{- range $err := .Errors}}
+    {{range $err := .Errors}}
     * {{$err}}
-    {{end -}}
+    {{- end -}}
   {{- end}}
 	`
 	t := template.Must(template.New("report").Parse(tmpl))
@@ -227,8 +228,8 @@ func (tr TestReport) Build() (string, error) {
 	return buffer.String(), nil
 }
 
-// AddReport store the report information to be retrieved later.
-func AddReport(r Report) {
+// Add stores the report information to be retrieved later.
+func Add(r Report) {
 	reportsLock.Lock()
 	defer reportsLock.Unlock()
 
