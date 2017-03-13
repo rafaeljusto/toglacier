@@ -24,7 +24,17 @@ type Config struct {
 	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
 	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
 	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
-	AWS          struct {
+
+	Email struct {
+		Server   string    `yaml:"server" envconfig:"server"`
+		Port     int       `yaml:"port" envconfig:"port"`
+		Username string    `yaml:"username" envconfig:"username"`
+		Password encrypted `yaml:"password" envconfig:"password"`
+		From     string    `yaml:"from" envconfig:"from"`
+		To       []string  `yaml:"to" envconfig:"to"`
+	} `yaml:"email" envconfig:"email"`
+
+	AWS struct {
 		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`
 		AccessKeyID     encrypted `yaml:"access key id" envconfig:"access_key_id"`
 		SecretAccessKey encrypted `yaml:"secret access key" envconfig:"secret_access_key"`

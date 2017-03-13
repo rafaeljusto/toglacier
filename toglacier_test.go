@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/smtp"
 	"os"
 	"path"
 	"reflect"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
 
@@ -704,6 +706,125 @@ func TestRemoveOldBackups(t *testing.T) {
 	}
 }
 
+func TestSendReport(t *testing.T) {
+	date := time.Date(2017, 3, 10, 14, 10, 46, 0, time.UTC)
+
+	scenarios := []struct {
+		description   string
+		reports       []report.Report
+		emailSender   emailSender
+		emailServer   string
+		emailPort     int
+		emailUsername string
+		emailPassword string
+		emailFrom     string
+		emailTo       []string
+		expectedLog   *regexp.Regexp
+	}{
+		{
+			description: "it should send an e-mail correctly",
+			reports: []report.Report{
+				func() report.Report {
+					r := report.NewTest()
+					r.CreatedAt = date
+					r.Errors = append(r.Errors, errors.New("timeout connecting to aws"))
+					return r
+				}(),
+			},
+			emailSender: emailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+				if addr != "127.0.0.1:587" {
+					return fmt.Errorf("unexpected “address” %s", addr)
+				}
+
+				if from != "test@example.com" {
+					return fmt.Errorf("unexpected “from” %s", from)
+				}
+
+				if !reflect.DeepEqual(to, []string{"user@example.com"}) {
+					return fmt.Errorf("unexpected “to” %v", to)
+				}
+
+				if string(msg) != `From: test@example.com
+To: user@example.com
+Subject: toglacier report
+
+[2017-03-10 14:10:46] Test report
+
+  Testing the notification mechanisms.
+
+  Errors
+  ------
+
+    * timeout connecting to aws` {
+					return fmt.Errorf("unexpected message %s", string(msg))
+				}
+
+				return nil
+			}),
+			emailServer:   "127.0.0.1",
+			emailPort:     587,
+			emailUsername: "user",
+			emailPassword: "abc123",
+			emailFrom:     "test@example.com",
+			emailTo: []string{
+				"user@example.com",
+			},
+		},
+		{
+			description: "it should fail to build the reports",
+			reports: []report.Report{
+				mockReport{
+					mockBuild: func() (string, error) {
+						return "", errors.New("error generating report")
+					},
+				},
+			},
+			emailServer:   "127.0.0.1",
+			emailPort:     587,
+			emailUsername: "user",
+			emailPassword: "abc123",
+			emailFrom:     "test@example.com",
+			emailTo: []string{
+				"user@example.com",
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error generating report`),
+		},
+		{
+			description: "it should detect an error while sending the e-mail",
+			emailSender: emailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+				return errors.New("generic error while sending e-mail")
+			}),
+			emailServer:   "127.0.0.1",
+			emailPort:     587,
+			emailUsername: "user",
+			emailPassword: "abc123",
+			emailFrom:     "test@example.com",
+			emailTo: []string{
+				"user@example.com",
+			},
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ generic error while sending e-mail`),
+		},
+	}
+
+	var output bytes.Buffer
+	log.SetOutput(&output)
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			for _, r := range scenario.reports {
+				report.Add(r)
+			}
+
+			sendReport(scenario.emailSender, scenario.emailServer, scenario.emailPort, scenario.emailUsername, scenario.emailPassword, scenario.emailFrom, scenario.emailTo)
+
+			o := strings.TrimSpace(output.String())
+			if scenario.expectedLog != nil && !scenario.expectedLog.MatchString(o) {
+				t.Errorf("logs don't match. expected “%s” and got “%s”", scenario.expectedLog.String(), o)
+			}
+		})
+	}
+}
+
 type mockCloud struct {
 	mockSend   func(filename string) (cloud.Backup, error)
 	mockList   func() ([]cloud.Backup, error)
@@ -743,4 +864,12 @@ func (m mockStorage) List() ([]cloud.Backup, error) {
 
 func (m mockStorage) Remove(id string) error {
 	return m.mockRemove(id)
+}
+
+type mockReport struct {
+	mockBuild func() (string, error)
+}
+
+func (r mockReport) Build() (string, error) {
+	return r.mockBuild()
 }

@@ -3,13 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/smtp"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
 )
@@ -119,10 +122,20 @@ func main() {
 				scheduler.Every(1).Day().At("00:00").Do(backup, config.Current().Paths, awsCloud, auditFileStorage)
 				scheduler.Every(1).Weeks().At("01:00").Do(removeOldBackups, config.Current().KeepBackups, awsCloud, auditFileStorage)
 				scheduler.Every(4).Weeks().At("12:00").Do(listBackups, true, awsCloud, auditFileStorage)
+				scheduler.Every(1).Weeks().At("06:00").Do(sendReport, config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 
 				// TODO: Create a graceful shutdown when receiving a signal (SIGINT,
 				// SIGKILL, SIGTERM, SIGSTOP).
 				<-scheduler.Start()
+				return nil
+			},
+		},
+		{
+			Name:  "report",
+			Usage: "test report notification",
+			Action: func(c *cli.Context) error {
+				report.Add(report.NewTest())
+				sendReport(emailSenderFunc(smtp.SendMail), config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 				return nil
 			},
 		},
@@ -146,35 +159,52 @@ func main() {
 }
 
 func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.Storage) {
+	backupReport := report.NewSendBackup()
+	backupReport.Paths = backupPaths
+
+	defer func() {
+		report.Add(backupReport)
+	}()
+
+	timeMark := time.Now()
 	filename, err := archive.Build(backupPaths...)
 	if err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
 	defer os.Remove(filename)
+	backupReport.Durations.Build = time.Now().Sub(timeMark)
 
 	if backupSecret != "" {
 		var err error
-		var encryptedFillename string
+		var encryptedFilename string
 
-		if encryptedFillename, err = archive.Encrypt(filename, backupSecret); err != nil {
+		timeMark = time.Now()
+		if encryptedFilename, err = archive.Encrypt(filename, backupSecret); err != nil {
+			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
 		}
+		backupReport.Durations.Encrypt = time.Now().Sub(timeMark)
 
-		if err := os.Rename(encryptedFillename, filename); err != nil {
+		if err := os.Rename(encryptedFilename, filename); err != nil {
+			backupReport.Errors = append(backupReport.Errors, err)
 			log.Println(err)
 			return
 		}
 	}
 
-	backup, err := c.Send(filename)
-	if err != nil {
+	timeMark = time.Now()
+	if backupReport.Backup, err = c.Send(filename); err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
+	backupReport.Durations.Send = time.Now().Sub(timeMark)
 
-	if err := s.Save(backup); err != nil {
+	if err := s.Save(backupReport.Backup); err != nil {
+		backupReport.Errors = append(backupReport.Errors, err)
 		log.Println(err)
 		return
 	}
@@ -191,11 +221,19 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 		return backups
 	}
 
+	listBackupsReport := report.NewListBackups()
+	defer func() {
+		report.Add(listBackupsReport)
+	}()
+
+	timeMark := time.Now()
 	remoteBackups, err := c.List()
 	if err != nil {
+		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		log.Println(err)
 		return nil
 	}
+	listBackupsReport.Durations.List = time.Now().Sub(timeMark)
 
 	// retrieve local backups information only after the remote backups, because the
 	// remote backups operations can take a while, and a concurrent action could
@@ -203,6 +241,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	backups, err := s.List()
 	if err != nil {
+		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		log.Println(err)
 		return nil
 	}
@@ -223,6 +262,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	for _, backup := range backups {
 		if err := s.Remove(backup.ID); err != nil {
+			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			log.Println(err)
 			return nil
 		}
@@ -230,6 +270,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) []cloud.Backup {
 
 	for _, backup := range remoteBackups {
 		if err := s.Save(backup); err != nil {
+			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			log.Println(err)
 			return nil
 		}
@@ -274,8 +315,50 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) {
 }
 
 func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
+	removeOldBackupsReport := report.NewRemoveOldBackups()
+	defer func() {
+		report.Add(removeOldBackupsReport)
+	}()
+
+	timeMark := time.Now()
 	backups := listBackups(false, c, s)
+	removeOldBackupsReport.Durations.List = time.Now().Sub(timeMark)
+
+	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
+		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
 		removeBackup(backups[i].ID, c, s)
 	}
+	removeOldBackupsReport.Durations.Remove = time.Now().Sub(timeMark)
+}
+
+func sendReport(emailSender emailSender, emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) {
+	r, err := report.Build()
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	body := fmt.Sprintf(`From: %s
+To: %s
+Subject: toglacier report
+
+%s`, emailFrom, strings.Join(emailTo, ","), r)
+
+	auth := smtp.PlainAuth("", emailUsername, emailPassword, emailServer)
+
+	if err := emailSender.SendMail(fmt.Sprintf("%s:%d", emailServer, emailPort), auth, emailFrom, emailTo, []byte(body)); err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+type emailSender interface {
+	SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+}
+
+type emailSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
+func (r emailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return r(addr, a, from, to, msg)
 }
