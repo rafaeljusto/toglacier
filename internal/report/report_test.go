@@ -138,6 +138,17 @@ func TestBuild(t *testing.T) {
 
     * timeout connecting to aws`,
 		},
+		{
+			description: "it should detect an error while building a report",
+			reports: []report.Report{
+				reportMock{
+					mockBuild: func() (string, error) {
+						return "", errors.New("error generating report")
+					},
+				},
+			},
+			expectedError: errors.New("error generating report"),
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -169,4 +180,12 @@ func TestBuild(t *testing.T) {
 			}
 		})
 	}
+}
+
+type reportMock struct {
+	mockBuild func() (string, error)
+}
+
+func (r reportMock) Build() (string, error) {
+	return r.mockBuild()
 }
