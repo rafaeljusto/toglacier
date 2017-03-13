@@ -135,7 +135,7 @@ func main() {
 			Usage: "test report notification",
 			Action: func(c *cli.Context) error {
 				report.Add(report.NewTest())
-				sendReport(config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
+				sendReport(emailSenderFunc(smtp.SendMail), config.Current().Email.Server, config.Current().Email.Port, config.Current().Email.Username, config.Current().Email.Password.Value, config.Current().Email.From, config.Current().Email.To)
 				return nil
 			},
 		},
@@ -332,7 +332,7 @@ func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
 	removeOldBackupsReport.Durations.Remove = time.Now().Sub(timeMark)
 }
 
-func sendReport(emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) {
+func sendReport(emailSender emailSender, emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) {
 	r, err := report.Build()
 	if err != nil {
 		log.Println(err)
@@ -347,8 +347,18 @@ Subject: toglacier report
 
 	auth := smtp.PlainAuth("", emailUsername, emailPassword, emailServer)
 
-	if err := smtp.SendMail(fmt.Sprintf("%s:%d", emailServer, emailPort), auth, emailFrom, emailTo, []byte(body)); err != nil {
+	if err := emailSender.SendMail(fmt.Sprintf("%s:%d", emailServer, emailPort), auth, emailFrom, emailTo, []byte(body)); err != nil {
 		log.Println(err)
 		return
 	}
+}
+
+type emailSender interface {
+	SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+}
+
+type emailSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+
+func (r emailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+	return r(addr, a, from, to, msg)
 }
