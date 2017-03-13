@@ -141,7 +141,7 @@ func TestBuild(t *testing.T) {
 		{
 			description: "it should detect an error while building a report",
 			reports: []report.Report{
-				reportMock{
+				mockReport{
 					mockBuild: func() (string, error) {
 						return "", errors.New("error generating report")
 					},
@@ -182,10 +182,10 @@ func TestBuild(t *testing.T) {
 	}
 }
 
-type reportMock struct {
+type mockReport struct {
 	mockBuild func() (string, error)
 }
 
-func (r reportMock) Build() (string, error) {
+func (r mockReport) Build() (string, error) {
 	return r.mockBuild()
 }
