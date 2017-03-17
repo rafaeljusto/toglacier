@@ -2,6 +2,7 @@ package archive_test
 
 import (
 	"archive/tar"
+	"crypto/aes"
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
@@ -164,11 +165,15 @@ func TestBuild(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedError: fmt.Errorf("error retrieving path “idontexist12345” information. details: %s", &os.PathError{
-				Op:   "lstat",
+			expectedError: archive.PathError{
 				Path: "idontexist12345",
-				Err:  errors.New("no such file or directory"),
-			}),
+				Code: archive.PathErrorCodeInfo,
+				Err: &os.PathError{
+					Op:   "lstat",
+					Path: "idontexist12345",
+					Err:  errors.New("no such file or directory"),
+				},
+			},
 		},
 		{
 			description: "it should detect when the path (directory) does not have permission",
@@ -183,13 +188,15 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: fmt.Errorf("error retrieving path “%s” information. details: %s",
-				path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm"),
-				&os.PathError{
+			expectedError: archive.PathError{
+				Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm"),
+				Code: archive.PathErrorCodeInfo,
+				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm"),
 					Err:  errors.New("permission denied"),
-				}),
+				},
+			},
 		},
 		{
 			description: "it should detect when the path (file) does not have permission",
@@ -207,13 +214,15 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: fmt.Errorf("error opening file %s. details: %s",
-				path.Join(os.TempDir(), "toglacier-test-archive-file-noperm"),
-				&os.PathError{
+			expectedError: archive.PathError{
+				Path: path.Join(os.TempDir(), "toglacier-test-archive-file-noperm"),
+				Code: archive.PathErrorCodeOpeningFile,
+				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-archive-file-noperm"),
 					Err:  errors.New("permission denied"),
-				}),
+				},
+			},
 		},
 		{
 			description: "it should detect an error while walking in the path",
@@ -236,13 +245,15 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: fmt.Errorf("error opening file %s. details: %s",
-				path.Join(os.TempDir(), "toglacier-test-archive-dir-file-noperm", "file1"),
-				&os.PathError{
+			expectedError: archive.PathError{
+				Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-file-noperm", "file1"),
+				Code: archive.PathErrorCodeOpeningFile,
+				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-file-noperm", "file1"),
 					Err:  errors.New("permission denied"),
-				}),
+				},
+			},
 		},
 	}
 
@@ -254,7 +265,8 @@ func TestBuild(t *testing.T) {
 					t.Errorf("unexpected archive content (%s). details: %s", filename, err)
 				}
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+
+			if !archive.ArchiveErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -262,19 +274,29 @@ func TestBuild(t *testing.T) {
 }
 
 func TestEncrypt(t *testing.T) {
-	scenarios := []struct {
+	type scenario struct {
 		description   string
 		filename      string
 		secret        string
 		randomSource  io.Reader
 		expectedFile  string
 		expectedError error
-	}{
+	}
+
+	scenarios := []scenario{
 		{
-			description:   "it should detect when it tries to encrypt a file that doesn't exist",
-			filename:      "toglacier-idontexist.tmp",
-			secret:        "12345678901234567890123456789012",
-			expectedError: errors.New("error opening file toglacier-idontexist.tmp. details: open toglacier-idontexist.tmp: no such file or directory"),
+			description: "it should detect when it tries to encrypt a file that doesn't exist",
+			filename:    "toglacier-idontexist.tmp",
+			secret:      "12345678901234567890123456789012",
+			expectedError: archive.ArchiveError{
+				Filename: "toglacier-idontexist.tmp",
+				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-idontexist.tmp",
+					Err:  errors.New("no such file or directory"),
+				},
+			},
 		},
 		{
 			description: "it should detect when the archive has no read permission",
@@ -292,46 +314,68 @@ func TestEncrypt(t *testing.T) {
 
 				return n
 			}(),
-			secret:        "12345678901234567890123456789012",
-			randomSource:  rand.Reader,
-			expectedError: errors.New("error opening file /tmp/toglacier-test-noperm. details: open /tmp/toglacier-test-noperm: permission denied"),
+			secret:       "12345678901234567890123456789012",
+			randomSource: rand.Reader,
+			expectedError: archive.ArchiveError{
+				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
+				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
+					Err:  errors.New("permission denied"),
+				},
+			},
 		},
-		{
-			description: "it should detect when the random source generates an error",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-test-")
-				if err != nil {
-					t.Fatalf("error creating file. details: %s", err)
-				}
-				defer f.Close()
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-test-")
+			if err != nil {
+				t.Fatalf("error creating file. details: %s", err)
+			}
+			defer f.Close()
 
-				f.WriteString("Important information for the test backup")
-				return f.Name()
-			}(),
-			secret: "1234567890123456",
-			randomSource: mockReader{
+			f.WriteString("Important information for the test backup")
+
+			var scenario scenario
+			scenario.description = "it should detect when the random source generates an error"
+			scenario.filename = f.Name()
+			scenario.secret = "1234567890123456"
+
+			scenario.randomSource = mockReader{
 				mockRead: func(p []byte) (n int, err error) {
 					return 0, errors.New("random error")
 				},
-			},
-			expectedError: errors.New("error filling iv with random numbers. details: random error"),
-		},
-		{
-			description: "it should detect when the AES secret length is invalid",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-test-")
-				if err != nil {
-					t.Fatalf("error creating file. details: %s", err)
-				}
-				defer f.Close()
+			}
+			scenario.expectedError = archive.ArchiveError{
+				Filename: f.Name(),
+				Code:     archive.ArchiveErrorCodeGenerateRandomNumbers,
+				Err:      errors.New("random error"),
+			}
 
-				f.WriteString("Important information for the test backup")
-				return f.Name()
-			}(),
-			secret:        "123456",
-			randomSource:  rand.Reader,
-			expectedError: errors.New("error initializing cipher. details: crypto/aes: invalid key size 6"),
-		},
+			return scenario
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-test-")
+			if err != nil {
+				t.Fatalf("error creating file. details: %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString("Important information for the test backup")
+
+			var scenario scenario
+			scenario.description = "it should detect when the AES secret length is invalid"
+			scenario.filename = f.Name()
+			scenario.secret = "123456"
+			scenario.randomSource = rand.Reader
+
+			scenario.expectedError = archive.ArchiveError{
+				Filename: f.Name(),
+				Code:     archive.ArchiveErrorCodeInitCipher,
+				Err:      aes.KeySizeError(6),
+			}
+
+			return scenario
+		}(),
 	}
 
 	originalRandomSource := archive.RandomSource
@@ -353,7 +397,7 @@ func TestEncrypt(t *testing.T) {
 				t.Errorf("files don't match. expected “%s” and got “%s”", scenario.expectedFile, string(fileContent))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !archive.ArchiveErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -361,13 +405,15 @@ func TestEncrypt(t *testing.T) {
 }
 
 func TestDecrypt(t *testing.T) {
-	scenarios := []struct {
+	type scenario struct {
 		description       string
 		encryptedFilename string
 		secret            string
 		expectedFile      string
 		expectedError     error
-	}{
+	}
+
+	scenarios := []scenario{
 		{
 			description: "it should detect when the archive has no read permission",
 			encryptedFilename: func() string {
@@ -384,8 +430,16 @@ func TestDecrypt(t *testing.T) {
 
 				return n
 			}(),
-			secret:        "12345678901234567890123456789012",
-			expectedError: errors.New("error opening encrypted file. details: open /tmp/toglacier-test-noperm: permission denied"),
+			secret: "12345678901234567890123456789012",
+			expectedError: archive.ArchiveError{
+				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
+				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
+					Err:  errors.New("permission denied"),
+				},
+			},
 		},
 		{
 			description: "it should ignore an unencrypted data even if the secret is defined",
@@ -402,26 +456,33 @@ func TestDecrypt(t *testing.T) {
 			}(),
 			expectedFile: "Important information for the test backup",
 		},
-		{
-			description: "it should detect when the backup decrypt key has an invalid AES length",
-			secret:      "123456",
-			encryptedFilename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-test-")
-				if err != nil {
-					t.Fatalf("error creating file. details: %s", err)
-				}
-				defer f.Close()
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-test-")
+			if err != nil {
+				t.Fatalf("error creating file. details: %s", err)
+			}
+			defer f.Close()
 
-				content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
-				if err != nil {
-					t.Fatalf("error decoding encrypted archive. details: %s", err)
-				}
+			content, err := hex.DecodeString("656e637279707465643a8fbd41664a1d72b4ea1fcecd618a6ed5c05c95aaa5bfda2d4d176e8feff96f710000000000000000000000000000000091d8e827b5136dfac6bb3dbc51f15c17d34947880f91e62799910ea05053969abc28033550b3781111")
+			if err != nil {
+				t.Fatalf("error decoding encrypted archive. details: %s", err)
+			}
 
-				f.Write(content)
-				return f.Name()
-			}(),
-			expectedError: errors.New("error initializing cipher. details: crypto/aes: invalid key size 6"),
-		},
+			f.Write(content)
+
+			var scenario scenario
+			scenario.description = "it should detect when the backup decrypt key has an invalid AES length"
+			scenario.encryptedFilename = f.Name()
+			scenario.secret = "123456"
+
+			scenario.expectedError = archive.ArchiveError{
+				Filename: f.Name(),
+				Code:     archive.ArchiveErrorCodeInitCipher,
+				Err:      aes.KeySizeError(6),
+			}
+
+			return scenario
+		}(),
 		{
 			description: "it should detect when the decrypt authentication data is invalid",
 			secret:      "1234567890123456",
@@ -440,7 +501,9 @@ func TestDecrypt(t *testing.T) {
 				f.Write(content)
 				return f.Name()
 			}(),
-			expectedError: errors.New("encrypted content authentication failed"),
+			expectedError: archive.ArchiveError{
+				Code: archive.ArchiveErrorCodeAuthFailed,
+			},
 		},
 	}
 
@@ -471,7 +534,7 @@ func TestDecrypt(t *testing.T) {
 				t.Errorf("files don't match. expected “%s” and got “%s”", scenario.expectedFile, string(fileContent))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !archive.ArchiveErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -553,6 +616,6 @@ type mockReader struct {
 	mockRead func(p []byte) (n int, err error)
 }
 
-func (m mockReader) Read(p []byte) (n int, err error) {
+func (m mockReader) Read(p []byte) (int, error) {
 	return m.mockRead(p)
 }

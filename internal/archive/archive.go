@@ -1,4 +1,3 @@
-// Package archive builds the backup archive.
 package archive
 
 import (
@@ -8,8 +7,6 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -27,11 +24,11 @@ const encryptedLabel = "encrypted:"
 
 // Build builds a tarball containing all the desired files that you want to
 // backup. On success it will return an open file, so the caller is responsible
-// for closing it.
+// for closing it. On error it will return an ArchiveError or a PathError.
 func Build(backupPaths ...string) (string, error) {
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", fmt.Errorf("error creating the tar file. details: %s", err)
+		return "", newArchiveError("", ArchiveErrorCodeTARCreation, err)
 	}
 	defer tarFile.Close()
 
@@ -49,7 +46,7 @@ func Build(backupPaths ...string) (string, error) {
 	}
 
 	if err := tarArchive.Close(); err != nil {
-		return "", fmt.Errorf("error generating tar file. details: %s", err)
+		return "", newArchiveError(tarFile.Name(), ArchiveErrorCodeTARGeneration, err)
 	}
 
 	return tarFile.Name(), nil
@@ -58,12 +55,12 @@ func Build(backupPaths ...string) (string, error) {
 func build(tarArchive *tar.Writer, baseDir, source string) error {
 	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return fmt.Errorf("error retrieving path “%s” information. details: %s", path, err)
+			return newPathError(path, PathErrorCodeInfo, err)
 		}
 
 		header, err := tar.FileInfoHeader(info, path)
 		if err != nil {
-			return fmt.Errorf("error creating tar header for path “%s”. details: %s", path, err)
+			return newPathError(path, PathErrorCodeCreateTARHeader, err)
 		}
 
 		if path == source && !info.IsDir() {
@@ -81,7 +78,7 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 		}
 
 		if err = tarArchive.WriteHeader(header); err != nil {
-			return fmt.Errorf("error writing header in tar for file %s. details: %s", path, err)
+			return newPathError(path, PathErrorCodeWritingTARHeader, err)
 		}
 
 		if info.IsDir() {
@@ -91,13 +88,13 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 		if header.Typeflag == tar.TypeReg {
 			file, err := os.Open(path)
 			if err != nil {
-				return fmt.Errorf("error opening file %s. details: %s", path, err)
+				return newPathError(path, PathErrorCodeOpeningFile, err)
 			}
 			defer file.Close()
 
 			_, err = io.CopyN(tarArchive, file, info.Size())
 			if err != nil && err != io.EOF {
-				return fmt.Errorf("error writing content in tar for file %s. details: %s", path, err)
+				return newPathError(path, PathErrorCodeWritingFile, err)
 			}
 		}
 
@@ -107,45 +104,45 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 
 // Encrypt do what we expect, encrypting the content with a shared secret. It
 // adds authentication using HMAC-SHA256. It will return the encrypted
-// filename or an error.
+// filename or an ArchiveError.
 func Encrypt(filename, secret string) (string, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
-		return "", fmt.Errorf("error opening file %s. details: %s", filename, err)
+		return "", newArchiveError(filename, ArchiveErrorCodeOpeningFile, err)
 	}
 	defer archive.Close()
 
 	encryptedArchive, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", fmt.Errorf("error creating temporary encrypted file. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeTmpFileCreation, err)
 	}
 	defer encryptedArchive.Close()
 
 	hash, err := hmacSHA256(archive, secret)
 	if err != nil {
-		return "", fmt.Errorf("error calculating HMAC-SHA256 from file %s. details: %s", filename, err)
+		return "", err
 	}
 
 	iv := make([]byte, aes.BlockSize)
 	if _, err = io.ReadFull(RandomSource, iv); err != nil {
-		return "", fmt.Errorf("error filling iv with random numbers. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeGenerateRandomNumbers, err)
 	}
 
 	if _, err = encryptedArchive.WriteString(encryptedLabel); err != nil {
-		return "", fmt.Errorf("error writing label to encrypted file. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeWritingLabel, err)
 	}
 
 	if _, err = encryptedArchive.Write(hash); err != nil {
-		return "", fmt.Errorf("error writing authentication to encrypted file. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeWritingAuth, err)
 	}
 
 	if _, err = encryptedArchive.Write(iv); err != nil {
-		return "", fmt.Errorf("error writing iv to encrypted file. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeWritingIV, err)
 	}
 
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("error initializing cipher. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeInitCipher, err)
 	}
 
 	writer := cipher.StreamWriter{
@@ -155,7 +152,7 @@ func Encrypt(filename, secret string) (string, error) {
 	defer writer.Close()
 
 	if _, err = io.Copy(&writer, archive); err != nil {
-		return "", fmt.Errorf("error encrypting file. details: %s", err)
+		return "", newArchiveError(filename, ArchiveErrorCodeEncryptingFile, err)
 	}
 
 	return encryptedArchive.Name(), nil
@@ -163,17 +160,17 @@ func Encrypt(filename, secret string) (string, error) {
 
 // Decrypt do what we expect, decrypting the content with a shared secret. It
 // authenticates the data using HMAC-SHA256. It will return the decrypted
-// filename or an error.
+// filename or an ArchiveError.
 func Decrypt(encryptedFilename, secret string) (string, error) {
 	encryptedArchive, err := os.Open(encryptedFilename)
 	if err != nil {
-		return "", fmt.Errorf("error opening encrypted file. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeOpeningFile, err)
 	}
 	defer encryptedArchive.Close()
 
 	archive, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", fmt.Errorf("error creating temporary file. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeTmpFileCreation, err)
 	}
 	defer archive.Close()
 
@@ -184,7 +181,7 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 		return encryptedFilename, nil
 
 	} else if err != nil {
-		return "", fmt.Errorf("error reading encrypted file label. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeReadingLabel, err)
 	}
 
 	authHash := make([]byte, sha256.Size)
@@ -194,12 +191,12 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 
 	iv := make([]byte, aes.BlockSize)
 	if _, err = encryptedArchive.Read(iv); err != nil {
-		return "", fmt.Errorf("error reading encrypted authentication. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeReadingAuth, err)
 	}
 
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		return "", fmt.Errorf("error initializing cipher. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeInitCipher, err)
 	}
 
 	reader := cipher.StreamReader{
@@ -208,16 +205,16 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 	}
 
 	if _, err = io.Copy(archive, reader); err != nil {
-		return "", fmt.Errorf("error decrypting file. details: %s", err)
+		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeDecryptingFile, err)
 	}
 
 	hash, err := hmacSHA256(archive, secret)
 	if err != nil {
-		return "", fmt.Errorf("error calculating HMAC-SHA256 from file. details: %s", err)
+		return "", err
 	}
 
 	if !hmac.Equal(authHash, hash) {
-		return "", errors.New("encrypted content authentication failed")
+		return "", newArchiveError("", ArchiveErrorCodeAuthFailed, nil)
 	}
 
 	return archive.Name(), nil
@@ -225,16 +222,16 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 
 func hmacSHA256(f *os.File, secret string) ([]byte, error) {
 	if _, err := f.Seek(0, 0); err != nil {
-		return nil, err
+		return nil, newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err)
 	}
 
 	hash := hmac.New(sha256.New, []byte(secret))
 	if _, err := io.Copy(hash, f); err != nil {
-		return nil, err
+		return nil, newArchiveError(f.Name(), ArchiveErrorCodeCalculateHMACSHA256, err)
 	}
 
 	if _, err := f.Seek(0, 0); err != nil {
-		return nil, err
+		return nil, newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err)
 	}
 
 	return hash.Sum(nil), nil

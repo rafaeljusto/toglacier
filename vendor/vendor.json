@@ -157,6 +157,24 @@
 			"revisionTime": "2016-05-04T02:26:26Z"
 		},
 		{
+			"checksumSHA1": "Eqi8EtC0pHp92xKlMK7fh1sIwwc=",
+			"path": "github.com/registrobr/gostk/errors",
+			"revision": "197d37f17abb4e54d7ed604336155eb737cf222c",
+			"revisionTime": "2016-10-27T12:47:48Z"
+		},
+		{
+			"checksumSHA1": "pfZxddInuc6Ha4xNbNkwPsn+X7Y=",
+			"path": "github.com/registrobr/gostk/log",
+			"revision": "197d37f17abb4e54d7ed604336155eb737cf222c",
+			"revisionTime": "2016-10-27T12:47:48Z"
+		},
+		{
+			"checksumSHA1": "kxwOE2+etcIBaitCA49HZ7Wg8jY=",
+			"path": "github.com/registrobr/gostk/path",
+			"revision": "197d37f17abb4e54d7ed604336155eb737cf222c",
+			"revisionTime": "2016-10-27T12:47:48Z"
+		},
+		{
 			"checksumSHA1": "LMu1NsthSqcXfKu0m6YGPAmwBcY=",
 			"path": "github.com/urfave/cli",
 			"revision": "0bdeddeeb0f650497d603c4ad7b20cfe685682f6",
