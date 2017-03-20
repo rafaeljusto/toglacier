@@ -110,7 +110,7 @@ func (a ArchiveErrorCode) String() string {
 		return "error moving to the beggining of the file"
 	}
 
-	return ""
+	return "unknown error code"
 }
 
 // ArchiveError stores error details from archive operations.
@@ -208,7 +208,7 @@ func (p PathErrorCode) String() string {
 		return "error writing content in tar"
 	}
 
-	return ""
+	return "unknown error code"
 }
 
 // PathError stores error details detected while traversing the path.
