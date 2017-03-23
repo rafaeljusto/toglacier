@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [2.0.3] - 2017-03-23
+### Fixed
+- Fix backup removal on checksum mismatch
+
+## [2.0.2] - 2017-03-06
 ### Fixed
 - Fix content range format in multipart strategy
 - Fix hash calculation (tree hash) of the uploaded archive

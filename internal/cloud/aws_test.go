@@ -454,7 +454,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				VaultName: "vault",
 				Glacier: glacierAPIMock{
 					mockDeleteArchive: func(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
-						if *d.ArchiveId != "UPLOAD123" {
+						if *d.ArchiveId != "AWSID123" {
 							return nil, fmt.Errorf("unexpected id %s", *d.ArchiveId)
 						}
 
@@ -533,7 +533,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums. fail to remove backup “UPLOAD123”. details: error removing backup. details: connection error"),
+			expectedError: errors.New("error comparing checksums. fail to remove backup “AWSID123”. details: error removing backup. details: connection error"),
 		},
 	}
 
