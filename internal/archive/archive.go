@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/pkg/errors"
 )
 
 // RandomSource defines from where we are going to read random values to encrypt
@@ -24,11 +26,27 @@ const encryptedLabel = "encrypted:"
 
 // Build builds a tarball containing all the desired files that you want to
 // backup. On success it will return an open file, so the caller is responsible
-// for closing it. On error it will return an ArchiveError or a PathError.
+// for closing it. On error it will return an ArchiveError or a PathError
+// encapsulated in a traceable error. To retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ArchiveError:
+//         // handle specifically
+//       case PathError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func Build(backupPaths ...string) (string, error) {
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", newArchiveError("", ArchiveErrorCodeTARCreation, err)
+		return "", errors.WithStack(newArchiveError("", ArchiveErrorCodeTARCreation, err))
 	}
 	defer tarFile.Close()
 
@@ -41,12 +59,12 @@ func Build(backupPaths ...string) (string, error) {
 		}
 
 		if err := build(tarArchive, basePath, path); err != nil {
-			return "", err
+			return "", errors.WithStack(err)
 		}
 	}
 
 	if err := tarArchive.Close(); err != nil {
-		return "", newArchiveError(tarFile.Name(), ArchiveErrorCodeTARGeneration, err)
+		return "", errors.WithStack(newArchiveError(tarFile.Name(), ArchiveErrorCodeTARGeneration, err))
 	}
 
 	return tarFile.Name(), nil
@@ -55,12 +73,12 @@ func Build(backupPaths ...string) (string, error) {
 func build(tarArchive *tar.Writer, baseDir, source string) error {
 	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return newPathError(path, PathErrorCodeInfo, err)
+			return errors.WithStack(newPathError(path, PathErrorCodeInfo, err))
 		}
 
 		header, err := tar.FileInfoHeader(info, path)
 		if err != nil {
-			return newPathError(path, PathErrorCodeCreateTARHeader, err)
+			return errors.WithStack(newPathError(path, PathErrorCodeCreateTARHeader, err))
 		}
 
 		if path == source && !info.IsDir() {
@@ -78,7 +96,7 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 		}
 
 		if err = tarArchive.WriteHeader(header); err != nil {
-			return newPathError(path, PathErrorCodeWritingTARHeader, err)
+			return errors.WithStack(newPathError(path, PathErrorCodeWritingTARHeader, err))
 		}
 
 		if info.IsDir() {
@@ -88,13 +106,13 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 		if header.Typeflag == tar.TypeReg {
 			file, err := os.Open(path)
 			if err != nil {
-				return newPathError(path, PathErrorCodeOpeningFile, err)
+				return errors.WithStack(newPathError(path, PathErrorCodeOpeningFile, err))
 			}
 			defer file.Close()
 
 			_, err = io.CopyN(tarArchive, file, info.Size())
 			if err != nil && err != io.EOF {
-				return newPathError(path, PathErrorCodeWritingFile, err)
+				return errors.WithStack(newPathError(path, PathErrorCodeWritingFile, err))
 			}
 		}
 
@@ -104,45 +122,59 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 
 // Encrypt do what we expect, encrypting the content with a shared secret. It
 // adds authentication using HMAC-SHA256. It will return the encrypted
-// filename or an ArchiveError.
+// filename or an ArchiveError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ArchiveError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func Encrypt(filename, secret string) (string, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeOpeningFile, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeOpeningFile, err))
 	}
 	defer archive.Close()
 
 	encryptedArchive, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeTmpFileCreation, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeTmpFileCreation, err))
 	}
 	defer encryptedArchive.Close()
 
 	hash, err := hmacSHA256(archive, secret)
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(err)
 	}
 
 	iv := make([]byte, aes.BlockSize)
 	if _, err = io.ReadFull(RandomSource, iv); err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeGenerateRandomNumbers, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeGenerateRandomNumbers, err))
 	}
 
 	if _, err = encryptedArchive.WriteString(encryptedLabel); err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeWritingLabel, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeWritingLabel, err))
 	}
 
 	if _, err = encryptedArchive.Write(hash); err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeWritingAuth, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeWritingAuth, err))
 	}
 
 	if _, err = encryptedArchive.Write(iv); err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeWritingIV, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeWritingIV, err))
 	}
 
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeInitCipher, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeInitCipher, err))
 	}
 
 	writer := cipher.StreamWriter{
@@ -152,7 +184,7 @@ func Encrypt(filename, secret string) (string, error) {
 	defer writer.Close()
 
 	if _, err = io.Copy(&writer, archive); err != nil {
-		return "", newArchiveError(filename, ArchiveErrorCodeEncryptingFile, err)
+		return "", errors.WithStack(newArchiveError(filename, ArchiveErrorCodeEncryptingFile, err))
 	}
 
 	return encryptedArchive.Name(), nil
@@ -160,17 +192,31 @@ func Encrypt(filename, secret string) (string, error) {
 
 // Decrypt do what we expect, decrypting the content with a shared secret. It
 // authenticates the data using HMAC-SHA256. It will return the decrypted
-// filename or an ArchiveError.
+// filename or an ArchiveError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ArchiveError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func Decrypt(encryptedFilename, secret string) (string, error) {
 	encryptedArchive, err := os.Open(encryptedFilename)
 	if err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeOpeningFile, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeOpeningFile, err))
 	}
 	defer encryptedArchive.Close()
 
 	archive, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeTmpFileCreation, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeTmpFileCreation, err))
 	}
 	defer archive.Close()
 
@@ -181,22 +227,22 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 		return encryptedFilename, nil
 
 	} else if err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeReadingLabel, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeReadingLabel, err))
 	}
 
 	authHash := make([]byte, sha256.Size)
 	if _, err = encryptedArchive.Read(authHash); err != nil {
-		return "", err
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeReadingAuth, err))
 	}
 
 	iv := make([]byte, aes.BlockSize)
 	if _, err = encryptedArchive.Read(iv); err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeReadingAuth, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeReadingIV, err))
 	}
 
 	block, err := aes.NewCipher([]byte(secret))
 	if err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeInitCipher, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeInitCipher, err))
 	}
 
 	reader := cipher.StreamReader{
@@ -205,16 +251,16 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 	}
 
 	if _, err = io.Copy(archive, reader); err != nil {
-		return "", newArchiveError(encryptedFilename, ArchiveErrorCodeDecryptingFile, err)
+		return "", errors.WithStack(newArchiveError(encryptedFilename, ArchiveErrorCodeDecryptingFile, err))
 	}
 
 	hash, err := hmacSHA256(archive, secret)
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(err)
 	}
 
 	if !hmac.Equal(authHash, hash) {
-		return "", newArchiveError("", ArchiveErrorCodeAuthFailed, nil)
+		return "", errors.WithStack(newArchiveError("", ArchiveErrorCodeAuthFailed, nil))
 	}
 
 	return archive.Name(), nil
@@ -222,16 +268,16 @@ func Decrypt(encryptedFilename, secret string) (string, error) {
 
 func hmacSHA256(f *os.File, secret string) ([]byte, error) {
 	if _, err := f.Seek(0, 0); err != nil {
-		return nil, newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err)
+		return nil, errors.WithStack(newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err))
 	}
 
 	hash := hmac.New(sha256.New, []byte(secret))
 	if _, err := io.Copy(hash, f); err != nil {
-		return nil, newArchiveError(f.Name(), ArchiveErrorCodeCalculateHMACSHA256, err)
+		return nil, errors.WithStack(newArchiveError(f.Name(), ArchiveErrorCodeCalculateHMACSHA256, err))
 	}
 
 	if _, err := f.Seek(0, 0); err != nil {
-		return nil, newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err)
+		return nil, errors.WithStack(newArchiveError(f.Name(), ArchiveErrorCodeRewindingFile, err))
 	}
 
 	return hash.Sum(nil), nil

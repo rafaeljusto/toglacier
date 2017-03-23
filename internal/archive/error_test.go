@@ -91,7 +91,12 @@ func TestArchiveError_Error(t *testing.T) {
 		{
 			description: "it should show the correct error message for writing IV problem",
 			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeWritingIV},
-			expected:    "archive: error writing iv to encrypted file",
+			expected:    "archive: error writing iv to encrypt file",
+		},
+		{
+			description: "it should show the correct error message for reading IV problem",
+			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeReadingIV},
+			expected:    "archive: error reading iv to decrypt file",
 		},
 		{
 			description: "it should show the correct error message for initializing cipher problem",

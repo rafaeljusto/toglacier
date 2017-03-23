@@ -3,7 +3,7 @@ package archive
 import (
 	"fmt"
 
-	"github.com/registrobr/gostk/errors"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -49,6 +49,10 @@ const (
 	// ArchiveErrorCodeWritingIV error while writing the IV that is a slice of
 	// random numbers used as a encryption source.
 	ArchiveErrorCodeWritingIV ArchiveErrorCode = "writing-iv"
+
+	// ArchiveErrorCodeReadingIV error while reading the IV that is used as the
+	// source to decrypt the content.
+	ArchiveErrorCodeReadingIV ArchiveErrorCode = "reading-iv"
 
 	// ArchiveErrorCodeInitCipher error initializing cipher that is used for the
 	// encryption process.
@@ -97,7 +101,9 @@ func (a ArchiveErrorCode) String() string {
 	case ArchiveErrorCodeReadingAuth:
 		return "error reading encrypted authentication"
 	case ArchiveErrorCodeWritingIV:
-		return "error writing iv to encrypted file"
+		return "error writing iv to encrypt file"
+	case ArchiveErrorCodeReadingIV:
+		return "error reading iv to decrypt file"
 	case ArchiveErrorCodeInitCipher:
 		return "error initializing cipher"
 	case ArchiveErrorCodeEncryptingFile:
@@ -124,7 +130,7 @@ func newArchiveError(filename string, code ArchiveErrorCode, err error) ArchiveE
 	return ArchiveError{
 		Filename: filename,
 		Code:     code,
-		Err:      errors.NewWithFollowUp(err, 2),
+		Err:      errors.WithStack(err),
 	}
 }
 
@@ -155,8 +161,8 @@ func ArchiveErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := first.(ArchiveError)
-	err2, ok2 := second.(ArchiveError)
+	err1, ok1 := errors.Cause(first).(ArchiveError)
+	err2, ok2 := errors.Cause(second).(ArchiveError)
 
 	if !ok1 || !ok2 {
 		return false
@@ -166,7 +172,14 @@ func ArchiveErrorEqual(first, second error) bool {
 		return false
 	}
 
-	return errors.Equal(err1.Err, err2.Err)
+	errCause1 := errors.Cause(err1.Err)
+	errCause2 := errors.Cause(err2.Err)
+
+	if errCause1 == nil || errCause2 == nil {
+		return errCause1 == errCause2
+	}
+
+	return errCause1.Error() == errCause2.Error()
 }
 
 const (
@@ -222,7 +235,7 @@ func newPathError(path string, code PathErrorCode, err error) PathError {
 	return PathError{
 		Path: path,
 		Code: code,
-		Err:  errors.NewWithFollowUp(err, 2),
+		Err:  errors.WithStack(err),
 	}
 }
 
@@ -253,8 +266,8 @@ func PathErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := first.(PathError)
-	err2, ok2 := second.(PathError)
+	err1, ok1 := errors.Cause(first).(PathError)
+	err2, ok2 := errors.Cause(second).(PathError)
 
 	if !ok1 || !ok2 {
 		return false
@@ -264,5 +277,12 @@ func PathErrorEqual(first, second error) bool {
 		return false
 	}
 
-	return errors.Equal(err1.Err, err2.Err)
+	errCause1 := errors.Cause(err1.Err)
+	errCause2 := errors.Cause(err2.Err)
+
+	if errCause1 == nil || errCause2 == nil {
+		return errCause1 == errCause2
+	}
+
+	return errCause1.Error() == errCause2.Error()
 }
