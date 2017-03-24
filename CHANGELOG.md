@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Archive algorithm refactory to simplify the tar file
 - Internal API now has well defined errors
 
+## [2.0.3] - 2017-03-24
+### Fixed
+- Fix backup removal on checksum mismatch
+
 ## [2.0.2] - 2017-03-06
 ### Fixed
 - Fix content range format in multipart strategy
