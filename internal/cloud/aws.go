@@ -241,19 +241,20 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		return Backup{}, fmt.Errorf("error completing multipart upload. details: %s", err)
 	}
 
+	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
+	backup.ID = locationParts[len(locationParts)-1]
+	backup.Checksum = *archiveCreationOutput.Checksum
+	backup.VaultName = a.VaultName
+
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
 		// something went wrong with the uploaded archive, better remove it
-		if err := a.Remove(*initiateMultipartUploadOutput.UploadId); err != nil {
-			return Backup{}, fmt.Errorf("error comparing checksums. fail to remove backup “%s”. details: %s", *initiateMultipartUploadOutput.UploadId, err)
+		if err := a.Remove(backup.ID); err != nil {
+			return Backup{}, fmt.Errorf("error comparing checksums. fail to remove backup “%s”. details: %s", backup.ID, err)
 		}
 
 		return Backup{}, errors.New("error comparing checksums. backup removed")
 	}
 
-	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
-	backup.ID = locationParts[len(locationParts)-1]
-	backup.Checksum = *archiveCreationOutput.Checksum
-	backup.VaultName = a.VaultName
 	return backup, nil
 }
 
