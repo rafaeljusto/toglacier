@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/aws/aws-sdk-go/service/glacier/glacieriface"
+	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/config"
 )
 
@@ -84,7 +84,7 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 
 	awsSession, err := session.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("error initializing aws session. details: %s", err)
+		return nil, errors.WithStack(newCloudError("", CloudErrorCodeInitializingSession, err))
 	}
 
 	awsGlacier := glacier.New(awsSession)
@@ -102,16 +102,17 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 
 // Send uploads the file to the cloud and return the backup archive information.
 // It already has the logic to send directly if it's a small file or use
-// multipart strategy if it's a large file.
+// multipart strategy if it's a large file. If an error occurs it will be a
+// CloudError or a MultipartError.
 func (a *AWSCloud) Send(filename string) (Backup, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
-		return Backup{}, fmt.Errorf("error opening archive. details: %s", err)
+		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeOpeningArchive, err))
 	}
 
 	archiveInfo, err := archive.Stat()
 	if err != nil {
-		return Backup{}, fmt.Errorf("error retrieving archive information. details: %s", err)
+		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeArchiveInfo, err))
 	}
 
 	if archiveInfo.Size() <= multipartUploadLimit {
@@ -140,11 +141,11 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 
 	archiveCreationOutput, err := a.Glacier.UploadArchive(&uploadArchiveInput)
 	if err != nil {
-		return Backup{}, fmt.Errorf("error sending archive to aws glacier. details: %s", err)
+		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeSendingArchive, err))
 	}
 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
-		return Backup{}, errors.New("error comparing checksums")
+		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeComparingChecksums, nil))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -168,7 +169,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 
 	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUpload(&initiateMultipartUploadInput)
 	if err != nil {
-		return Backup{}, fmt.Errorf("error initializing multipart upload. details: %s", err)
+		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeInitMultipart, err))
 	}
 
 	var offset int64
@@ -177,7 +178,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	for offset = 0; offset < archiveSize; offset += partSize {
 		n, err := archive.Read(part)
 		if err != nil {
-			return Backup{}, fmt.Errorf("error reading an archive part (%d). details: %s", offset, err)
+			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeReadingArchive, err))
 		}
 
 		body := bytes.NewReader(part[:n])
@@ -201,7 +202,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 			}
 
 			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-			return Backup{}, fmt.Errorf("error sending an archive part (%d). details: %s", offset, err)
+			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeSendingArchive, err))
 		}
 
 		// verify checksum of each uploaded part
@@ -213,7 +214,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 			}
 
 			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-			return Backup{}, fmt.Errorf("error comparing checksums on archive part (%d)", offset)
+			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeComparingChecksums, err))
 		}
 	}
 
@@ -238,7 +239,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		}
 
 		a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-		return Backup{}, fmt.Errorf("error completing multipart upload. details: %s", err)
+		return Backup{}, errors.WithStack(newCloudError(*initiateMultipartUploadOutput.UploadId, CloudErrorCodeCompleteMultipart, err))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -249,10 +250,12 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
 		// something went wrong with the uploaded archive, better remove it
 		if err := a.Remove(backup.ID); err != nil {
-			return Backup{}, fmt.Errorf("error comparing checksums. fail to remove backup “%s”. details: %s", backup.ID, err)
+			// error while trying to remove the strange backup
+			return backup, errors.WithStack(newCloudError(backup.ID, CloudErrorCodeComparingChecksums, err))
 		}
 
-		return Backup{}, errors.New("error comparing checksums. backup removed")
+		// strange backup was removed from the cloud
+		return backup, errors.WithStack(newCloudError(backup.ID, CloudErrorCodeComparingChecksums, nil))
 	}
 
 	return backup, nil
@@ -271,11 +274,11 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return nil, fmt.Errorf("error initiating the job. details: %s", err)
+		return nil, errors.WithStack(newCloudError("", CloudErrorCodeInitJob, err))
 	}
 
 	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	jobOutputInput := glacier.GetJobOutputInput{
@@ -286,7 +289,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving the job information. details: %s", err)
+		return nil, errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeJobComplete, err))
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -299,7 +302,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
 	if err := jsonDecoder.Decode(&iventory); err != nil {
-		return nil, fmt.Errorf("error decoding the iventory. details: %s", err)
+		return nil, errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeDecodingData, err))
 	}
 
 	sort.Sort(iventory.ArchiveList)
@@ -330,11 +333,11 @@ func (a *AWSCloud) Get(id string) (string, error) {
 
 	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return "", fmt.Errorf("error initiating the job. details: %s", err)
+		return "", errors.WithStack(newCloudError(id, CloudErrorCodeInitJob, err))
 	}
 
 	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
-		return "", err
+		return "", errors.WithStack(err)
 	}
 
 	jobOutputInput := glacier.GetJobOutputInput{
@@ -345,18 +348,18 @@ func (a *AWSCloud) Get(id string) (string, error) {
 
 	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return "", fmt.Errorf("error retrieving the job information. details: %s", err)
+		return "", errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeJobComplete, err))
 	}
 	defer jobOutputOutput.Body.Close()
 
 	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
 	if err != nil {
-		return "", fmt.Errorf("error creating backup file. details: %s", err)
+		return "", errors.WithStack(newCloudError(id, CloudErrorCodeCreatingArchive, err))
 	}
 	defer backup.Close()
 
 	if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
-		return "", fmt.Errorf("error copying data to the backup file. details: %s", err)
+		return "", errors.WithStack(newCloudError(id, CloudErrorCodeCopyingData, err))
 	}
 
 	return backup.Name(), nil
@@ -371,7 +374,7 @@ func (a *AWSCloud) Remove(id string) error {
 	}
 
 	if _, err := a.Glacier.DeleteArchive(&deleteArchiveInput); err != nil {
-		return fmt.Errorf("error removing backup. details: %s", err)
+		return errors.WithStack(newCloudError(id, CloudErrorCodeRemovingArchive, err))
 	}
 
 	return nil
@@ -390,7 +393,7 @@ func (a *AWSCloud) waitJob(jobID string) error {
 
 		listJobsOutput, err := a.Glacier.ListJobs(&listJobsInput)
 		if err != nil {
-			return fmt.Errorf("error retrieving the job from aws. details: %s", err)
+			return errors.WithStack(newCloudError(jobID, CloudErrorCodeRetrievingJob, err))
 		}
 
 		jobFound := false
@@ -408,14 +411,14 @@ func (a *AWSCloud) waitJob(jobID string) error {
 			if *jobDescription.StatusCode == "Succeeded" {
 				return nil
 			} else if *jobDescription.StatusCode == "Failed" {
-				return fmt.Errorf("error retrieving the job from aws. details: %s", *jobDescription.StatusMessage)
+				return errors.WithStack(newCloudError(jobID, CloudErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
 			}
 
 			break
 		}
 
 		if !jobFound {
-			return errors.New("job not found in aws")
+			return errors.WithStack(newCloudError(jobID, CloudErrorCodeJobNotFound, nil))
 		}
 
 		time.Sleep(sleep)
