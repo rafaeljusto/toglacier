@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Added
+- Encrypt/decrypt backup with a shared secret
+- Encryption data authentication (HMAC-SHA256)
+- Send report with the scheduler actions periodically
+
+### Fixed
+- Add sample configuration file to deb and txz packages
+
+### Changed
+- Archive algorithm refactory to simplify the tar file
+
 ## [2.0.3] - 2017-03-24
 ### Fixed
 - Fix backup removal on checksum mismatch

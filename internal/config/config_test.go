@@ -68,6 +68,16 @@ paths:
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
 aws:
   account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
@@ -86,6 +96,16 @@ aws:
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
 				c.KeepBackups = 10
+				c.BackupSecret.Value = "abc12300000000000000000000000000"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
 				c.AWS.AccountID.Value = "000000000000"
 				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -140,6 +160,16 @@ paths:
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
 aws:
   account id: encrypted:invalid
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
@@ -151,6 +181,165 @@ aws:
 				return f.Name()
 			}(),
 			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+		},
+		{
+			description: "it should detect an invalid backup secret",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-")
+				if err != nil {
+					t.Fatalf("error creating a temporary file. details %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+audit file: /var/log/toglacier/audit.log
+keep backups: 10
+backup secret: encrypted:invalid
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+				return f.Name()
+			}(),
+			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+		},
+		{
+			description: "it should fill the backup secret when is less than 32 bytes",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-")
+				if err != nil {
+					t.Fatalf("error creating a temporary file. details %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+audit file: /var/log/toglacier/audit.log
+keep backups: 10
+backup secret: a123456789012345678901234567890
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+				return f.Name()
+			}(),
+			expected: func() *config.Config {
+				c := new(config.Config)
+				c.Paths = []string{
+					"/usr/local/important-files-1",
+					"/usr/local/important-files-2",
+				}
+				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.KeepBackups = 10
+				c.BackupSecret.Value = "a1234567890123456789012345678900"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
+				c.AWS.AccountID.Value = "000000000000"
+				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
+				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "backup"
+				return c
+			}(),
+		},
+		{
+			description: "it should truncate the backup secret when is more than 32 bytes",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-")
+				if err != nil {
+					t.Fatalf("error creating a temporary file. details %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+audit file: /var/log/toglacier/audit.log
+keep backups: 10
+backup secret: a12345678901234567890123456789012
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+				return f.Name()
+			}(),
+			expected: func() *config.Config {
+				c := new(config.Config)
+				c.Paths = []string{
+					"/usr/local/important-files-1",
+					"/usr/local/important-files-2",
+				}
+				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.KeepBackups = 10
+				c.BackupSecret.Value = "a1234567890123456789012345678901"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
+				c.AWS.AccountID.Value = "000000000000"
+				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
+				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "backup"
+				return c
+			}(),
 		},
 	}
 
@@ -190,9 +379,16 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":            "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -202,6 +398,16 @@ func TestLoadFromEnvironment(t *testing.T) {
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
 				c.KeepBackups = 10
+				c.BackupSecret.Value = "abc12300000000000000000000000000"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
 				c.AWS.AccountID.Value = "000000000000"
 				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
@@ -218,9 +424,16 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":            "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
 			expectedError: &envconfig.ParseError{
 				KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
@@ -229,6 +442,123 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Value:     "encrypted:invalid",
 				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
 			},
+		},
+		{
+			description: "it should detect an invalid backup secret",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
+			},
+			expectedError: &envconfig.ParseError{
+				KeyName:   "TOGLACIER_BACKUP_SECRET",
+				FieldName: "BackupSecret",
+				TypeName:  "config.aesKey",
+				Value:     "encrypted:invalid",
+				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+			},
+		},
+		{
+			description: "it should fill the backup secret when is less than 32 bytes",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "a123456789012345678901234567890",
+			},
+			expected: func() *config.Config {
+				c := new(config.Config)
+				c.Paths = []string{
+					"/usr/local/important-files-1",
+					"/usr/local/important-files-2",
+				}
+				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.KeepBackups = 10
+				c.BackupSecret.Value = "a1234567890123456789012345678900"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
+				c.AWS.AccountID.Value = "000000000000"
+				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
+				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "backup"
+				return c
+			}(),
+		},
+		{
+			description: "it should truncate the backup secret when is more than 32 bytes",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "a12345678901234567890123456789012",
+			},
+			expected: func() *config.Config {
+				c := new(config.Config)
+				c.Paths = []string{
+					"/usr/local/important-files-1",
+					"/usr/local/important-files-2",
+				}
+				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.KeepBackups = 10
+				c.BackupSecret.Value = "a1234567890123456789012345678901"
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
+				c.AWS.AccountID.Value = "000000000000"
+				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
+				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "backup"
+				return c
+			}(),
 		},
 	}
 

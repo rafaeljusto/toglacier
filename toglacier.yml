@@ -3,6 +3,16 @@ paths:
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
 keep backups: 10
+backup secret: encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
 aws:
   account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
