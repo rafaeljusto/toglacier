@@ -99,7 +99,7 @@ func TestBackup(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error retrieving path “idontexist12345” information. details: lstat idontexist12345: no such file or directory`),
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ archive: path “idontexist12345”, error retrieving information. details: lstat idontexist12345: no such file or directory`),
 		},
 		{
 			description: "it should detect an error while encrypting the package",
@@ -131,7 +131,7 @@ func TestBackup(t *testing.T) {
 					return nil
 				},
 			},
-			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error initializing cipher. details: crypto/aes: invalid key size 6`),
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ archive: filename “/tmp/toglacier-[0-9]+”, error initializing cipher. details: crypto/aes: invalid key size 6`),
 		},
 		{
 			description: "it should detect an error while sending the backup",
@@ -539,7 +539,7 @@ func TestRetrieveBackup(t *testing.T) {
 					return n, nil
 				},
 			},
-			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ error initializing cipher. details: crypto/aes: invalid key size 6`),
+			expectedLog: regexp.MustCompile(`[0-9]+/[0-9]+/[0-9]+ [0-9]+:[0-9]+:[0-9]+ archive: filename “/tmp/toglacier-test-getenc”, error initializing cipher. details: crypto/aes: invalid key size 6`),
 		},
 	}
 
