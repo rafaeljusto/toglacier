@@ -72,7 +72,21 @@ type AWSCloud struct {
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
 // vault name that are going to be used in the AWS Glacier service. For more
 // details set the debug flag to receive low level information in the standard
-// output.
+// output. On error it will return a CloudError. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case CloudError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 	var err error
 
@@ -103,7 +117,23 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 // Send uploads the file to the cloud and return the backup archive information.
 // It already has the logic to send directly if it's a small file or use
 // multipart strategy if it's a large file. If an error occurs it will be a
-// CloudError or a MultipartError.
+// CloudError or a MultipartError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case CloudError:
+//         // handle specifically
+//       case MultipartError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AWSCloud) Send(filename string) (Backup, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
@@ -261,7 +291,22 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 	return backup, nil
 }
 
-// List retrieves all the uploaded backups information in the cloud.
+// List retrieves all the uploaded backups information in the cloud. If an error
+// occurs it will be a CloudError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case CloudError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AWSCloud) List() ([]Backup, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(a.AccountID),
@@ -320,7 +365,22 @@ func (a *AWSCloud) List() ([]Backup, error) {
 }
 
 // Get retrieves a specific backup file and stores it locally in a file. The
-// filename storing the location of the file is returned.
+// filename storing the location of the file is returned.  If an error occurs it
+// will be a CloudError encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case CloudError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AWSCloud) Get(id string) (string, error) {
 	initiateJobInput := glacier.InitiateJobInput{
 		AccountId: aws.String(a.AccountID),
@@ -365,7 +425,22 @@ func (a *AWSCloud) Get(id string) (string, error) {
 	return backup.Name(), nil
 }
 
-// Remove erase a specific backup from the cloud.
+// Remove erase a specific backup from the cloud. If an error occurs it will be
+// a CloudError encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case CloudError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AWSCloud) Remove(id string) error {
 	deleteArchiveInput := glacier.DeleteArchiveInput{
 		AccountId: aws.String(a.AccountID),
