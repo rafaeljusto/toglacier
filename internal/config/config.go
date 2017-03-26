@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -71,7 +72,7 @@ func Default() {
 func LoadFromFile(filename string) error {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		return errors.WithStack(newConfigError(filename, ConfigErrorCodeReadingFile, err))
 	}
 
 	c := Current()
@@ -80,7 +81,7 @@ func LoadFromFile(filename string) error {
 	}
 
 	if err = yaml.Unmarshal(content, c); err != nil {
-		return err
+		return errors.WithStack(newConfigError(filename, ConfigErrorCodeParsingYAML, err))
 	}
 
 	Update(c)
