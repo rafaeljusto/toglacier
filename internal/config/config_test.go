@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -47,12 +46,14 @@ func TestDefault(t *testing.T) {
 }
 
 func TestLoadFromFile(t *testing.T) {
-	scenarios := []struct {
+	type scenario struct {
 		description   string
 		filename      string
 		expected      *config.Config
 		expectedError error
-	}{
+	}
+
+	scenarios := []scenario{
 		{
 			description: "it should load a YAML configuration file correctly",
 			filename: func() string {
@@ -117,44 +118,52 @@ aws:
 		{
 			description: "it should detect when the file doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
-			expectedError: &os.PathError{
-				Op:   "open",
-				Path: "toglacier-idontexist.tmp",
-				Err:  syscall.Errno(2),
+			expectedError: config.ConfigError{
+				Filename: "toglacier-idontexist.tmp",
+				Code:     config.ConfigErrorCodeReadingFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-idontexist.tmp",
+					Err:  syscall.Errno(2),
+				},
 			},
 		},
-		{
-			description: "it should detect an invalid YAML configuration file",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
 
-				f.WriteString(`
+			f.WriteString(`
 - /usr/local/important-files-1
 - /usr/local/important-files-2
 `)
 
-				return f.Name()
-			}(),
-			expectedError: &yaml.TypeError{
-				Errors: []string{
-					"line 2: cannot unmarshal !!seq into config.Config",
-				},
-			},
-		},
-		{
-			description: "it should detect invalid encrypted values",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+			var scenario scenario
+			scenario.description = "it should detect an invalid YAML configuration file"
+			scenario.filename = f.Name()
 
-				f.WriteString(`
+			scenario.expectedError = config.ConfigError{
+				Filename: f.Name(),
+				Code:     config.ConfigErrorCodeParsingYAML,
+				Err: &yaml.TypeError{
+					Errors: []string{
+						"line 2: cannot unmarshal !!seq into config.Config",
+					},
+				},
+			}
+
+			return scenario
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
@@ -178,20 +187,29 @@ aws:
   vault name: backup
 `)
 
-				return f.Name()
-			}(),
-			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
-		},
-		{
-			description: "it should detect an invalid backup secret",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+			var scenario scenario
+			scenario.description = "it should detect invalid encrypted values"
+			scenario.filename = f.Name()
 
-				f.WriteString(`
+			scenario.expectedError = config.ConfigError{
+				Filename: f.Name(),
+				Code:     config.ConfigErrorCodeParsingYAML,
+				Err: config.ConfigError{
+					Code: config.ConfigErrorCodeDecodeBase64,
+					Err:  base64.CorruptInputError(4),
+				},
+			}
+
+			return scenario
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
@@ -215,10 +233,21 @@ aws:
   vault name: backup
 `)
 
-				return f.Name()
-			}(),
-			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
-		},
+			var scenario scenario
+			scenario.description = "it should detect an invalid backup secret"
+			scenario.filename = f.Name()
+
+			scenario.expectedError = config.ConfigError{
+				Filename: f.Name(),
+				Code:     config.ConfigErrorCodeParsingYAML,
+				Err: config.ConfigError{
+					Code: config.ConfigErrorCodeDecodeBase64,
+					Err:  base64.CorruptInputError(4),
+				},
+			}
+
+			return scenario
+		}(),
 		{
 			description: "it should fill the backup secret when is less than 32 bytes",
 			filename: func() string {
@@ -357,7 +386,7 @@ aws:
 				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !config.ConfigErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -435,12 +464,18 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
-			expectedError: &envconfig.ParseError{
-				KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
-				FieldName: "AccountID",
-				TypeName:  "config.encrypted",
-				Value:     "encrypted:invalid",
-				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+			expectedError: config.ConfigError{
+				Code: config.ConfigErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
+					FieldName: "AccountID",
+					TypeName:  "config.encrypted",
+					Value:     "encrypted:invalid",
+					Err: config.ConfigError{
+						Code: config.ConfigErrorCodeDecodeBase64,
+						Err:  base64.CorruptInputError(4),
+					},
+				},
 			},
 		},
 		{
@@ -462,12 +497,18 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 			},
-			expectedError: &envconfig.ParseError{
-				KeyName:   "TOGLACIER_BACKUP_SECRET",
-				FieldName: "BackupSecret",
-				TypeName:  "config.aesKey",
-				Value:     "encrypted:invalid",
-				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+			expectedError: config.ConfigError{
+				Code: config.ConfigErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_BACKUP_SECRET",
+					FieldName: "BackupSecret",
+					TypeName:  "config.aesKey",
+					Value:     "encrypted:invalid",
+					Err: config.ConfigError{
+						Code: config.ConfigErrorCodeDecodeBase64,
+						Err:  base64.CorruptInputError(4),
+					},
+				},
 			},
 		},
 		{
@@ -582,7 +623,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !config.ConfigErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -96,7 +95,7 @@ func LoadFromEnvironment() error {
 	}
 
 	if err := envconfig.Process(prefix, c); err != nil {
-		return err
+		return errors.WithStack(newConfigError("", ConfigErrorCodeReadingEnvVars, err))
 	}
 
 	Update(c)
@@ -113,7 +112,7 @@ func (e *encrypted) UnmarshalText(value []byte) error {
 	if strings.HasPrefix(e.Value, "encrypted:") {
 		var err error
 		if e.Value, err = passwordDecrypt(strings.TrimPrefix(e.Value, "encrypted:")); err != nil {
-			return fmt.Errorf("error decrypting value. details: %s", err)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -126,7 +125,7 @@ type aesKey struct {
 
 func (a *aesKey) UnmarshalText(value []byte) error {
 	if err := a.encrypted.UnmarshalText(value); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	// The key argument should be the AES key, either 16, 24, or 32 bytes to

@@ -6,7 +6,8 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // passwordKey returns the shared secret used to encrypt and decrypt the
@@ -31,12 +32,12 @@ func passwordKey() []byte {
 func PasswordEncrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newConfigError("", ConfigErrorCodeInitCipher, err))
 	}
 
 	iv := make([]byte, block.BlockSize())
 	if _, err = rand.Read(iv); err != nil {
-		return "", err
+		return "", errors.WithStack(newConfigError("", ConfigErrorCodeFillingIV, err))
 	}
 
 	output := make([]byte, len(input))
@@ -52,16 +53,16 @@ func PasswordEncrypt(input string) (string, error) {
 func passwordDecrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newConfigError("", ConfigErrorCodeInitCipher, err))
 	}
 
 	inputBytes, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newConfigError("", ConfigErrorCodeDecodeBase64, err))
 	}
 
 	if len(inputBytes) < block.BlockSize() {
-		return "", fmt.Errorf("invalid password size %d", len(inputBytes))
+		return "", errors.WithStack(newConfigError("", ConfigErrorCodePasswordSize, nil))
 	}
 
 	iv := inputBytes[:block.BlockSize()]

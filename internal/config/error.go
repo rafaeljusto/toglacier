@@ -13,10 +13,28 @@ const (
 	// ConfigErrorCodeParsingYAML error while parsing the configuration file as
 	// YAML.
 	ConfigErrorCodeParsingYAML ConfigErrorCode = "parsing-yaml"
+
+	// ConfigErrorCodeReadingEnvVars error while reading configuration values from
+	// environment variables.
+	ConfigErrorCodeReadingEnvVars ConfigErrorCode = "reading-env-vars"
+
+	// ConfigErrorCodeInitCipher error while initializing the engine used to
+	// encrypt or decrypt the value.
+	ConfigErrorCodeInitCipher ConfigErrorCode = "init-cipher"
+
+	// ConfigErrorCodeDecodeBase64 problem while deconding a base64 content.
+	ConfigErrorCodeDecodeBase64 ConfigErrorCode = "decode-base64"
+
+	// ConfigErrorCodePasswordSize invalid password size. The password is smaller
+	// than the cipher block size.
+	ConfigErrorCodePasswordSize ConfigErrorCode = "password-size"
+
+	// ConfigErrorCodeFillingIV error while filling the IV array with random bytes.
+	ConfigErrorCodeFillingIV ConfigErrorCode = "filling-iv"
 )
 
 // ConfigErrorCode stores the error type that occurred while performing any
-// operation with the cloud.
+// operation with the tool configurations.
 type ConfigErrorCode string
 
 // String translate the error code to a human readable text.
@@ -25,7 +43,17 @@ func (c ConfigErrorCode) String() string {
 	case ConfigErrorCodeReadingFile:
 		return "error reading the configuration file"
 	case ConfigErrorCodeParsingYAML:
-		return "error parsing YAML"
+		return "error parsing yaml"
+	case ConfigErrorCodeReadingEnvVars:
+		return "error reading environment variables"
+	case ConfigErrorCodeInitCipher:
+		return "error initializing cipher"
+	case ConfigErrorCodeDecodeBase64:
+		return "error deconding base64"
+	case ConfigErrorCodePasswordSize:
+		return "invalid password size"
+	case ConfigErrorCodeFillingIV:
+		return "error filling iv"
 	}
 
 	return "unknown error code"
