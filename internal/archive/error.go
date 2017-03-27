@@ -89,7 +89,7 @@ func (a ArchiveErrorCode) String() string {
 	case ArchiveErrorCodeTmpFileCreation:
 		return "error creating temporary file"
 	case ArchiveErrorCodeCalculateHMACSHA256:
-		return "error calculating HMAC-SHA256"
+		return "error calculating hmac-sha256"
 	case ArchiveErrorCodeGenerateRandomNumbers:
 		return "error filling iv with random numbers"
 	case ArchiveErrorCodeWritingLabel:

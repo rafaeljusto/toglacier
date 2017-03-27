@@ -61,7 +61,7 @@ func TestArchiveError_Error(t *testing.T) {
 		{
 			description: "it should show the correct error message for HMAC-SHA256 calculation problem",
 			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeCalculateHMACSHA256},
-			expected:    "archive: error calculating HMAC-SHA256",
+			expected:    "archive: error calculating hmac-sha256",
 		},
 		{
 			description: "it should show the correct error message for IV random numbers problem",
