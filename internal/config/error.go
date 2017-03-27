@@ -33,8 +33,8 @@ const (
 	ConfigErrorCodeFillingIV ConfigErrorCode = "filling-iv"
 )
 
-// ConfigErrorCode stores the error type that occurred while performing any
-// operation with the tool configurations.
+// ConfigErrorCode stores the error type that occurred while reading
+// configuration parameters.
 type ConfigErrorCode string
 
 // String translate the error code to a human readable text.
@@ -59,7 +59,8 @@ func (c ConfigErrorCode) String() string {
 	return "unknown error code"
 }
 
-// ConfigError stores error details from cloud operations.
+// ConfigError stores error details from a problem occurred while reading a
+// configuration file or parsing the environment variables.
 type ConfigError struct {
 	Filename string
 	Code     ConfigErrorCode

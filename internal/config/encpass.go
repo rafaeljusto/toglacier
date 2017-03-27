@@ -28,7 +28,22 @@ func passwordKey() []byte {
 	return result
 }
 
-// PasswordEncrypt uses the secret to encode the password.
+// PasswordEncrypt uses the secret to encode the password. On error it
+// will return an ConfigError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ConfigError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func PasswordEncrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
@@ -49,7 +64,22 @@ func PasswordEncrypt(input string) (string, error) {
 	return base64.StdEncoding.EncodeToString(buffer.Bytes()), nil
 }
 
-// passwordDecrypt decodes a encrypted password.
+// passwordDecrypt decodes a encrypted password. On error it
+// will return an ConfigError encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ConfigError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func passwordDecrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
