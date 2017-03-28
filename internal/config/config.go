@@ -68,7 +68,7 @@ func Default() {
 }
 
 // LoadFromFile parse an YAML file and fill the system configuration parameters.
-// On error it will return an ConfigError encapsulated in a traceable error. To
+// On error it will return a ConfigError encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
 //     type causer interface {
@@ -103,7 +103,7 @@ func LoadFromFile(filename string) error {
 }
 
 // LoadFromEnvironment analysis all project environment variables. On error it
-// will return an ConfigError encapsulated in a traceable error. To retrieve
+// will return a ConfigError encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
@@ -137,7 +137,7 @@ type encrypted struct {
 }
 
 // UnmarshalText automatically decrypts a value from the configuration. On error
-// it will return an ConfigError encapsulated in a traceable error. To retrieve
+// it will return a ConfigError encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
@@ -170,7 +170,7 @@ type aesKey struct {
 }
 
 // UnmarshalText automatically decrypts a value from the configuration. On error
-// it will return an ConfigError encapsulated in a traceable error. To retrieve
+// it will return a ConfigError encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
