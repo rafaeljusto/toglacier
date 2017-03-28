@@ -59,6 +59,22 @@ func NewSendBackup() SendBackup {
 	}
 }
 
+// Build creates a report with details of an uploaded backup to the cloud. On
+// error it will return a ReportError encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ReportError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (s SendBackup) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
@@ -113,6 +129,22 @@ func NewListBackups() ListBackups {
 	}
 }
 
+// Build creates a report with details of a remote backups listing. On
+// error it will return a ReportError encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ReportError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (l ListBackups) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] List Backup
@@ -159,6 +191,22 @@ func NewRemoveOldBackups() RemoveOldBackups {
 	}
 }
 
+// Build creates a report with details of old backups removal procedure. On
+// error it will return a ReportError encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ReportError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (r RemoveOldBackups) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Remove Old Backups
@@ -206,6 +254,22 @@ func NewTest() Test {
 	}
 }
 
+// Build creates a report for testing purpose. On error it will return a
+// ReportError encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ReportError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (tr Test) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Test report
@@ -238,7 +302,22 @@ func Add(r Report) {
 }
 
 // Build generates the report in text format. Every time this function is called the
-// internal cache of reports is cleared.
+// internal cache of reports is cleared. On error it will return a
+// ReportError encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case ReportError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func Build() (string, error) {
 	reportsLock.Lock()
 	defer reportsLock.Unlock()
