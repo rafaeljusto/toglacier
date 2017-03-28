@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
@@ -90,7 +91,7 @@ func (s SendBackup) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, s); err != nil {
-		return "", err
+		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -133,7 +134,7 @@ func (l ListBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, l); err != nil {
-		return "", err
+		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -189,7 +190,7 @@ func (r RemoveOldBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, r); err != nil {
-		return "", err
+		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -223,7 +224,7 @@ func (tr Test) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, tr); err != nil {
-		return "", err
+		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -249,7 +250,7 @@ func Build() (string, error) {
 	for _, r := range reports {
 		tmp, err := r.Build()
 		if err != nil {
-			return "", err
+			return "", errors.WithStack(err)
 		}
 
 		// using fmt.Sprintln to create a cross platform line break

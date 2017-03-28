@@ -143,11 +143,17 @@ func TestBuild(t *testing.T) {
 			reports: []report.Report{
 				mockReport{
 					mockBuild: func() (string, error) {
-						return "", errors.New("error generating report")
+						return "", report.ReportError{
+							Code: report.ReportErrorCodeTemplate,
+							Err:  errors.New("error generating report"),
+						}
 					},
 				},
 			},
-			expectedError: errors.New("error generating report"),
+			expectedError: report.ReportError{
+				Code: report.ReportErrorCodeTemplate,
+				Err:  errors.New("error generating report"),
+			},
 		},
 	}
 
@@ -175,7 +181,7 @@ func TestBuild(t *testing.T) {
 				t.Errorf("output don't match.\n%s", pretty.Diff(expectedLines, outputLines))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !report.ReportErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
