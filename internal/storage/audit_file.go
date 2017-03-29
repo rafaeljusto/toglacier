@@ -11,7 +11,7 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
-// AuditFile stores all backup informations in a simple text file.
+// AuditFile stores all backup information in a simple text file.
 type AuditFile struct {
 	Filename string
 }
@@ -27,6 +27,22 @@ func NewAuditFile(filename string) *AuditFile {
 // the following columns:
 //
 //     [datetime] [vaultName] [archiveID] [checksum]
+//
+// On error it will return a StorageError encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case StorageError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AuditFile) Save(backup cloud.Backup) error {
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
@@ -42,7 +58,22 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 	return nil
 }
 
-// List all backup informations in the storage.
+// List all backup information in the storage. On error it will return a
+// StorageError encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case StorageError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AuditFile) List() ([]cloud.Backup, error) {
 	auditFile, err := os.Open(a.Filename)
 	if err != nil {
@@ -84,7 +115,22 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	return backups, nil
 }
 
-// Remove a specific backup information from the storage.
+// Remove a specific backup information from the storage.  On error it will
+// return a StorageError encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case StorageError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *AuditFile) Remove(id string) error {
 	backups, err := a.List()
 	if err != nil {

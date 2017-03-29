@@ -33,8 +33,8 @@ const (
 	StorageErrorCodeDateFormat StorageErrorCode = "date-format"
 )
 
-// StorageErrorCode stores the error type that occurred while reading
-// report parameters.
+// StorageErrorCode stores the error type that occurred while managing the local
+// storage.
 type StorageErrorCode string
 
 // String translate the error code to a human readable text.
@@ -57,8 +57,8 @@ func (s StorageErrorCode) String() string {
 	return "unknown error code"
 }
 
-// StorageError stores error details from a problem occurred while reading a
-// report file or parsing the environment variables.
+// StorageError stores error details from a problem occurred while managing the
+// local storage.
 type StorageError struct {
 	Code StorageErrorCode
 	Err  error
