@@ -2,12 +2,12 @@ package storage
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
@@ -30,13 +30,13 @@ func NewAuditFile(filename string) *AuditFile {
 func (a *AuditFile) Save(backup cloud.Backup) error {
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
-		return fmt.Errorf("error opening the audit file. details: %s", err)
+		return errors.WithStack(newStorageError(StorageErrorCodeOpeningFile, err))
 	}
 	defer auditFile.Close()
 
 	audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
 	if _, err = auditFile.WriteString(audit); err != nil {
-		return fmt.Errorf("error writing the audit file. details: %s", err)
+		return errors.WithStack(newStorageError(StorageErrorCodeWritingFile, err))
 	}
 
 	return nil
@@ -51,7 +51,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 			return nil, nil
 		}
 
-		return nil, fmt.Errorf("error opening the audit file. details: %s", err)
+		return nil, errors.WithStack(newStorageError(StorageErrorCodeOpeningFile, err))
 	}
 	defer auditFile.Close()
 
@@ -61,7 +61,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	for scanner.Scan() {
 		lineParts := strings.Split(scanner.Text(), " ")
 		if len(lineParts) != 4 {
-			return nil, errors.New("corrupted audit file. wrong number of columns")
+			return nil, errors.WithStack(newStorageError(StorageErrorCodeFormat, err))
 		}
 
 		backup := cloud.Backup{
@@ -71,14 +71,14 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 		}
 
 		if backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
-			return nil, fmt.Errorf("corrupted audit file. invalid date format. details: %s", err)
+			return nil, errors.WithStack(newStorageError(StorageErrorCodeDateFormat, err))
 		}
 
 		backups = append(backups, backup)
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading the audit file. details: %s", err)
+		return nil, errors.WithStack(newStorageError(StorageErrorCodeReadingFile, err))
 	}
 
 	return backups, nil
@@ -92,12 +92,12 @@ func (a *AuditFile) Remove(id string) error {
 	}
 
 	if err = os.Rename(a.Filename, a.Filename+"."+time.Now().Format("20060102150405")); err != nil {
-		return fmt.Errorf("error moving audit file. details: %s", err)
+		return errors.WithStack(newStorageError(StorageErrorCodeMovingFile, err))
 	}
 
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
-		return fmt.Errorf("error opening the audit file. details: %s", err)
+		return errors.WithStack(newStorageError(StorageErrorCodeOpeningFile, err))
 	}
 	defer auditFile.Close()
 
@@ -108,7 +108,7 @@ func (a *AuditFile) Remove(id string) error {
 
 		audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
 		if _, err = auditFile.WriteString(audit); err != nil {
-			return fmt.Errorf("error writing the audit file. details: %s", err)
+			return errors.WithStack(newStorageError(StorageErrorCodeWritingFile, err))
 		}
 	}
 

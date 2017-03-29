@@ -59,11 +59,14 @@ func TestAuditFile_Save(t *testing.T) {
 				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 				VaultName: "test",
 			},
-			expectedError: fmt.Errorf("error opening the audit file. details: %s", &os.PathError{
-				Op:   "open",
-				Path: path.Join(os.TempDir(), "toglacier-test-dir"),
-				Err:  errors.New("is a directory"),
-			}),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-test-dir"),
+					Err:  errors.New("is a directory"),
+				},
+			},
 		},
 	}
 
@@ -81,7 +84,7 @@ func TestAuditFile_Save(t *testing.T) {
 				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expected, string(auditFileContent))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !storage.StorageErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -146,11 +149,14 @@ func TestAuditFile_List(t *testing.T) {
 
 				return n
 			}(),
-			expectedError: fmt.Errorf("error opening the audit file. details: %s", &os.PathError{
-				Op:   "open",
-				Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
-				Err:  errors.New("permission denied"),
-			}),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
+					Err:  errors.New("permission denied"),
+				},
+			},
 		},
 		{
 			description: "it should detect when the filename references to a directory",
@@ -161,11 +167,14 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				return d
 			}(),
-			expectedError: fmt.Errorf("error reading the audit file. details: %s", &os.PathError{
-				Op:   "read",
-				Path: path.Join(os.TempDir(), "toglacier-test-dir"),
-				Err:  errors.New("is a directory"),
-			}),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeReadingFile,
+				Err: &os.PathError{
+					Op:   "read",
+					Path: path.Join(os.TempDir(), "toglacier-test-dir"),
+					Err:  errors.New("is a directory"),
+				},
+			},
 		},
 		{
 			description: "it should detect when an audit file line has the wrong number of columns",
@@ -179,7 +188,9 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expectedError: errors.New("corrupted audit file. wrong number of columns"),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeFormat,
+			},
 		},
 		{
 			description: "it should detect when the audit file contains an invalid date",
@@ -193,13 +204,16 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString("XXXX test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7\n")
 				return f.Name()
 			}(),
-			expectedError: fmt.Errorf("corrupted audit file. invalid date format. details: %s", &time.ParseError{
-				Layout:     time.RFC3339,
-				Value:      "XXXX",
-				LayoutElem: "2006",
-				ValueElem:  "XXXX",
-				Message:    fmt.Sprintf(` as "%s": cannot parse "XXXX" as "2006"`, time.RFC3339),
-			}),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeDateFormat,
+				Err: &time.ParseError{
+					Layout:     time.RFC3339,
+					Value:      "XXXX",
+					LayoutElem: "2006",
+					ValueElem:  "XXXX",
+					Message:    fmt.Sprintf(` as "%s": cannot parse "XXXX" as "2006"`, time.RFC3339),
+				},
+			},
 		},
 	}
 
@@ -212,7 +226,7 @@ func TestAuditFile_List(t *testing.T) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !storage.StorageErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -262,11 +276,14 @@ func TestAuditFile_Remove(t *testing.T) {
 				return n
 			}(),
 			id: "123456",
-			expectedError: fmt.Errorf("error opening the audit file. details: %s", &os.PathError{
-				Op:   "open",
-				Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
-				Err:  errors.New("permission denied"),
-			}),
+			expectedError: storage.StorageError{
+				Code: storage.StorageErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
+					Err:  errors.New("permission denied"),
+				},
+			},
 		},
 	}
 
@@ -284,7 +301,7 @@ func TestAuditFile_Remove(t *testing.T) {
 				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expectedError, string(auditFileContent))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !storage.StorageErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
