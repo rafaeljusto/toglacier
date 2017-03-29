@@ -16,8 +16,8 @@ const (
 type ReportErrorCode string
 
 // String translate the error code to a human readable text.
-func (c ReportErrorCode) String() string {
-	switch c {
+func (r ReportErrorCode) String() string {
+	switch r {
 	case ReportErrorCodeTemplate:
 		return "error parsing template"
 	}
@@ -40,18 +40,18 @@ func newReportError(code ReportErrorCode, err error) ReportError {
 }
 
 // Error returns the error in a human readable format.
-func (c ReportError) Error() string {
-	return c.String()
+func (r ReportError) Error() string {
+	return r.String()
 }
 
 // String translate the error to a human readable text.
-func (c ReportError) String() string {
+func (r ReportError) String() string {
 	var err string
-	if c.Err != nil {
-		err = fmt.Sprintf(". details: %s", c.Err)
+	if r.Err != nil {
+		err = fmt.Sprintf(". details: %s", r.Err)
 	}
 
-	return fmt.Sprintf("report: %s%s", c.Code, err)
+	return fmt.Sprintf("report: %s%s", r.Code, err)
 }
 
 // ReportErrorEqual compares two ReportError objects. This is useful to
