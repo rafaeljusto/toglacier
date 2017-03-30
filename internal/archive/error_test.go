@@ -7,125 +7,125 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/archive"
 )
 
-func TestArchiveError_Error(t *testing.T) {
+func TestError_Error(t *testing.T) {
 	scenarios := []struct {
 		description string
-		err         archive.ArchiveError
+		err         archive.Error
 		expected    string
 	}{
 		{
 			description: "it should show the message with filename and low level error",
-			err: archive.ArchiveError{
+			err: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
 			expected: "archive: filename “example.txt”, error creating the tar file. details: low level error",
 		},
 		{
 			description: "it should show the message only with the filename",
-			err: archive.ArchiveError{
+			err: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 			},
 			expected: "archive: filename “example.txt”, error creating the tar file",
 		},
 		{
 			description: "it should show the message only with the low level error",
-			err: archive.ArchiveError{
-				Code: archive.ArchiveErrorCodeTARCreation,
+			err: archive.Error{
+				Code: archive.ErrorCodeTARCreation,
 				Err:  errors.New("low level error"),
 			},
 			expected: "archive: error creating the tar file. details: low level error",
 		},
 		{
 			description: "it should show the correct error message for TAR creation problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeTARCreation},
+			err:         archive.Error{Code: archive.ErrorCodeTARCreation},
 			expected:    "archive: error creating the tar file",
 		},
 		{
 			description: "it should show the correct error message for TAR generation problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeTARGeneration},
+			err:         archive.Error{Code: archive.ErrorCodeTARGeneration},
 			expected:    "archive: error generating tar file",
 		},
 		{
 			description: "it should show the correct error message for opening file problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeOpeningFile},
+			err:         archive.Error{Code: archive.ErrorCodeOpeningFile},
 			expected:    "archive: error opening file",
 		},
 		{
 			description: "it should show the correct error message for creating temporary file problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeTmpFileCreation},
+			err:         archive.Error{Code: archive.ErrorCodeTmpFileCreation},
 			expected:    "archive: error creating temporary file",
 		},
 		{
 			description: "it should show the correct error message for HMAC-SHA256 calculation problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeCalculateHMACSHA256},
+			err:         archive.Error{Code: archive.ErrorCodeCalculateHMACSHA256},
 			expected:    "archive: error calculating hmac-sha256",
 		},
 		{
 			description: "it should show the correct error message for IV random numbers problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeGenerateRandomNumbers},
+			err:         archive.Error{Code: archive.ErrorCodeGenerateRandomNumbers},
 			expected:    "archive: error filling iv with random numbers",
 		},
 		{
 			description: "it should show the correct error message for writing encrypted label problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeWritingLabel},
+			err:         archive.Error{Code: archive.ErrorCodeWritingLabel},
 			expected:    "archive: error writing label to encrypted file",
 		},
 		{
 			description: "it should show the correct error message for reading encrypted label problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeReadingLabel},
+			err:         archive.Error{Code: archive.ErrorCodeReadingLabel},
 			expected:    "archive: error reading encrypted file label",
 		},
 		{
 			description: "it should show the correct error message for writing authentication problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeWritingAuth},
+			err:         archive.Error{Code: archive.ErrorCodeWritingAuth},
 			expected:    "archive: error writing authentication to encrypted file",
 		},
 		{
 			description: "it should show the correct error message for reading authentication problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeReadingAuth},
+			err:         archive.Error{Code: archive.ErrorCodeReadingAuth},
 			expected:    "archive: error reading encrypted authentication",
 		},
 		{
 			description: "it should show the correct error message for writing IV problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeWritingIV},
+			err:         archive.Error{Code: archive.ErrorCodeWritingIV},
 			expected:    "archive: error writing iv to encrypt file",
 		},
 		{
 			description: "it should show the correct error message for reading IV problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeReadingIV},
+			err:         archive.Error{Code: archive.ErrorCodeReadingIV},
 			expected:    "archive: error reading iv to decrypt file",
 		},
 		{
 			description: "it should show the correct error message for initializing cipher problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeInitCipher},
+			err:         archive.Error{Code: archive.ErrorCodeInitCipher},
 			expected:    "archive: error initializing cipher",
 		},
 		{
 			description: "it should show the correct error message for encrypting file problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeEncryptingFile},
+			err:         archive.Error{Code: archive.ErrorCodeEncryptingFile},
 			expected:    "archive: error encrypting file",
 		},
 		{
 			description: "it should show the correct error message for decrypting file problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeDecryptingFile},
+			err:         archive.Error{Code: archive.ErrorCodeDecryptingFile},
 			expected:    "archive: error decrypting file",
 		},
 		{
 			description: "it should show the correct error message for authentication failed problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeAuthFailed},
+			err:         archive.Error{Code: archive.ErrorCodeAuthFailed},
 			expected:    "archive: encrypted content authentication failed",
 		},
 		{
 			description: "it should show the correct error message for rewinding file problem",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCodeRewindingFile},
+			err:         archive.Error{Code: archive.ErrorCodeRewindingFile},
 			expected:    "archive: error moving to the beggining of the file",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
-			err:         archive.ArchiveError{Code: archive.ArchiveErrorCode("i-dont-exist")},
+			err:         archive.Error{Code: archive.ErrorCode("i-dont-exist")},
 			expected:    "archive: unknown error code",
 		},
 	}
@@ -139,7 +139,7 @@ func TestArchiveError_Error(t *testing.T) {
 	}
 }
 
-func TestArchiveErrorEqual(t *testing.T) {
+func TestErrorEqual(t *testing.T) {
 	scenarios := []struct {
 		description string
 		err1        error
@@ -147,57 +147,57 @@ func TestArchiveErrorEqual(t *testing.T) {
 		expected    bool
 	}{
 		{
-			description: "it should detect equal ArchiveError instances",
-			err1: archive.ArchiveError{
+			description: "it should detect equal Error instances",
+			err1: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
-			err2: archive.ArchiveError{
+			err2: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
 			expected: true,
 		},
 		{
 			description: "it should detect when the filename is different",
-			err1: archive.ArchiveError{
+			err1: archive.Error{
 				Filename: "example1.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
-			err2: archive.ArchiveError{
+			err2: archive.Error{
 				Filename: "example2.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
 			expected: false,
 		},
 		{
 			description: "it should detect when the code is different",
-			err1: archive.ArchiveError{
+			err1: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
-			err2: archive.ArchiveError{
+			err2: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeDecryptingFile,
+				Code:     archive.ErrorCodeDecryptingFile,
 				Err:      errors.New("low level error"),
 			},
 			expected: false,
 		},
 		{
 			description: "it should detect when the low level error is different",
-			err1: archive.ArchiveError{
+			err1: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error 1"),
 			},
-			err2: archive.ArchiveError{
+			err2: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error 2"),
 			},
 			expected: false,
@@ -208,18 +208,18 @@ func TestArchiveErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one error is undefined",
-			err1: archive.ArchiveError{
+			err1: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
 			expected: false,
 		},
 		{
-			description: "it should detect when one the error isn't ArchiveError type",
-			err1: archive.ArchiveError{
+			description: "it should detect when one the error isn't Error type",
+			err1: archive.Error{
 				Filename: "example.txt",
-				Code:     archive.ArchiveErrorCodeTARCreation,
+				Code:     archive.ErrorCodeTARCreation,
 				Err:      errors.New("low level error"),
 			},
 			err2:     errors.New("low level error"),
@@ -229,7 +229,7 @@ func TestArchiveErrorEqual(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			if equal := archive.ArchiveErrorEqual(scenario.err1, scenario.err2); equal != scenario.expected {
+			if equal := archive.ErrorEqual(scenario.err1, scenario.err2); equal != scenario.expected {
 				t.Errorf("results don't match. expected “%t” and got “%t”", scenario.expected, equal)
 			}
 		})

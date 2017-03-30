@@ -7,127 +7,125 @@ import (
 )
 
 const (
-	// ArchiveErrorCodeTARCreation error while creating the TAR file.
-	ArchiveErrorCodeTARCreation ArchiveErrorCode = "tar-creation"
+	// ErrorCodeTARCreation error while creating the TAR file.
+	ErrorCodeTARCreation ErrorCode = "tar-creation"
 
-	// ArchiveErrorCodeTARGeneration error adding all files to the TAR.
-	ArchiveErrorCodeTARGeneration ArchiveErrorCode = "tar-generation"
+	// ErrorCodeTARGeneration error adding all files to the TAR.
+	ErrorCodeTARGeneration ErrorCode = "tar-generation"
 
-	// ArchiveErrorCodeOpeningFile error while opening a file to encrypt or
-	// decrypt.
-	ArchiveErrorCodeOpeningFile ArchiveErrorCode = "opening-file"
+	// ErrorCodeOpeningFile error while opening a file to encrypt or decrypt.
+	ErrorCodeOpeningFile ErrorCode = "opening-file"
 
-	// ArchiveErrorCodeTmpFileCreation error creating a new temporary file.
-	ArchiveErrorCodeTmpFileCreation ArchiveErrorCode = "tmp-file-creation"
+	// ErrorCodeTmpFileCreation error creating a new temporary file.
+	ErrorCodeTmpFileCreation ErrorCode = "tmp-file-creation"
 
-	// ArchiveErrorCodeCalculateHMACSHA256 error calculating the HMAC SHA256 of
-	// the file.
-	ArchiveErrorCodeCalculateHMACSHA256 ArchiveErrorCode = "calculate-hmac-sha256"
+	// ErrorCodeCalculateHMACSHA256 error calculating the HMAC SHA256 of the file.
+	ErrorCodeCalculateHMACSHA256 ErrorCode = "calculate-hmac-sha256"
 
-	// ArchiveErrorCodeGenerateRandomNumbers error while trying to retrieve random
+	// ErrorCodeGenerateRandomNumbers error while trying to retrieve random
 	// numbers for a encryption process.
-	ArchiveErrorCodeGenerateRandomNumbers ArchiveErrorCode = "generate-random-numbers"
+	ErrorCodeGenerateRandomNumbers ErrorCode = "generate-random-numbers"
 
-	// ArchiveErrorCodeWritingLabel error while adding the “encrypted” label to
-	// the file. This label identify when the content is encrypted or not.
-	ArchiveErrorCodeWritingLabel ArchiveErrorCode = "writing-label"
+	// ErrorCodeWritingLabel error while adding the “encrypted” label to the file.
+	// This label identify when the content is encrypted or not.
+	ErrorCodeWritingLabel ErrorCode = "writing-label"
 
-	// ArchiveErrorCodeReadingLabel error while reading the “encrypted” label from
-	// the file. This label identify when the content is encrypted or not.
-	ArchiveErrorCodeReadingLabel ArchiveErrorCode = "reading-label"
+	// ErrorCodeReadingLabel error while reading the “encrypted” label from the
+	// file. This label identify when the content is encrypted or not.
+	ErrorCodeReadingLabel ErrorCode = "reading-label"
 
-	// ArchiveErrorCodeWritingAuth error while writing the HMAC-SHA256
-	// authentication to the file. The authentication is necessary to verify if
-	// the encrypted content wasn't modified.
-	ArchiveErrorCodeWritingAuth ArchiveErrorCode = "writing-auth"
+	// ErrorCodeWritingAuth error while writing the HMAC-SHA256 authentication to
+	// the file. The authentication is necessary to verify if the encrypted
+	// content wasn't modified.
+	ErrorCodeWritingAuth ErrorCode = "writing-auth"
 
-	// ArchiveErrorCodeReadingAuth error while reading the HMAC-SHA256
-	// authentication from the file. The authentication is necessary to verify if
-	// the encrypted content wasn't modified.
-	ArchiveErrorCodeReadingAuth ArchiveErrorCode = "reading-auth"
+	// ErrorCodeReadingAuth error while reading the HMAC-SHA256 authentication
+	// from the file. The authentication is necessary to verify if the encrypted
+	// content wasn't modified.
+	ErrorCodeReadingAuth ErrorCode = "reading-auth"
 
-	// ArchiveErrorCodeWritingIV error while writing the IV that is a slice of
-	// random numbers used as a encryption source.
-	ArchiveErrorCodeWritingIV ArchiveErrorCode = "writing-iv"
+	// ErrorCodeWritingIV error while writing the IV that is a slice of random
+	// numbers used as a encryption source.
+	ErrorCodeWritingIV ErrorCode = "writing-iv"
 
-	// ArchiveErrorCodeReadingIV error while reading the IV that is used as the
-	// source to decrypt the content.
-	ArchiveErrorCodeReadingIV ArchiveErrorCode = "reading-iv"
+	// ErrorCodeReadingIV error while reading the IV that is used as the source to
+	// decrypt the content.
+	ErrorCodeReadingIV ErrorCode = "reading-iv"
 
-	// ArchiveErrorCodeInitCipher error initializing cipher that is used for the
+	// ErrorCodeInitCipher error initializing cipher that is used for the
 	// encryption process.
-	ArchiveErrorCodeInitCipher ArchiveErrorCode = "init-cipher"
+	ErrorCodeInitCipher ErrorCode = "init-cipher"
 
-	// ArchiveErrorCodeEncryptingFile error while encrypting file.
-	ArchiveErrorCodeEncryptingFile ArchiveErrorCode = "encrypting-file"
+	// ErrorCodeEncryptingFile error while encrypting file.
+	ErrorCodeEncryptingFile ErrorCode = "encrypting-file"
 
-	// ArchiveErrorCodeDecryptingFile error while decrypting file.
-	ArchiveErrorCodeDecryptingFile ArchiveErrorCode = "decypting-file"
+	// ErrorCodeDecryptingFile error while decrypting file.
+	ErrorCodeDecryptingFile ErrorCode = "decypting-file"
 
-	// ArchiveErrorCodeAuthFailed error when the HMAC authentication from the
-	// encrypted file failed.
-	ArchiveErrorCodeAuthFailed ArchiveErrorCode = "auth-failed"
+	// ErrorCodeAuthFailed error when the HMAC authentication from the encrypted
+	// file failed.
+	ErrorCodeAuthFailed ErrorCode = "auth-failed"
 
-	// ArchiveErrorCodeRewindingFile error while moving back to the beginning of
-	// the file.
-	ArchiveErrorCodeRewindingFile ArchiveErrorCode = "rewinding-file"
+	// ErrorCodeRewindingFile error while moving back to the beginning of the
+	// file.
+	ErrorCodeRewindingFile ErrorCode = "rewinding-file"
 )
 
-// ArchiveErrorCode stores the error type that occurred to easy automatize an
-// external actual depending on the problem.
-type ArchiveErrorCode string
+// ErrorCode stores the error type that occurred to easy automatize an external
+// actual depending on the problem.
+type ErrorCode string
 
 // String translate the error code to a human readable text.
-func (a ArchiveErrorCode) String() string {
-	switch a {
-	case ArchiveErrorCodeTARCreation:
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCodeTARCreation:
 		return "error creating the tar file"
-	case ArchiveErrorCodeTARGeneration:
+	case ErrorCodeTARGeneration:
 		return "error generating tar file"
-	case ArchiveErrorCodeOpeningFile:
+	case ErrorCodeOpeningFile:
 		return "error opening file"
-	case ArchiveErrorCodeTmpFileCreation:
+	case ErrorCodeTmpFileCreation:
 		return "error creating temporary file"
-	case ArchiveErrorCodeCalculateHMACSHA256:
+	case ErrorCodeCalculateHMACSHA256:
 		return "error calculating hmac-sha256"
-	case ArchiveErrorCodeGenerateRandomNumbers:
+	case ErrorCodeGenerateRandomNumbers:
 		return "error filling iv with random numbers"
-	case ArchiveErrorCodeWritingLabel:
+	case ErrorCodeWritingLabel:
 		return "error writing label to encrypted file"
-	case ArchiveErrorCodeReadingLabel:
+	case ErrorCodeReadingLabel:
 		return "error reading encrypted file label"
-	case ArchiveErrorCodeWritingAuth:
+	case ErrorCodeWritingAuth:
 		return "error writing authentication to encrypted file"
-	case ArchiveErrorCodeReadingAuth:
+	case ErrorCodeReadingAuth:
 		return "error reading encrypted authentication"
-	case ArchiveErrorCodeWritingIV:
+	case ErrorCodeWritingIV:
 		return "error writing iv to encrypt file"
-	case ArchiveErrorCodeReadingIV:
+	case ErrorCodeReadingIV:
 		return "error reading iv to decrypt file"
-	case ArchiveErrorCodeInitCipher:
+	case ErrorCodeInitCipher:
 		return "error initializing cipher"
-	case ArchiveErrorCodeEncryptingFile:
+	case ErrorCodeEncryptingFile:
 		return "error encrypting file"
-	case ArchiveErrorCodeDecryptingFile:
+	case ErrorCodeDecryptingFile:
 		return "error decrypting file"
-	case ArchiveErrorCodeAuthFailed:
+	case ErrorCodeAuthFailed:
 		return "encrypted content authentication failed"
-	case ArchiveErrorCodeRewindingFile:
+	case ErrorCodeRewindingFile:
 		return "error moving to the beggining of the file"
 	}
 
 	return "unknown error code"
 }
 
-// ArchiveError stores error details from archive operations.
-type ArchiveError struct {
+// Error stores error details from archive operations.
+type Error struct {
 	Filename string
-	Code     ArchiveErrorCode
+	Code     ErrorCode
 	Err      error
 }
 
-func newArchiveError(filename string, code ArchiveErrorCode, err error) ArchiveError {
-	return ArchiveError{
+func newError(filename string, code ErrorCode, err error) Error {
+	return Error{
 		Filename: filename,
 		Code:     code,
 		Err:      errors.WithStack(err),
@@ -135,34 +133,34 @@ func newArchiveError(filename string, code ArchiveErrorCode, err error) ArchiveE
 }
 
 // Error returns the error in a human readable format.
-func (a ArchiveError) Error() string {
-	return a.String()
+func (e Error) Error() string {
+	return e.String()
 }
 
 // String translate the error to a human readable text.
-func (a ArchiveError) String() string {
+func (e Error) String() string {
 	var filename string
-	if a.Filename != "" {
-		filename = fmt.Sprintf("filename “%s”, ", a.Filename)
+	if e.Filename != "" {
+		filename = fmt.Sprintf("filename “%s”, ", e.Filename)
 	}
 
 	var err string
-	if a.Err != nil {
-		err = fmt.Sprintf(". details: %s", a.Err)
+	if e.Err != nil {
+		err = fmt.Sprintf(". details: %s", e.Err)
 	}
 
-	return fmt.Sprintf("archive: %s%s%s", filename, a.Code, err)
+	return fmt.Sprintf("archive: %s%s%s", filename, e.Code, err)
 }
 
-// ArchiveErrorEqual compares two ArchiveError objects. This is useful to
-// compare down to the low level errors.
-func ArchiveErrorEqual(first, second error) bool {
+// ErrorEqual compares two Error objects. This is useful to compare down to the
+// low level errors.
+func ErrorEqual(first, second error) bool {
 	if first == nil || second == nil {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(ArchiveError)
-	err2, ok2 := errors.Cause(second).(ArchiveError)
+	err1, ok1 := errors.Cause(first).(Error)
+	err2, ok2 := errors.Cause(second).(Error)
 
 	if !ok1 || !ok2 {
 		return false

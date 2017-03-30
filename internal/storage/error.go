@@ -7,94 +7,92 @@ import (
 )
 
 const (
-	// StorageErrorCodeOpeningFile error when opening the file that stores the
-	// data locally.
-	StorageErrorCodeOpeningFile StorageErrorCode = "opening-file"
+	// ErrorCodeOpeningFile error when opening the file that stores the data
+	// locally.
+	ErrorCodeOpeningFile ErrorCode = "opening-file"
 
-	// StorageErrorCodeWritingFile error while writing the data to the local
-	// storage file.
-	StorageErrorCodeWritingFile StorageErrorCode = "writing-file"
-
-	// StorageErrorCodeReadingFile error while reading the file that stores the
-	// data locally.
-	StorageErrorCodeReadingFile StorageErrorCode = "reading-file"
-
-	// StorageErrorCodeMovingFile error moving files. We keep backups of the
-	// storage file, so we need to move the old one before writing a new storage
+	// ErrorCodeWritingFile error while writing the data to the local storage
 	// file.
-	StorageErrorCodeMovingFile StorageErrorCode = "moving-file"
+	ErrorCodeWritingFile ErrorCode = "writing-file"
 
-	// StorageErrorCodeFormat local storage file contains an unexpected format
+	// ErrorCodeReadingFile error while reading the file that stores the data
+	// locally.
+	ErrorCodeReadingFile ErrorCode = "reading-file"
+
+	// ErrorCodeMovingFile error moving files. We keep backups of the storage
+	// file, so we need to move the old one before writing a new storage file.
+	ErrorCodeMovingFile ErrorCode = "moving-file"
+
+	// ErrorCodeFormat local storage file contains an unexpected format
 	// (corrupted).
-	StorageErrorCodeFormat StorageErrorCode = "format"
+	ErrorCodeFormat ErrorCode = "format"
 
-	// StorageErrorCodeDateFormat strange date format found in the local storage
-	// file.
-	StorageErrorCodeDateFormat StorageErrorCode = "date-format"
+	// ErrorCodeDateFormat strange date format found in the local storage file.
+	ErrorCodeDateFormat ErrorCode = "date-format"
 )
 
-// StorageErrorCode stores the error type that occurred while managing the local
+// ErrorCode stores the error type that occurred while managing the local
 // storage.
-type StorageErrorCode string
+type ErrorCode string
 
 // String translate the error code to a human readable text.
-func (s StorageErrorCode) String() string {
-	switch s {
-	case StorageErrorCodeOpeningFile:
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCodeOpeningFile:
 		return "error opening the storage file"
-	case StorageErrorCodeWritingFile:
+	case ErrorCodeWritingFile:
 		return "error writing the storage file"
-	case StorageErrorCodeReadingFile:
+	case ErrorCodeReadingFile:
 		return "error reading the storage file"
-	case StorageErrorCodeMovingFile:
+	case ErrorCodeMovingFile:
 		return "error moving the storage file"
-	case StorageErrorCodeFormat:
+	case ErrorCodeFormat:
 		return "unexpected storage file format"
-	case StorageErrorCodeDateFormat:
+	case ErrorCodeDateFormat:
 		return "invalid date format"
 	}
 
 	return "unknown error code"
 }
 
-// StorageError stores error details from a problem occurred while managing the
-// local storage.
-type StorageError struct {
-	Code StorageErrorCode
+// Error stores error details from a problem occurred while managing the local
+// storage.
+type Error struct {
+	Code ErrorCode
 	Err  error
 }
 
-func newStorageError(code StorageErrorCode, err error) StorageError {
-	return StorageError{
+func newError(code ErrorCode, err error) Error {
+	return Error{
 		Code: code,
 		Err:  errors.WithStack(err),
 	}
 }
 
 // Error returns the error in a human readable format.
-func (s StorageError) Error() string {
-	return s.String()
+func (e Error) Error() string {
+	return e.String()
 }
 
 // String translate the error to a human readable text.
-func (s StorageError) String() string {
+func (e Error) String() string {
 	var err string
-	if s.Err != nil {
-		err = fmt.Sprintf(". details: %s", s.Err)
+	if e.Err != nil {
+		err = fmt.Sprintf(". details: %s", e.Err)
 	}
 
-	return fmt.Sprintf("storage: %s%s", s.Code, err)
+	return fmt.Sprintf("storage: %s%s", e.Code, err)
 }
 
-// StorageErrorEqual compares two StorageError objects. This is useful to
-// compare down to the low level errors.
-func StorageErrorEqual(first, second error) bool {
+// ErrorEqual compares two Error objects. This is useful to compare down to the
+// low level errors.
+func ErrorEqual(first, second error) bool {
 	if first == nil || second == nil {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(StorageError)
-	err2, ok2 := errors.Cause(second).(StorageError)
+	err1, ok1 := errors.Cause(first).(Error)
+	err2, ok2 := errors.Cause(second).(Error)
 
 	if !ok1 || !ok2 {
 		return false

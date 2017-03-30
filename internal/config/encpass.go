@@ -29,8 +29,8 @@ func passwordKey() []byte {
 }
 
 // PasswordEncrypt uses the secret to encode the password. On error it
-// will return an ConfigError encapsulated in a traceable error. To retrieve
-// the desired error you can do:
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -38,7 +38,7 @@ func passwordKey() []byte {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -47,12 +47,12 @@ func passwordKey() []byte {
 func PasswordEncrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", errors.WithStack(newConfigError("", ConfigErrorCodeInitCipher, err))
+		return "", errors.WithStack(newError("", ErrorCodeInitCipher, err))
 	}
 
 	iv := make([]byte, block.BlockSize())
 	if _, err = rand.Read(iv); err != nil {
-		return "", errors.WithStack(newConfigError("", ConfigErrorCodeFillingIV, err))
+		return "", errors.WithStack(newError("", ErrorCodeFillingIV, err))
 	}
 
 	output := make([]byte, len(input))
@@ -65,8 +65,8 @@ func PasswordEncrypt(input string) (string, error) {
 }
 
 // passwordDecrypt decodes a encrypted password. On error it
-// will return an ConfigError encapsulated in a traceable error. To retrieve
-// the desired error you can do:
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -74,7 +74,7 @@ func PasswordEncrypt(input string) (string, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -83,16 +83,16 @@ func PasswordEncrypt(input string) (string, error) {
 func passwordDecrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", errors.WithStack(newConfigError("", ConfigErrorCodeInitCipher, err))
+		return "", errors.WithStack(newError("", ErrorCodeInitCipher, err))
 	}
 
 	inputBytes, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
-		return "", errors.WithStack(newConfigError("", ConfigErrorCodeDecodeBase64, err))
+		return "", errors.WithStack(newError("", ErrorCodeDecodeBase64, err))
 	}
 
 	if len(inputBytes) < block.BlockSize() {
-		return "", errors.WithStack(newConfigError("", ConfigErrorCodePasswordSize, nil))
+		return "", errors.WithStack(newError("", ErrorCodePasswordSize, nil))
 	}
 
 	iv := inputBytes[:block.BlockSize()]

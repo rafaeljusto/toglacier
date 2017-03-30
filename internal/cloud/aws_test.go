@@ -104,8 +104,8 @@ func TestAWSCloud_Send(t *testing.T) {
 			filename:             "toglacier-idontexist.tmp",
 			multipartUploadLimit: 102400,
 			partSize:             4096,
-			expectedError: cloud.CloudError{
-				Code: cloud.CloudErrorCodeOpeningArchive,
+			expectedError: cloud.Error{
+				Code: cloud.ErrorCodeOpeningArchive,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: "toglacier-idontexist.tmp",
@@ -180,8 +180,8 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
-				Code: cloud.CloudErrorCodeSendingArchive,
+			expectedError: cloud.Error{
+				Code: cloud.ErrorCodeSendingArchive,
 				Err:  errors.New("connection error"),
 			},
 		},
@@ -217,8 +217,8 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
-				Code: cloud.CloudErrorCodeComparingChecksums,
+			expectedError: cloud.Error{
+				Code: cloud.ErrorCodeComparingChecksums,
 			},
 		},
 		{
@@ -310,8 +310,8 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
-				Code: cloud.CloudErrorCodeInitMultipart,
+			expectedError: cloud.Error{
+				Code: cloud.ErrorCodeInitMultipart,
 				Err:  errors.New("aws is out"),
 			},
 		},
@@ -455,9 +455,9 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "UPLOAD123",
-				Code: cloud.CloudErrorCodeCompleteMultipart,
+				Code: cloud.ErrorCodeCompleteMultipart,
 				Err:  errors.New("backup too big"),
 			},
 		},
@@ -517,9 +517,9 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "AWSID123",
-				Code: cloud.CloudErrorCodeComparingChecksums,
+				Code: cloud.ErrorCodeComparingChecksums,
 			},
 		},
 		{
@@ -574,12 +574,12 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "AWSID123",
-				Code: cloud.CloudErrorCodeComparingChecksums,
-				Err: cloud.CloudError{
+				Code: cloud.ErrorCodeComparingChecksums,
+				Err: cloud.Error{
 					ID:   "AWSID123",
-					Code: cloud.CloudErrorCodeRemovingArchive,
+					Code: cloud.ErrorCodeRemovingArchive,
 					Err:  errors.New("connection error"),
 				},
 			},
@@ -595,7 +595,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			if !reflect.DeepEqual(scenario.expected, backup) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
 			}
-			if !cloud.CloudErrorEqual(scenario.expectedError, err) && !cloud.MultipartErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.MultipartErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -695,8 +695,8 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
-				Code: cloud.CloudErrorCodeInitJob,
+			expectedError: cloud.Error{
+				Code: cloud.ErrorCodeInitJob,
 				Err:  errors.New("a crazy error"),
 			},
 		},
@@ -716,9 +716,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeRetrievingJob,
+				Code: cloud.ErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
 			},
 		},
@@ -747,9 +747,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobFailed,
+				Code: cloud.ErrorCodeJobFailed,
 				Err:  errors.New("something went wrong"),
 			},
 		},
@@ -777,9 +777,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobNotFound,
+				Code: cloud.ErrorCodeJobNotFound,
 			},
 		},
 		{
@@ -872,9 +872,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobComplete,
+				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
 			},
 		},
@@ -909,9 +909,9 @@ func TestAWSCloud_List(t *testing.T) {
 			},
 			// *json.SyntaxError doesn't export the msg attribute, so we need to
 			// hard-coded the error message here
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeDecodingData,
+				Code: cloud.ErrorCodeDecodingData,
 				Err:  errors.New("invalid character '{' looking for beginning of object key string"),
 			},
 		},
@@ -923,7 +923,7 @@ func TestAWSCloud_List(t *testing.T) {
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
 			}
-			if !cloud.CloudErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -985,9 +985,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "AWSID123",
-				Code: cloud.CloudErrorCodeInitJob,
+				Code: cloud.ErrorCodeInitJob,
 				Err:  errors.New("a crazy error"),
 			},
 		},
@@ -1008,9 +1008,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeRetrievingJob,
+				Code: cloud.ErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
 			},
 		},
@@ -1040,9 +1040,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobFailed,
+				Code: cloud.ErrorCodeJobFailed,
 				Err:  errors.New("something went wrong"),
 			},
 		},
@@ -1071,9 +1071,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobNotFound,
+				Code: cloud.ErrorCodeJobNotFound,
 			},
 		},
 		{
@@ -1140,9 +1140,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "JOBID123",
-				Code: cloud.CloudErrorCodeJobComplete,
+				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
 			},
 		},
@@ -1154,7 +1154,7 @@ func TestAWSCloud_Get(t *testing.T) {
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match.\n%s", pretty.Diff(scenario.expected, filename))
 			}
-			if !cloud.CloudErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -1193,9 +1193,9 @@ func TestAWSCloud_Remove(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.CloudError{
+			expectedError: cloud.Error{
 				ID:   "AWSID123",
-				Code: cloud.CloudErrorCodeRemovingArchive,
+				Code: cloud.ErrorCodeRemovingArchive,
 				Err:  errors.New("no backup here"),
 			},
 		},
@@ -1204,7 +1204,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			err := scenario.awsCloud.Remove(scenario.id)
-			if !cloud.CloudErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})

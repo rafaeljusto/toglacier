@@ -7,122 +7,119 @@ import (
 )
 
 const (
-	// CloudErrorCodeInitializingSession error connecting to the cloud server to
+	// ErrorCodeInitializingSession error connecting to the cloud server to
 	// initialize the session.
-	CloudErrorCodeInitializingSession CloudErrorCode = "initializing-session"
+	ErrorCodeInitializingSession ErrorCode = "initializing-session"
 
-	// CloudErrorCodeOpeningArchive problem detected while trying to open the
-	// archive that contains the backup data.
-	CloudErrorCodeOpeningArchive CloudErrorCode = "opening-archive"
+	// ErrorCodeOpeningArchive problem detected while trying to open the archive
+	// that contains the backup data.
+	ErrorCodeOpeningArchive ErrorCode = "opening-archive"
 
-	// CloudErrorCodeArchiveInfo error while trying to get information about the
+	// ErrorCodeArchiveInfo error while trying to get information about the
 	// archive.
-	CloudErrorCodeArchiveInfo CloudErrorCode = "archive-info"
+	ErrorCodeArchiveInfo ErrorCode = "archive-info"
 
-	// CloudErrorCodeSendingArchive problem while uploading the archive to the
+	// ErrorCodeSendingArchive problem while uploading the archive to the cloud.
+	ErrorCodeSendingArchive ErrorCode = "sending-archive"
+
+	// ErrorCodeComparingChecksums digest mismatch while comparing local archive
+	// hash with the cloud archive hash.
+	ErrorCodeComparingChecksums ErrorCode = "comparing-checksums"
+
+	// ErrorCodeInitMultipart error while communicating to the cloud that we are
+	// going to start sending pieces of the archive.
+	ErrorCodeInitMultipart ErrorCode = "initi-multipart"
+
+	// ErrorCodeCompleteMultipart error while signalizing to the cloud that the
+	// multipart upload was done.
+	ErrorCodeCompleteMultipart ErrorCode = "complete-multipart"
+
+	// ErrorCodeInitJob error while asking to the cloud to initiate an offline
+	// task.
+	ErrorCodeInitJob ErrorCode = "init-job"
+
+	// ErrorCodeJobComplete error while trying to retrieve an offline task result
+	// from the cloud.
+	ErrorCodeJobComplete ErrorCode = "job-complete"
+
+	// ErrorCodeRetrievingJob error while trying to get a task status in the
 	// cloud.
-	CloudErrorCodeSendingArchive CloudErrorCode = "sending-archive"
+	ErrorCodeRetrievingJob ErrorCode = "retrieving-job"
 
-	// CloudErrorCodeComparingChecksums digest mismatch while comparing local
-	// archive hash with the cloud archive hash.
-	CloudErrorCodeComparingChecksums CloudErrorCode = "comparing-checksums"
+	// ErrorCodeJobFailed offline task in the cloud failed to complete.
+	ErrorCodeJobFailed ErrorCode = "job-failed"
 
-	// CloudErrorCodeInitMultipart error while communicating to the cloud that we
-	// are going to start sending pieces of the archive.
-	CloudErrorCodeInitMultipart CloudErrorCode = "initi-multipart"
+	// ErrorCodeJobNotFound offline task missing from the cloud.
+	ErrorCodeJobNotFound ErrorCode = "job-not-found"
 
-	// CloudErrorCodeCompleteMultipart error while signalizing to the cloud that
-	// the multipart upload was done.
-	CloudErrorCodeCompleteMultipart CloudErrorCode = "complete-multipart"
+	// ErrorCodeDecodingData problem decoding the data returned from the cloud.
+	ErrorCodeDecodingData ErrorCode = "decoding-data"
 
-	// CloudErrorCodeInitJob error while asking to the cloud to initiate an
-	// offline task.
-	CloudErrorCodeInitJob CloudErrorCode = "init-job"
+	// ErrorCodeCreatingArchive error while creating the file that will store the
+	// data retrieved from the cloud.
+	ErrorCodeCreatingArchive ErrorCode = "creating-archive"
 
-	// CloudErrorCodeJobComplete error while trying to retrieve an offline task
-	// result from the cloud.
-	CloudErrorCodeJobComplete CloudErrorCode = "job-complete"
+	// ErrorCodeCopyingData problem while filling the created file with the bytes
+	// retrieved from the cloud.
+	ErrorCodeCopyingData ErrorCode = "copying-data"
 
-	// CloudErrorCodeRetrievingJob error while trying to get a task status in the
-	// cloud.
-	CloudErrorCodeRetrievingJob CloudErrorCode = "retrieving-job"
-
-	// CloudErrorCodeJobFailed offline task in the cloud failed to complete.
-	CloudErrorCodeJobFailed CloudErrorCode = "job-failed"
-
-	// CloudErrorCodeJobNotFound offline task missing from the cloud.
-	CloudErrorCodeJobNotFound CloudErrorCode = "job-not-found"
-
-	// CloudErrorCodeDecodingData problem decoding the data returned from the
-	// cloud.
-	CloudErrorCodeDecodingData CloudErrorCode = "decoding-data"
-
-	// CloudErrorCodeCreatingArchive error while creating the file that will store
-	// the data retrieved from the cloud.
-	CloudErrorCodeCreatingArchive CloudErrorCode = "creating-archive"
-
-	// CloudErrorCodeCopyingData problem while filling the created file with the
-	// bytes retrieved from the cloud.
-	CloudErrorCodeCopyingData CloudErrorCode = "copying-data"
-
-	// CloudErrorCodeRemovingArchive error while removing the archive from the
-	// cloud.
-	CloudErrorCodeRemovingArchive CloudErrorCode = "removing-archive"
+	// ErrorCodeRemovingArchive error while removing the archive from the cloud.
+	ErrorCodeRemovingArchive ErrorCode = "removing-archive"
 )
 
-// CloudErrorCode stores the error type that occurred while performing any
-// operation with the cloud.
-type CloudErrorCode string
+// ErrorCode stores the error type that occurred while performing any operation
+// with the cloud.
+type ErrorCode string
 
 // String translate the error code to a human readable text.
-func (c CloudErrorCode) String() string {
-	switch c {
-	case CloudErrorCodeInitializingSession:
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCodeInitializingSession:
 		return "error initializing cloud session"
-	case CloudErrorCodeOpeningArchive:
+	case ErrorCodeOpeningArchive:
 		return "error opening archive"
-	case CloudErrorCodeArchiveInfo:
+	case ErrorCodeArchiveInfo:
 		return "error retrieving archive information"
-	case CloudErrorCodeSendingArchive:
+	case ErrorCodeSendingArchive:
 		return "error sending archive to the cloud"
-	case CloudErrorCodeComparingChecksums:
+	case ErrorCodeComparingChecksums:
 		return "error comparing checksums"
-	case CloudErrorCodeInitMultipart:
+	case ErrorCodeInitMultipart:
 		return "error initializing multipart upload"
-	case CloudErrorCodeCompleteMultipart:
+	case ErrorCodeCompleteMultipart:
 		return "error completing multipart upload"
-	case CloudErrorCodeInitJob:
+	case ErrorCodeInitJob:
 		return "error initiating the job"
-	case CloudErrorCodeJobComplete:
+	case ErrorCodeJobComplete:
 		return "error retrieving the complete job data"
-	case CloudErrorCodeRetrievingJob:
+	case ErrorCodeRetrievingJob:
 		return "error retrieving the job status"
-	case CloudErrorCodeJobFailed:
+	case ErrorCodeJobFailed:
 		return "job failed to complete in the cloud"
-	case CloudErrorCodeJobNotFound:
+	case ErrorCodeJobNotFound:
 		return "job not found"
-	case CloudErrorCodeDecodingData:
+	case ErrorCodeDecodingData:
 		return "error decoding the iventory"
-	case CloudErrorCodeCreatingArchive:
+	case ErrorCodeCreatingArchive:
 		return "error creating backup file"
-	case CloudErrorCodeCopyingData:
+	case ErrorCodeCopyingData:
 		return "error copying data to the backup file"
-	case CloudErrorCodeRemovingArchive:
+	case ErrorCodeRemovingArchive:
 		return "error removing backup"
 	}
 
 	return "unknown error code"
 }
 
-// CloudError stores error details from cloud operations.
-type CloudError struct {
+// Error stores error details from cloud operations.
+type Error struct {
 	ID   string
-	Code CloudErrorCode
+	Code ErrorCode
 	Err  error
 }
 
-func newCloudError(id string, code CloudErrorCode, err error) CloudError {
-	return CloudError{
+func newError(id string, code ErrorCode, err error) Error {
+	return Error{
 		ID:   id,
 		Code: code,
 		Err:  errors.WithStack(err),
@@ -130,34 +127,34 @@ func newCloudError(id string, code CloudErrorCode, err error) CloudError {
 }
 
 // Error returns the error in a human readable format.
-func (c CloudError) Error() string {
-	return c.String()
+func (e Error) Error() string {
+	return e.String()
 }
 
 // String translate the error to a human readable text.
-func (c CloudError) String() string {
+func (e Error) String() string {
 	var id string
-	if c.ID != "" {
-		id = fmt.Sprintf("id “%s”, ", c.ID)
+	if e.ID != "" {
+		id = fmt.Sprintf("id “%s”, ", e.ID)
 	}
 
 	var err string
-	if c.Err != nil {
-		err = fmt.Sprintf(". details: %s", c.Err)
+	if e.Err != nil {
+		err = fmt.Sprintf(". details: %s", e.Err)
 	}
 
-	return fmt.Sprintf("cloud: %s%s%s", id, c.Code, err)
+	return fmt.Sprintf("cloud: %s%s%s", id, e.Code, err)
 }
 
-// CloudErrorEqual compares two CloudError objects. This is useful to
-// compare down to the low level errors.
-func CloudErrorEqual(first, second error) bool {
+// ErrorEqual compares two Error objects. This is useful to compare down to the
+// low level errors.
+func ErrorEqual(first, second error) bool {
 	if first == nil || second == nil {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(CloudError)
-	err2, ok2 := errors.Cause(second).(CloudError)
+	err1, ok1 := errors.Cause(first).(Error)
+	err2, ok2 := errors.Cause(second).(Error)
 
 	if !ok1 || !ok2 {
 		return false

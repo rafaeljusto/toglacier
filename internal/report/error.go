@@ -7,62 +7,62 @@ import (
 )
 
 const (
-	// ReportErrorCodeTemplate error parsing template.
-	ReportErrorCodeTemplate ReportErrorCode = "template"
+	// ErrorCodeTemplate error parsing template.
+	ErrorCodeTemplate ErrorCode = "template"
 )
 
-// ReportErrorCode stores the error type that occurred while reading
-// report parameters.
-type ReportErrorCode string
+// ErrorCode stores the error type that occurred while reading report
+// parameters.
+type ErrorCode string
 
 // String translate the error code to a human readable text.
-func (r ReportErrorCode) String() string {
-	switch r {
-	case ReportErrorCodeTemplate:
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCodeTemplate:
 		return "error parsing template"
 	}
 
 	return "unknown error code"
 }
 
-// ReportError stores error details from a problem occurred while reading a
-// report file or parsing the environment variables.
-type ReportError struct {
-	Code ReportErrorCode
+// Error stores error details from a problem occurred while reading a report
+// file or parsing the environment variables.
+type Error struct {
+	Code ErrorCode
 	Err  error
 }
 
-func newReportError(code ReportErrorCode, err error) ReportError {
-	return ReportError{
+func newError(code ErrorCode, err error) Error {
+	return Error{
 		Code: code,
 		Err:  errors.WithStack(err),
 	}
 }
 
 // Error returns the error in a human readable format.
-func (r ReportError) Error() string {
-	return r.String()
+func (e Error) Error() string {
+	return e.String()
 }
 
 // String translate the error to a human readable text.
-func (r ReportError) String() string {
+func (e Error) String() string {
 	var err string
-	if r.Err != nil {
-		err = fmt.Sprintf(". details: %s", r.Err)
+	if e.Err != nil {
+		err = fmt.Sprintf(". details: %s", e.Err)
 	}
 
-	return fmt.Sprintf("report: %s%s", r.Code, err)
+	return fmt.Sprintf("report: %s%s", e.Code, err)
 }
 
-// ReportErrorEqual compares two ReportError objects. This is useful to
-// compare down to the low level errors.
-func ReportErrorEqual(first, second error) bool {
+// ErrorEqual compares two Error objects. This is useful to compare down to the
+// low level errors.
+func ErrorEqual(first, second error) bool {
 	if first == nil || second == nil {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(ReportError)
-	err2, ok2 := errors.Cause(second).(ReportError)
+	err1, ok1 := errors.Cause(first).(Error)
+	err2, ok2 := errors.Cause(second).(Error)
 
 	if !ok1 || !ok2 {
 		return false

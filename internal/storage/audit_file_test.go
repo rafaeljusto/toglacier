@@ -59,8 +59,8 @@ func TestAuditFile_Save(t *testing.T) {
 				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 				VaultName: "test",
 			},
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeOpeningFile,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-dir"),
@@ -84,7 +84,7 @@ func TestAuditFile_Save(t *testing.T) {
 				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expected, string(auditFileContent))
 			}
 
-			if !storage.StorageErrorEqual(scenario.expectedError, err) {
+			if !storage.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -149,8 +149,8 @@ func TestAuditFile_List(t *testing.T) {
 
 				return n
 			}(),
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeOpeningFile,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
@@ -167,8 +167,8 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				return d
 			}(),
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeReadingFile,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeReadingFile,
 				Err: &os.PathError{
 					Op:   "read",
 					Path: path.Join(os.TempDir(), "toglacier-test-dir"),
@@ -188,8 +188,8 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeFormat,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeFormat,
 			},
 		},
 		{
@@ -204,8 +204,8 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString("XXXX test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7\n")
 				return f.Name()
 			}(),
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeDateFormat,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeDateFormat,
 				Err: &time.ParseError{
 					Layout:     time.RFC3339,
 					Value:      "XXXX",
@@ -226,7 +226,7 @@ func TestAuditFile_List(t *testing.T) {
 				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
 			}
 
-			if !storage.StorageErrorEqual(scenario.expectedError, err) {
+			if !storage.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -276,8 +276,8 @@ func TestAuditFile_Remove(t *testing.T) {
 				return n
 			}(),
 			id: "123456",
-			expectedError: storage.StorageError{
-				Code: storage.StorageErrorCodeOpeningFile,
+			expectedError: storage.Error{
+				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
@@ -301,7 +301,7 @@ func TestAuditFile_Remove(t *testing.T) {
 				t.Errorf("audit file don't match. expected “%s” and got “%s”", scenario.expectedError, string(auditFileContent))
 			}
 
-			if !storage.StorageErrorEqual(scenario.expectedError, err) {
+			if !storage.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})

@@ -68,7 +68,7 @@ func Default() {
 }
 
 // LoadFromFile parse an YAML file and fill the system configuration parameters.
-// On error it will return a ConfigError encapsulated in a traceable error. To
+// On error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
 //     type causer interface {
@@ -77,7 +77,7 @@ func Default() {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -86,7 +86,7 @@ func Default() {
 func LoadFromFile(filename string) error {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return errors.WithStack(newConfigError(filename, ConfigErrorCodeReadingFile, err))
+		return errors.WithStack(newError(filename, ErrorCodeReadingFile, err))
 	}
 
 	c := Current()
@@ -95,7 +95,7 @@ func LoadFromFile(filename string) error {
 	}
 
 	if err = yaml.Unmarshal(content, c); err != nil {
-		return errors.WithStack(newConfigError(filename, ConfigErrorCodeParsingYAML, err))
+		return errors.WithStack(newError(filename, ErrorCodeParsingYAML, err))
 	}
 
 	Update(c)
@@ -103,8 +103,8 @@ func LoadFromFile(filename string) error {
 }
 
 // LoadFromEnvironment analysis all project environment variables. On error it
-// will return a ConfigError encapsulated in a traceable error. To retrieve
-// the desired error you can do:
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -112,7 +112,7 @@ func LoadFromFile(filename string) error {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -125,7 +125,7 @@ func LoadFromEnvironment() error {
 	}
 
 	if err := envconfig.Process(prefix, c); err != nil {
-		return errors.WithStack(newConfigError("", ConfigErrorCodeReadingEnvVars, err))
+		return errors.WithStack(newError("", ErrorCodeReadingEnvVars, err))
 	}
 
 	Update(c)
@@ -137,7 +137,7 @@ type encrypted struct {
 }
 
 // UnmarshalText automatically decrypts a value from the configuration. On error
-// it will return a ConfigError encapsulated in a traceable error. To retrieve
+// it will return an Error type encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
@@ -146,7 +146,7 @@ type encrypted struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -170,7 +170,7 @@ type aesKey struct {
 }
 
 // UnmarshalText automatically decrypts a value from the configuration. On error
-// it will return a ConfigError encapsulated in a traceable error. To retrieve
+// it will return an Error type encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
@@ -179,7 +179,7 @@ type aesKey struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ConfigError:
+//       case config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

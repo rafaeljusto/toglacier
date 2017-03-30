@@ -72,7 +72,7 @@ type AWSCloud struct {
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
 // vault name that are going to be used in the AWS Glacier service. For more
 // details set the debug flag to receive low level information in the standard
-// output. On error it will return a CloudError. To retrieve the desired error
+// output. On error it will return an Error type. To retrieve the desired error
 // you can do:
 //
 //     type causer interface {
@@ -81,7 +81,7 @@ type AWSCloud struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case CloudError:
+//       case cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -98,7 +98,7 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 
 	awsSession, err := session.NewSession()
 	if err != nil {
-		return nil, errors.WithStack(newCloudError("", CloudErrorCodeInitializingSession, err))
+		return nil, errors.WithStack(newError("", ErrorCodeInitializingSession, err))
 	}
 
 	awsGlacier := glacier.New(awsSession)
@@ -116,8 +116,8 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 
 // Send uploads the file to the cloud and return the backup archive information.
 // It already has the logic to send directly if it's a small file or use
-// multipart strategy if it's a large file. If an error occurs it will be a
-// CloudError or a MultipartError encapsulated in a traceable error. To retrieve
+// multipart strategy if it's a large file. If an error occurs it will be an
+// Error or MultipartError type encapsulated in a traceable error. To retrieve
 // the desired error you can do:
 //
 //     type causer interface {
@@ -126,9 +126,9 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case CloudError:
+//       case cloud.Error:
 //         // handle specifically
-//       case MultipartError:
+//       case cloud.MultipartError:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -137,12 +137,12 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 func (a *AWSCloud) Send(filename string) (Backup, error) {
 	archive, err := os.Open(filename)
 	if err != nil {
-		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeOpeningArchive, err))
+		return Backup{}, errors.WithStack(newError("", ErrorCodeOpeningArchive, err))
 	}
 
 	archiveInfo, err := archive.Stat()
 	if err != nil {
-		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeArchiveInfo, err))
+		return Backup{}, errors.WithStack(newError("", ErrorCodeArchiveInfo, err))
 	}
 
 	if archiveInfo.Size() <= multipartUploadLimit {
@@ -171,11 +171,11 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 
 	archiveCreationOutput, err := a.Glacier.UploadArchive(&uploadArchiveInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeSendingArchive, err))
+		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
 	}
 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
-		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeComparingChecksums, nil))
+		return Backup{}, errors.WithStack(newError("", ErrorCodeComparingChecksums, nil))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -199,7 +199,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 
 	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUpload(&initiateMultipartUploadInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newCloudError("", CloudErrorCodeInitMultipart, err))
+		return Backup{}, errors.WithStack(newError("", ErrorCodeInitMultipart, err))
 	}
 
 	var offset int64
@@ -269,7 +269,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		}
 
 		a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-		return Backup{}, errors.WithStack(newCloudError(*initiateMultipartUploadOutput.UploadId, CloudErrorCodeCompleteMultipart, err))
+		return Backup{}, errors.WithStack(newError(*initiateMultipartUploadOutput.UploadId, ErrorCodeCompleteMultipart, err))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -281,19 +281,19 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		// something went wrong with the uploaded archive, better remove it
 		if err := a.Remove(backup.ID); err != nil {
 			// error while trying to remove the strange backup
-			return backup, errors.WithStack(newCloudError(backup.ID, CloudErrorCodeComparingChecksums, err))
+			return backup, errors.WithStack(newError(backup.ID, ErrorCodeComparingChecksums, err))
 		}
 
 		// strange backup was removed from the cloud
-		return backup, errors.WithStack(newCloudError(backup.ID, CloudErrorCodeComparingChecksums, nil))
+		return backup, errors.WithStack(newError(backup.ID, ErrorCodeComparingChecksums, nil))
 	}
 
 	return backup, nil
 }
 
 // List retrieves all the uploaded backups information in the cloud. If an error
-// occurs it will be a CloudError encapsulated in a traceable error. To retrieve
-// the desired error you can do:
+// occurs it will be an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -301,7 +301,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case CloudError:
+//       case cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -319,7 +319,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return nil, errors.WithStack(newCloudError("", CloudErrorCodeInitJob, err))
+		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
 	}
 
 	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
@@ -334,7 +334,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return nil, errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeJobComplete, err))
+		return nil, errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err))
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -347,7 +347,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
 	if err := jsonDecoder.Decode(&iventory); err != nil {
-		return nil, errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeDecodingData, err))
+		return nil, errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeDecodingData, err))
 	}
 
 	sort.Sort(iventory.ArchiveList)
@@ -366,7 +366,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 
 // Get retrieves a specific backup file and stores it locally in a file. The
 // filename storing the location of the file is returned.  If an error occurs it
-// will be a CloudError encapsulated in a traceable error. To retrieve the
+// will be an Error type encapsulated in a traceable error. To retrieve the
 // desired error you can do:
 //
 //     type causer interface {
@@ -375,7 +375,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case CloudError:
+//       case cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -393,7 +393,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 
 	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
 	if err != nil {
-		return "", errors.WithStack(newCloudError(id, CloudErrorCodeInitJob, err))
+		return "", errors.WithStack(newError(id, ErrorCodeInitJob, err))
 	}
 
 	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
@@ -408,26 +408,26 @@ func (a *AWSCloud) Get(id string) (string, error) {
 
 	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
 	if err != nil {
-		return "", errors.WithStack(newCloudError(*initiateJobOutput.JobId, CloudErrorCodeJobComplete, err))
+		return "", errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err))
 	}
 	defer jobOutputOutput.Body.Close()
 
 	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
 	if err != nil {
-		return "", errors.WithStack(newCloudError(id, CloudErrorCodeCreatingArchive, err))
+		return "", errors.WithStack(newError(id, ErrorCodeCreatingArchive, err))
 	}
 	defer backup.Close()
 
 	if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
-		return "", errors.WithStack(newCloudError(id, CloudErrorCodeCopyingData, err))
+		return "", errors.WithStack(newError(id, ErrorCodeCopyingData, err))
 	}
 
 	return backup.Name(), nil
 }
 
 // Remove erase a specific backup from the cloud. If an error occurs it will be
-// a CloudError encapsulated in a traceable error. To retrieve the desired error
-// you can do:
+// an Error type encapsulated in a traceable error. To retrieve the desired
+// error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -435,7 +435,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case CloudError:
+//       case cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -449,7 +449,7 @@ func (a *AWSCloud) Remove(id string) error {
 	}
 
 	if _, err := a.Glacier.DeleteArchive(&deleteArchiveInput); err != nil {
-		return errors.WithStack(newCloudError(id, CloudErrorCodeRemovingArchive, err))
+		return errors.WithStack(newError(id, ErrorCodeRemovingArchive, err))
 	}
 
 	return nil
@@ -468,7 +468,7 @@ func (a *AWSCloud) waitJob(jobID string) error {
 
 		listJobsOutput, err := a.Glacier.ListJobs(&listJobsInput)
 		if err != nil {
-			return errors.WithStack(newCloudError(jobID, CloudErrorCodeRetrievingJob, err))
+			return errors.WithStack(newError(jobID, ErrorCodeRetrievingJob, err))
 		}
 
 		jobFound := false
@@ -486,14 +486,14 @@ func (a *AWSCloud) waitJob(jobID string) error {
 			if *jobDescription.StatusCode == "Succeeded" {
 				return nil
 			} else if *jobDescription.StatusCode == "Failed" {
-				return errors.WithStack(newCloudError(jobID, CloudErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
+				return errors.WithStack(newError(jobID, ErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
 			}
 
 			break
 		}
 
 		if !jobFound {
-			return errors.WithStack(newCloudError(jobID, CloudErrorCodeJobNotFound, nil))
+			return errors.WithStack(newError(jobID, ErrorCodeJobNotFound, nil))
 		}
 
 		time.Sleep(sleep)

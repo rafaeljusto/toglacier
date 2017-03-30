@@ -7,68 +7,67 @@ import (
 )
 
 const (
-	// ConfigErrorCodeReadingFile error while reading the configuration file.
-	ConfigErrorCodeReadingFile ConfigErrorCode = "reading-file"
+	// ErrorCodeReadingFile error while reading the configuration file.
+	ErrorCodeReadingFile ErrorCode = "reading-file"
 
-	// ConfigErrorCodeParsingYAML error while parsing the configuration file as
-	// YAML.
-	ConfigErrorCodeParsingYAML ConfigErrorCode = "parsing-yaml"
+	// ErrorCodeParsingYAML error while parsing the configuration file as YAML.
+	ErrorCodeParsingYAML ErrorCode = "parsing-yaml"
 
-	// ConfigErrorCodeReadingEnvVars error while reading configuration values from
+	// ErrorCodeReadingEnvVars error while reading configuration values from
 	// environment variables.
-	ConfigErrorCodeReadingEnvVars ConfigErrorCode = "reading-env-vars"
+	ErrorCodeReadingEnvVars ErrorCode = "reading-env-vars"
 
-	// ConfigErrorCodeInitCipher error while initializing the engine used to
-	// encrypt or decrypt the value.
-	ConfigErrorCodeInitCipher ConfigErrorCode = "init-cipher"
+	// ErrorCodeInitCipher error while initializing the engine used to encrypt or
+	// decrypt the value.
+	ErrorCodeInitCipher ErrorCode = "init-cipher"
 
-	// ConfigErrorCodeDecodeBase64 problem while deconding a base64 content.
-	ConfigErrorCodeDecodeBase64 ConfigErrorCode = "decode-base64"
+	// ErrorCodeDecodeBase64 problem while decoding a base64 content.
+	ErrorCodeDecodeBase64 ErrorCode = "decode-base64"
 
-	// ConfigErrorCodePasswordSize invalid password size. The password is smaller
-	// than the cipher block size.
-	ConfigErrorCodePasswordSize ConfigErrorCode = "password-size"
+	// ErrorCodePasswordSize invalid password size. The password is smaller than
+	// the cipher block size.
+	ErrorCodePasswordSize ErrorCode = "password-size"
 
-	// ConfigErrorCodeFillingIV error while filling the IV array with random bytes.
-	ConfigErrorCodeFillingIV ConfigErrorCode = "filling-iv"
+	// ErrorCodeFillingIV error while filling the IV array with random bytes.
+	ErrorCodeFillingIV ErrorCode = "filling-iv"
 )
 
-// ConfigErrorCode stores the error type that occurred while reading
+// ErrorCode stores the error type that occurred while reading
 // configuration parameters.
-type ConfigErrorCode string
+type ErrorCode string
 
 // String translate the error code to a human readable text.
-func (c ConfigErrorCode) String() string {
-	switch c {
-	case ConfigErrorCodeReadingFile:
+func (e ErrorCode) String() string {
+	switch e {
+	case ErrorCodeReadingFile:
 		return "error reading the configuration file"
-	case ConfigErrorCodeParsingYAML:
+	case ErrorCodeParsingYAML:
 		return "error parsing yaml"
-	case ConfigErrorCodeReadingEnvVars:
+	case ErrorCodeReadingEnvVars:
 		return "error reading environment variables"
-	case ConfigErrorCodeInitCipher:
+	case ErrorCodeInitCipher:
 		return "error initializing cipher"
-	case ConfigErrorCodeDecodeBase64:
+	case ErrorCodeDecodeBase64:
 		return "error deconding base64"
-	case ConfigErrorCodePasswordSize:
+	case ErrorCodePasswordSize:
 		return "invalid password size"
-	case ConfigErrorCodeFillingIV:
+	case ErrorCodeFillingIV:
 		return "error filling iv"
 	}
 
 	return "unknown error code"
 }
 
-// ConfigError stores error details from a problem occurred while reading a
+// Error stores error details from a problem occurred while reading a
 // configuration file or parsing the environment variables.
-type ConfigError struct {
+type Error struct {
 	Filename string
-	Code     ConfigErrorCode
+	Code     ErrorCode
 	Err      error
 }
 
-func newConfigError(filename string, code ConfigErrorCode, err error) ConfigError {
-	return ConfigError{
+func newError(filename string, code ErrorCode, err error) Error {
+	return Error{
 		Filename: filename,
 		Code:     code,
 		Err:      errors.WithStack(err),
@@ -76,34 +75,34 @@ func newConfigError(filename string, code ConfigErrorCode, err error) ConfigErro
 }
 
 // Error returns the error in a human readable format.
-func (c ConfigError) Error() string {
-	return c.String()
+func (e Error) Error() string {
+	return e.String()
 }
 
 // String translate the error to a human readable text.
-func (c ConfigError) String() string {
+func (e Error) String() string {
 	var filename string
-	if c.Filename != "" {
-		filename = fmt.Sprintf("filename “%s”, ", c.Filename)
+	if e.Filename != "" {
+		filename = fmt.Sprintf("filename “%s”, ", e.Filename)
 	}
 
 	var err string
-	if c.Err != nil {
-		err = fmt.Sprintf(". details: %s", c.Err)
+	if e.Err != nil {
+		err = fmt.Sprintf(". details: %s", e.Err)
 	}
 
-	return fmt.Sprintf("config: %s%s%s", filename, c.Code, err)
+	return fmt.Sprintf("config: %s%s%s", filename, e.Code, err)
 }
 
-// ConfigErrorEqual compares two ConfigError objects. This is useful to
-// compare down to the low level errors.
-func ConfigErrorEqual(first, second error) bool {
+// ErrorEqual compares two Error objects. This is useful to compare down to the
+// low level errors.
+func ErrorEqual(first, second error) bool {
 	if first == nil || second == nil {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(ConfigError)
-	err2, ok2 := errors.Cause(second).(ConfigError)
+	err1, ok1 := errors.Cause(first).(Error)
+	err2, ok2 := errors.Cause(second).(Error)
 
 	if !ok1 || !ok2 {
 		return false

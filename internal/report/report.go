@@ -60,7 +60,7 @@ func NewSendBackup() SendBackup {
 }
 
 // Build creates a report with details of an uploaded backup to the cloud. On
-// error it will return a ReportError encapsulated in a traceable error. To
+// error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
 //     type causer interface {
@@ -69,7 +69,7 @@ func NewSendBackup() SendBackup {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ReportError:
+//       case report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -107,7 +107,7 @@ func (s SendBackup) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, s); err != nil {
-		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -130,7 +130,7 @@ func NewListBackups() ListBackups {
 }
 
 // Build creates a report with details of a remote backups listing. On
-// error it will return a ReportError encapsulated in a traceable error. To
+// error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
 //     type causer interface {
@@ -139,7 +139,7 @@ func NewListBackups() ListBackups {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ReportError:
+//       case report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -166,7 +166,7 @@ func (l ListBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, l); err != nil {
-		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -192,7 +192,7 @@ func NewRemoveOldBackups() RemoveOldBackups {
 }
 
 // Build creates a report with details of old backups removal procedure. On
-// error it will return a ReportError encapsulated in a traceable error. To
+// error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
 //     type causer interface {
@@ -201,7 +201,7 @@ func NewRemoveOldBackups() RemoveOldBackups {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ReportError:
+//       case report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -238,7 +238,7 @@ func (r RemoveOldBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, r); err != nil {
-		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -254,8 +254,8 @@ func NewTest() Test {
 	}
 }
 
-// Build creates a report for testing purpose. On error it will return a
-// ReportError encapsulated in a traceable error. To retrieve the desired error
+// Build creates a report for testing purpose. On error it will return an
+// Error type encapsulated in a traceable error. To retrieve the desired error
 // you can do:
 //
 //     type causer interface {
@@ -264,7 +264,7 @@ func NewTest() Test {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ReportError:
+//       case report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -288,7 +288,7 @@ func (tr Test) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, tr); err != nil {
-		return "", errors.WithStack(newReportError(ReportErrorCodeTemplate, err))
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -302,8 +302,8 @@ func Add(r Report) {
 }
 
 // Build generates the report in text format. Every time this function is called the
-// internal cache of reports is cleared. On error it will return a
-// ReportError encapsulated in a traceable error. To retrieve the desired error
+// internal cache of reports is cleared. On error it will return an
+// Error type encapsulated in a traceable error. To retrieve the desired error
 // you can do:
 //
 //     type causer interface {
@@ -312,7 +312,7 @@ func Add(r Report) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case ReportError:
+//       case report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

@@ -266,7 +266,7 @@ func TestBuild(t *testing.T) {
 				}
 			}
 
-			if !archive.ArchiveErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) {
+			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -288,9 +288,9 @@ func TestEncrypt(t *testing.T) {
 			description: "it should detect when it tries to encrypt a file that doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
 			secret:      "12345678901234567890123456789012",
-			expectedError: archive.ArchiveError{
+			expectedError: archive.Error{
 				Filename: "toglacier-idontexist.tmp",
-				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: "toglacier-idontexist.tmp",
@@ -316,9 +316,9 @@ func TestEncrypt(t *testing.T) {
 			}(),
 			secret:       "12345678901234567890123456789012",
 			randomSource: rand.Reader,
-			expectedError: archive.ArchiveError{
+			expectedError: archive.Error{
 				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
-				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
@@ -345,9 +345,9 @@ func TestEncrypt(t *testing.T) {
 					return 0, errors.New("random error")
 				},
 			}
-			scenario.expectedError = archive.ArchiveError{
+			scenario.expectedError = archive.Error{
 				Filename: f.Name(),
-				Code:     archive.ArchiveErrorCodeGenerateRandomNumbers,
+				Code:     archive.ErrorCodeGenerateRandomNumbers,
 				Err:      errors.New("random error"),
 			}
 
@@ -368,9 +368,9 @@ func TestEncrypt(t *testing.T) {
 			scenario.secret = "123456"
 			scenario.randomSource = rand.Reader
 
-			scenario.expectedError = archive.ArchiveError{
+			scenario.expectedError = archive.Error{
 				Filename: f.Name(),
-				Code:     archive.ArchiveErrorCodeInitCipher,
+				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
 			}
 
@@ -397,7 +397,7 @@ func TestEncrypt(t *testing.T) {
 				t.Errorf("files don't match. expected “%s” and got “%s”", scenario.expectedFile, string(fileContent))
 			}
 
-			if !archive.ArchiveErrorEqual(scenario.expectedError, err) {
+			if !archive.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -431,9 +431,9 @@ func TestDecrypt(t *testing.T) {
 				return n
 			}(),
 			secret: "12345678901234567890123456789012",
-			expectedError: archive.ArchiveError{
+			expectedError: archive.Error{
 				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
-				Code:     archive.ArchiveErrorCodeOpeningFile,
+				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: path.Join(os.TempDir(), "toglacier-test-noperm"),
@@ -475,9 +475,9 @@ func TestDecrypt(t *testing.T) {
 			scenario.encryptedFilename = f.Name()
 			scenario.secret = "123456"
 
-			scenario.expectedError = archive.ArchiveError{
+			scenario.expectedError = archive.Error{
 				Filename: f.Name(),
-				Code:     archive.ArchiveErrorCodeInitCipher,
+				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
 			}
 
@@ -501,8 +501,8 @@ func TestDecrypt(t *testing.T) {
 				f.Write(content)
 				return f.Name()
 			}(),
-			expectedError: archive.ArchiveError{
-				Code: archive.ArchiveErrorCodeAuthFailed,
+			expectedError: archive.Error{
+				Code: archive.ErrorCodeAuthFailed,
 			},
 		},
 	}
@@ -534,7 +534,7 @@ func TestDecrypt(t *testing.T) {
 				t.Errorf("files don't match. expected “%s” and got “%s”", scenario.expectedFile, string(fileContent))
 			}
 
-			if !archive.ArchiveErrorEqual(scenario.expectedError, err) {
+			if !archive.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})

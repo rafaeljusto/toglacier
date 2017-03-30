@@ -118,9 +118,9 @@ aws:
 		{
 			description: "it should detect when the file doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
-			expectedError: config.ConfigError{
+			expectedError: config.Error{
 				Filename: "toglacier-idontexist.tmp",
-				Code:     config.ConfigErrorCodeReadingFile,
+				Code:     config.ErrorCodeReadingFile,
 				Err: &os.PathError{
 					Op:   "open",
 					Path: "toglacier-idontexist.tmp",
@@ -144,9 +144,9 @@ aws:
 			scenario.description = "it should detect an invalid YAML configuration file"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.ConfigError{
+			scenario.expectedError = config.Error{
 				Filename: f.Name(),
-				Code:     config.ConfigErrorCodeParsingYAML,
+				Code:     config.ErrorCodeParsingYAML,
 				Err: &yaml.TypeError{
 					Errors: []string{
 						"line 2: cannot unmarshal !!seq into config.Config",
@@ -191,11 +191,11 @@ aws:
 			scenario.description = "it should detect invalid encrypted values"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.ConfigError{
+			scenario.expectedError = config.Error{
 				Filename: f.Name(),
-				Code:     config.ConfigErrorCodeParsingYAML,
-				Err: config.ConfigError{
-					Code: config.ConfigErrorCodeDecodeBase64,
+				Code:     config.ErrorCodeParsingYAML,
+				Err: config.Error{
+					Code: config.ErrorCodeDecodeBase64,
 					Err:  base64.CorruptInputError(4),
 				},
 			}
@@ -237,11 +237,11 @@ aws:
 			scenario.description = "it should detect an invalid backup secret"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.ConfigError{
+			scenario.expectedError = config.Error{
 				Filename: f.Name(),
-				Code:     config.ConfigErrorCodeParsingYAML,
-				Err: config.ConfigError{
-					Code: config.ConfigErrorCodeDecodeBase64,
+				Code:     config.ErrorCodeParsingYAML,
+				Err: config.Error{
+					Code: config.ErrorCodeDecodeBase64,
 					Err:  base64.CorruptInputError(4),
 				},
 			}
@@ -386,7 +386,7 @@ aws:
 				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
 			}
 
-			if !config.ConfigErrorEqual(scenario.expectedError, err) {
+			if !config.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -464,15 +464,15 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
-			expectedError: config.ConfigError{
-				Code: config.ConfigErrorCodeReadingEnvVars,
+			expectedError: config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
 					FieldName: "AccountID",
 					TypeName:  "config.encrypted",
 					Value:     "encrypted:invalid",
-					Err: config.ConfigError{
-						Code: config.ConfigErrorCodeDecodeBase64,
+					Err: config.Error{
+						Code: config.ErrorCodeDecodeBase64,
 						Err:  base64.CorruptInputError(4),
 					},
 				},
@@ -497,15 +497,15 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 			},
-			expectedError: config.ConfigError{
-				Code: config.ConfigErrorCodeReadingEnvVars,
+			expectedError: config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_BACKUP_SECRET",
 					FieldName: "BackupSecret",
 					TypeName:  "config.aesKey",
 					Value:     "encrypted:invalid",
-					Err: config.ConfigError{
-						Code: config.ConfigErrorCodeDecodeBase64,
+					Err: config.Error{
+						Code: config.ErrorCodeDecodeBase64,
 						Err:  base64.CorruptInputError(4),
 					},
 				},
@@ -623,7 +623,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
 			}
 
-			if !config.ConfigErrorEqual(scenario.expectedError, err) {
+			if !config.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
