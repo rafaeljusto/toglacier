@@ -118,7 +118,7 @@ aws:
 		{
 			description: "it should detect when the file doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
-			expectedError: config.Error{
+			expectedError: &config.Error{
 				Filename: "toglacier-idontexist.tmp",
 				Code:     config.ErrorCodeReadingFile,
 				Err: &os.PathError{
@@ -144,7 +144,7 @@ aws:
 			scenario.description = "it should detect an invalid YAML configuration file"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.Error{
+			scenario.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &yaml.TypeError{
@@ -191,10 +191,10 @@ aws:
 			scenario.description = "it should detect invalid encrypted values"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.Error{
+			scenario.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
-				Err: config.Error{
+				Err: &config.Error{
 					Code: config.ErrorCodeDecodeBase64,
 					Err:  base64.CorruptInputError(4),
 				},
@@ -237,10 +237,10 @@ aws:
 			scenario.description = "it should detect an invalid backup secret"
 			scenario.filename = f.Name()
 
-			scenario.expectedError = config.Error{
+			scenario.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
-				Err: config.Error{
+				Err: &config.Error{
 					Code: config.ErrorCodeDecodeBase64,
 					Err:  base64.CorruptInputError(4),
 				},
@@ -464,14 +464,14 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
-			expectedError: config.Error{
+			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
 					FieldName: "AccountID",
 					TypeName:  "config.encrypted",
 					Value:     "encrypted:invalid",
-					Err: config.Error{
+					Err: &config.Error{
 						Code: config.ErrorCodeDecodeBase64,
 						Err:  base64.CorruptInputError(4),
 					},
@@ -497,14 +497,14 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 			},
-			expectedError: config.Error{
+			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_BACKUP_SECRET",
 					FieldName: "BackupSecret",
 					TypeName:  "config.aesKey",
 					Value:     "encrypted:invalid",
-					Err: config.Error{
+					Err: &config.Error{
 						Code: config.ErrorCodeDecodeBase64,
 						Err:  base64.CorruptInputError(4),
 					},

@@ -10,12 +10,12 @@ import (
 func TestError_Error(t *testing.T) {
 	scenarios := []struct {
 		description string
-		err         report.Error
+		err         *report.Error
 		expected    string
 	}{
 		{
 			description: "it should show the message with the low level error",
-			err: report.Error{
+			err: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
@@ -23,12 +23,12 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the correct error message for template parsing problem",
-			err:         report.Error{Code: report.ErrorCodeTemplate},
+			err:         &report.Error{Code: report.ErrorCodeTemplate},
 			expected:    "report: error parsing template",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
-			err:         report.Error{Code: report.ErrorCode("i-dont-exist")},
+			err:         &report.Error{Code: report.ErrorCode("i-dont-exist")},
 			expected:    "report: unknown error code",
 		},
 	}
@@ -51,11 +51,11 @@ func TestErrorEqual(t *testing.T) {
 	}{
 		{
 			description: "it should detect equal Error instances",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
-			err2: report.Error{
+			err2: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
@@ -63,11 +63,11 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the code is different",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
-			err2: report.Error{
+			err2: &report.Error{
 				Code: report.ErrorCode("unknown-error"),
 				Err:  errors.New("low level error"),
 			},
@@ -75,11 +75,11 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the low level error is different",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error 1"),
 			},
-			err2: report.Error{
+			err2: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error 2"),
 			},
@@ -91,7 +91,7 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one error is undefined",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
@@ -99,28 +99,28 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when both causes of the error are undefined",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 			},
-			err2: report.Error{
+			err2: &report.Error{
 				Code: report.ErrorCodeTemplate,
 			},
 			expected: true,
 		},
 		{
 			description: "it should detect when only one causes of the error is undefined",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},
-			err2: report.Error{
+			err2: &report.Error{
 				Code: report.ErrorCodeTemplate,
 			},
 			expected: false,
 		},
 		{
 			description: "it should detect when one the error isn't Error type",
-			err1: report.Error{
+			err1: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("low level error"),
 			},

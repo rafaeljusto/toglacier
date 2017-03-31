@@ -10,12 +10,12 @@ import (
 func TestError_Error(t *testing.T) {
 	scenarios := []struct {
 		description string
-		err         config.Error
+		err         *config.Error
 		expected    string
 	}{
 		{
 			description: "it should show the message with filename and low level error",
-			err: config.Error{
+			err: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
@@ -24,7 +24,7 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the message only with the filename",
-			err: config.Error{
+			err: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 			},
@@ -32,7 +32,7 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the message only with the low level error",
-			err: config.Error{
+			err: &config.Error{
 				Code: config.ErrorCodeReadingFile,
 				Err:  errors.New("low level error"),
 			},
@@ -40,42 +40,42 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the correct error message for reading configuration file problem",
-			err:         config.Error{Code: config.ErrorCodeReadingFile},
+			err:         &config.Error{Code: config.ErrorCodeReadingFile},
 			expected:    "config: error reading the configuration file",
 		},
 		{
 			description: "it should show the correct error message for parsing YAML problem",
-			err:         config.Error{Code: config.ErrorCodeParsingYAML},
+			err:         &config.Error{Code: config.ErrorCodeParsingYAML},
 			expected:    "config: error parsing yaml",
 		},
 		{
 			description: "it should show the correct error message for parsing YAML problem",
-			err:         config.Error{Code: config.ErrorCodeReadingEnvVars},
+			err:         &config.Error{Code: config.ErrorCodeReadingEnvVars},
 			expected:    "config: error reading environment variables",
 		},
 		{
 			description: "it should show the correct error message for initializing cipher problem",
-			err:         config.Error{Code: config.ErrorCodeInitCipher},
+			err:         &config.Error{Code: config.ErrorCodeInitCipher},
 			expected:    "config: error initializing cipher",
 		},
 		{
 			description: "it should show the correct error message for decoding base64 problem",
-			err:         config.Error{Code: config.ErrorCodeDecodeBase64},
+			err:         &config.Error{Code: config.ErrorCodeDecodeBase64},
 			expected:    "config: error deconding base64",
 		},
 		{
 			description: "it should show the correct error message for password size problem",
-			err:         config.Error{Code: config.ErrorCodePasswordSize},
+			err:         &config.Error{Code: config.ErrorCodePasswordSize},
 			expected:    "config: invalid password size",
 		},
 		{
 			description: "it should show the correct error message for filling iv problem",
-			err:         config.Error{Code: config.ErrorCodeFillingIV},
+			err:         &config.Error{Code: config.ErrorCodeFillingIV},
 			expected:    "config: error filling iv",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
-			err:         config.Error{Code: config.ErrorCode("i-dont-exist")},
+			err:         &config.Error{Code: config.ErrorCode("i-dont-exist")},
 			expected:    "config: unknown error code",
 		},
 	}
@@ -98,12 +98,12 @@ func TestErrorEqual(t *testing.T) {
 	}{
 		{
 			description: "it should detect equal Error instances",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
@@ -112,12 +112,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the filename is different",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example1.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example2.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
@@ -126,12 +126,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the code is different",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeParsingYAML,
 				Err:      errors.New("low level error"),
@@ -140,12 +140,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the low level error is different",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error 1"),
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error 2"),
@@ -158,7 +158,7 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one error is undefined",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
@@ -167,11 +167,11 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when both causes of the error are undefined",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 			},
@@ -179,12 +179,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one causes of the error is undefined",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),
 			},
-			err2: config.Error{
+			err2: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 			},
@@ -192,7 +192,7 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when one the error isn't Error type",
-			err1: config.Error{
+			err1: &config.Error{
 				Filename: "example.txt",
 				Code:     config.ErrorCodeReadingFile,
 				Err:      errors.New("low level error"),

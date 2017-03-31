@@ -69,7 +69,7 @@ func NewSendBackup() SendBackup {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case report.Error:
+//       case *report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -139,7 +139,7 @@ func NewListBackups() ListBackups {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case report.Error:
+//       case *report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -201,7 +201,7 @@ func NewRemoveOldBackups() RemoveOldBackups {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case report.Error:
+//       case *report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -264,7 +264,7 @@ func NewTest() Test {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case report.Error:
+//       case *report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -312,7 +312,7 @@ func Add(r Report) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case report.Error:
+//       case *report.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

@@ -38,7 +38,7 @@ func passwordKey() []byte {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -74,7 +74,7 @@ func PasswordEncrypt(input string) (string, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

@@ -32,8 +32,8 @@ type Error struct {
 	Err  error
 }
 
-func newError(code ErrorCode, err error) Error {
-	return Error{
+func newError(code ErrorCode, err error) *Error {
+	return &Error{
 		Code: code,
 		Err:  errors.WithStack(err),
 	}
@@ -61,8 +61,8 @@ func ErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(Error)
-	err2, ok2 := errors.Cause(second).(Error)
+	err1, ok1 := errors.Cause(first).(*Error)
+	err2, ok2 := errors.Cause(second).(*Error)
 
 	if !ok1 || !ok2 {
 		return false

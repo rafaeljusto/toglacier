@@ -10,12 +10,12 @@ import (
 func TestError_Error(t *testing.T) {
 	scenarios := []struct {
 		description string
-		err         cloud.Error
+		err         *cloud.Error
 		expected    string
 	}{
 		{
 			description: "it should show the message with filename and low level error",
-			err: cloud.Error{
+			err: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
@@ -24,7 +24,7 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the message only with the ID",
-			err: cloud.Error{
+			err: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 			},
@@ -32,7 +32,7 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the message only with the low level error",
-			err: cloud.Error{
+			err: &cloud.Error{
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
 			},
@@ -40,87 +40,87 @@ func TestError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the correct error message for session initialization problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeInitializingSession},
+			err:         &cloud.Error{Code: cloud.ErrorCodeInitializingSession},
 			expected:    "cloud: error initializing cloud session",
 		},
 		{
 			description: "it should show the correct error message for opening archive problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeOpeningArchive},
+			err:         &cloud.Error{Code: cloud.ErrorCodeOpeningArchive},
 			expected:    "cloud: error opening archive",
 		},
 		{
 			description: "it should show the correct error message for retrieving archive problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeArchiveInfo},
+			err:         &cloud.Error{Code: cloud.ErrorCodeArchiveInfo},
 			expected:    "cloud: error retrieving archive information",
 		},
 		{
 			description: "it should show the correct error message for sending archive problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeSendingArchive},
+			err:         &cloud.Error{Code: cloud.ErrorCodeSendingArchive},
 			expected:    "cloud: error sending archive to the cloud",
 		},
 		{
 			description: "it should show the correct error message for comparing checksums problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeComparingChecksums},
+			err:         &cloud.Error{Code: cloud.ErrorCodeComparingChecksums},
 			expected:    "cloud: error comparing checksums",
 		},
 		{
 			description: "it should show the correct error message for initializing multipart upload problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeInitMultipart},
+			err:         &cloud.Error{Code: cloud.ErrorCodeInitMultipart},
 			expected:    "cloud: error initializing multipart upload",
 		},
 		{
 			description: "it should show the correct error message for completing multipart upload problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeCompleteMultipart},
+			err:         &cloud.Error{Code: cloud.ErrorCodeCompleteMultipart},
 			expected:    "cloud: error completing multipart upload",
 		},
 		{
 			description: "it should show the correct error message for initializing job problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeInitJob},
+			err:         &cloud.Error{Code: cloud.ErrorCodeInitJob},
 			expected:    "cloud: error initiating the job",
 		},
 		{
 			description: "it should show the correct error message for job complete problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeJobComplete},
+			err:         &cloud.Error{Code: cloud.ErrorCodeJobComplete},
 			expected:    "cloud: error retrieving the complete job data",
 		},
 		{
 			description: "it should show the correct error message for retrieving job status problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeRetrievingJob},
+			err:         &cloud.Error{Code: cloud.ErrorCodeRetrievingJob},
 			expected:    "cloud: error retrieving the job status",
 		},
 		{
 			description: "it should show the correct error message for job failed problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeJobFailed},
+			err:         &cloud.Error{Code: cloud.ErrorCodeJobFailed},
 			expected:    "cloud: job failed to complete in the cloud",
 		},
 		{
 			description: "it should show the correct error message for job not found problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeJobNotFound},
+			err:         &cloud.Error{Code: cloud.ErrorCodeJobNotFound},
 			expected:    "cloud: job not found",
 		},
 		{
 			description: "it should show the correct error message for decoding data problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeDecodingData},
+			err:         &cloud.Error{Code: cloud.ErrorCodeDecodingData},
 			expected:    "cloud: error decoding the iventory",
 		},
 		{
 			description: "it should show the correct error message for creating archive problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeCreatingArchive},
+			err:         &cloud.Error{Code: cloud.ErrorCodeCreatingArchive},
 			expected:    "cloud: error creating backup file",
 		},
 		{
 			description: "it should show the correct error message for copying data problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeCopyingData},
+			err:         &cloud.Error{Code: cloud.ErrorCodeCopyingData},
 			expected:    "cloud: error copying data to the backup file",
 		},
 		{
 			description: "it should show the correct error message for removing archive problem",
-			err:         cloud.Error{Code: cloud.ErrorCodeRemovingArchive},
+			err:         &cloud.Error{Code: cloud.ErrorCodeRemovingArchive},
 			expected:    "cloud: error removing backup",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
-			err:         cloud.Error{Code: cloud.ErrorCode("i-dont-exist")},
+			err:         &cloud.Error{Code: cloud.ErrorCode("i-dont-exist")},
 			expected:    "cloud: unknown error code",
 		},
 	}
@@ -143,12 +143,12 @@ func TestErrorEqual(t *testing.T) {
 	}{
 		{
 			description: "it should detect equal Error instances",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
 			},
-			err2: cloud.Error{
+			err2: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
@@ -157,12 +157,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the ID is different",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
 			},
-			err2: cloud.Error{
+			err2: &cloud.Error{
 				ID:   "AWSID124",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
@@ -171,12 +171,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the code is different",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error"),
 			},
-			err2: cloud.Error{
+			err2: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeRemovingArchive,
 				Err:  errors.New("low level error"),
@@ -185,12 +185,12 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the low level error is different",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error 1"),
 			},
-			err2: cloud.Error{
+			err2: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error 2"),
@@ -203,7 +203,7 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one error is undefined",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error 1"),
@@ -212,7 +212,7 @@ func TestErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when one the error isn't Error type",
-			err1: cloud.Error{
+			err1: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitializingSession,
 				Err:  errors.New("low level error 1"),
@@ -234,12 +234,12 @@ func TestErrorEqual(t *testing.T) {
 func TestMultipartError_Error(t *testing.T) {
 	scenarios := []struct {
 		description string
-		err         cloud.MultipartError
+		err         *cloud.MultipartError
 		expected    string
 	}{
 		{
 			description: "it should show the message with offset, size and low level error",
-			err: cloud.MultipartError{
+			err: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -249,7 +249,7 @@ func TestMultipartError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the message only with the offset and size",
-			err: cloud.MultipartError{
+			err: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -258,22 +258,22 @@ func TestMultipartError_Error(t *testing.T) {
 		},
 		{
 			description: "it should show the correct error message for reading archve part problem",
-			err:         cloud.MultipartError{Code: cloud.MultipartErrorCodeReadingArchive},
+			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCodeReadingArchive},
 			expected:    "cloud: offset 0/0, error reading an archive part",
 		},
 		{
 			description: "it should show the correct error message for sending archive part problem",
-			err:         cloud.MultipartError{Code: cloud.MultipartErrorCodeSendingArchive},
+			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCodeSendingArchive},
 			expected:    "cloud: offset 0/0, error sending an archive part",
 		},
 		{
 			description: "it should show the correct error message for comparing checksums problem",
-			err:         cloud.MultipartError{Code: cloud.MultipartErrorCodeComparingChecksums},
+			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCodeComparingChecksums},
 			expected:    "cloud: offset 0/0, error comparing checksums on archive part",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
-			err:         cloud.MultipartError{Code: cloud.MultipartErrorCode("i-dont-exist")},
+			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCode("i-dont-exist")},
 			expected:    "cloud: offset 0/0, unknown error code",
 		},
 	}
@@ -296,13 +296,13 @@ func TestMultipartErrorEqual(t *testing.T) {
 	}{
 		{
 			description: "it should detect equal MultipartError instances",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
 				Err:    errors.New("low level error"),
 			},
-			err2: cloud.MultipartError{
+			err2: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -312,13 +312,13 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the offset is different",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
 				Err:    errors.New("low level error"),
 			},
-			err2: cloud.MultipartError{
+			err2: &cloud.MultipartError{
 				Offset: 300,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -328,13 +328,13 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the size is different",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
 				Err:    errors.New("low level error"),
 			},
-			err2: cloud.MultipartError{
+			err2: &cloud.MultipartError{
 				Offset: 200,
 				Size:   500,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -344,13 +344,13 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the code is different",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
 				Err:    errors.New("low level error"),
 			},
-			err2: cloud.MultipartError{
+			err2: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeSendingArchive,
@@ -360,13 +360,13 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when the low level error is different",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
 				Err:    errors.New("low level error 1"),
 			},
-			err2: cloud.MultipartError{
+			err2: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -380,7 +380,7 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when only one error is undefined",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,
@@ -390,7 +390,7 @@ func TestMultipartErrorEqual(t *testing.T) {
 		},
 		{
 			description: "it should detect when one the error isn't MultipartError type",
-			err1: cloud.MultipartError{
+			err1: &cloud.MultipartError{
 				Offset: 200,
 				Size:   400,
 				Code:   cloud.MultipartErrorCodeReadingArchive,

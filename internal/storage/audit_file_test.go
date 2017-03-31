@@ -59,7 +59,7 @@ func TestAuditFile_Save(t *testing.T) {
 				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 				VaultName: "test",
 			},
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
@@ -149,7 +149,7 @@ func TestAuditFile_List(t *testing.T) {
 
 				return n
 			}(),
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",
@@ -167,7 +167,7 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				return d
 			}(),
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeReadingFile,
 				Err: &os.PathError{
 					Op:   "read",
@@ -188,7 +188,7 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeFormat,
 			},
 		},
@@ -204,7 +204,7 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString("XXXX test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7\n")
 				return f.Name()
 			}(),
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeDateFormat,
 				Err: &time.ParseError{
 					Layout:     time.RFC3339,
@@ -276,7 +276,7 @@ func TestAuditFile_Remove(t *testing.T) {
 				return n
 			}(),
 			id: "123456",
-			expectedError: storage.Error{
+			expectedError: &storage.Error{
 				Code: storage.ErrorCodeOpeningFile,
 				Err: &os.PathError{
 					Op:   "open",

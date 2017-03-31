@@ -124,8 +124,8 @@ type Error struct {
 	Err      error
 }
 
-func newError(filename string, code ErrorCode, err error) Error {
-	return Error{
+func newError(filename string, code ErrorCode, err error) *Error {
+	return &Error{
 		Filename: filename,
 		Code:     code,
 		Err:      errors.WithStack(err),
@@ -159,8 +159,8 @@ func ErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(Error)
-	err2, ok2 := errors.Cause(second).(Error)
+	err1, ok1 := errors.Cause(first).(*Error)
+	err2, ok2 := errors.Cause(second).(*Error)
 
 	if !ok1 || !ok2 {
 		return false
@@ -229,8 +229,8 @@ type PathError struct {
 	Err  error
 }
 
-func newPathError(path string, code PathErrorCode, err error) PathError {
-	return PathError{
+func newPathError(path string, code PathErrorCode, err error) *PathError {
+	return &PathError{
 		Path: path,
 		Code: code,
 		Err:  errors.WithStack(err),
@@ -264,8 +264,8 @@ func PathErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(PathError)
-	err2, ok2 := errors.Cause(second).(PathError)
+	err1, ok1 := errors.Cause(first).(*PathError)
+	err2, ok2 := errors.Cause(second).(*PathError)
 
 	if !ok1 || !ok2 {
 		return false

@@ -35,9 +35,9 @@ const encryptedLabel = "encrypted:"
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case archive.Error:
+//       case *archive.Error:
 //         // handle specifically
-//       case archive.PathError:
+//       case *archive.PathError:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -131,7 +131,7 @@ func build(tarArchive *tar.Writer, baseDir, source string) error {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case archive.Error:
+//       case *archive.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -201,7 +201,7 @@ func Encrypt(filename, secret string) (string, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case archive.Error:
+//       case *archive.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

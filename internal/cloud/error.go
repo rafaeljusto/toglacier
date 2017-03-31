@@ -118,8 +118,8 @@ type Error struct {
 	Err  error
 }
 
-func newError(id string, code ErrorCode, err error) Error {
-	return Error{
+func newError(id string, code ErrorCode, err error) *Error {
+	return &Error{
 		ID:   id,
 		Code: code,
 		Err:  errors.WithStack(err),
@@ -153,8 +153,8 @@ func ErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(Error)
-	err2, ok2 := errors.Cause(second).(Error)
+	err1, ok1 := errors.Cause(first).(*Error)
+	err2, ok2 := errors.Cause(second).(*Error)
 
 	if !ok1 || !ok2 {
 		return false
@@ -214,8 +214,8 @@ type MultipartError struct {
 	Err    error
 }
 
-func newMultipartError(offset, size int64, code MultipartErrorCode, err error) MultipartError {
-	return MultipartError{
+func newMultipartError(offset, size int64, code MultipartErrorCode, err error) *MultipartError {
+	return &MultipartError{
 		Offset: offset,
 		Size:   size,
 		Code:   code,
@@ -245,8 +245,8 @@ func MultipartErrorEqual(first, second error) bool {
 		return first == second
 	}
 
-	err1, ok1 := errors.Cause(first).(MultipartError)
-	err2, ok2 := errors.Cause(second).(MultipartError)
+	err1, ok1 := errors.Cause(first).(*MultipartError)
+	err2, ok2 := errors.Cause(second).(*MultipartError)
 
 	if !ok1 || !ok2 {
 		return false

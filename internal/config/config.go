@@ -77,7 +77,7 @@ func Default() {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -112,7 +112,7 @@ func LoadFromFile(filename string) error {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -146,7 +146,7 @@ type encrypted struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -179,7 +179,7 @@ type aesKey struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case config.Error:
+//       case *config.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

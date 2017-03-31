@@ -104,7 +104,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			filename:             "toglacier-idontexist.tmp",
 			multipartUploadLimit: 102400,
 			partSize:             4096,
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeOpeningArchive,
 				Err: &os.PathError{
 					Op:   "open",
@@ -180,7 +180,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeSendingArchive,
 				Err:  errors.New("connection error"),
 			},
@@ -217,7 +217,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeComparingChecksums,
 			},
 		},
@@ -310,7 +310,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeInitMultipart,
 				Err:  errors.New("aws is out"),
 			},
@@ -362,7 +362,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.MultipartError{
+			expectedError: &cloud.MultipartError{
 				Offset: 400,
 				Size:   42000,
 				Code:   cloud.MultipartErrorCodeSendingArchive,
@@ -407,7 +407,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.MultipartError{
+			expectedError: &cloud.MultipartError{
 				Offset: 0,
 				Size:   42000,
 				Code:   cloud.MultipartErrorCodeComparingChecksums,
@@ -455,7 +455,7 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "UPLOAD123",
 				Code: cloud.ErrorCodeCompleteMultipart,
 				Err:  errors.New("backup too big"),
@@ -517,7 +517,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeComparingChecksums,
 			},
@@ -574,10 +574,10 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeComparingChecksums,
-				Err: cloud.Error{
+				Err: &cloud.Error{
 					ID:   "AWSID123",
 					Code: cloud.ErrorCodeRemovingArchive,
 					Err:  errors.New("connection error"),
@@ -695,7 +695,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeInitJob,
 				Err:  errors.New("a crazy error"),
 			},
@@ -716,7 +716,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
@@ -747,7 +747,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobFailed,
 				Err:  errors.New("something went wrong"),
@@ -777,7 +777,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobNotFound,
 			},
@@ -872,7 +872,7 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
@@ -909,7 +909,7 @@ func TestAWSCloud_List(t *testing.T) {
 			},
 			// *json.SyntaxError doesn't export the msg attribute, so we need to
 			// hard-coded the error message here
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeDecodingData,
 				Err:  errors.New("invalid character '{' looking for beginning of object key string"),
@@ -985,7 +985,7 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeInitJob,
 				Err:  errors.New("a crazy error"),
@@ -1008,7 +1008,7 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
@@ -1040,7 +1040,7 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobFailed,
 				Err:  errors.New("something went wrong"),
@@ -1071,7 +1071,7 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobNotFound,
 			},
@@ -1140,7 +1140,7 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "JOBID123",
 				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
@@ -1193,7 +1193,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 					},
 				},
 			},
-			expectedError: cloud.Error{
+			expectedError: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeRemovingArchive,
 				Err:  errors.New("no backup here"),

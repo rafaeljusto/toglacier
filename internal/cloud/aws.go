@@ -81,7 +81,7 @@ type AWSCloud struct {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case cloud.Error:
+//       case *cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -126,9 +126,9 @@ func NewAWSCloud(c *config.Config, debug bool) (*AWSCloud, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case cloud.Error:
+//       case *cloud.Error:
 //         // handle specifically
-//       case cloud.MultipartError:
+//       case *cloud.MultipartError:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -301,7 +301,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case cloud.Error:
+//       case *cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -375,7 +375,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case cloud.Error:
+//       case *cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -435,7 +435,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case cloud.Error:
+//       case *cloud.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

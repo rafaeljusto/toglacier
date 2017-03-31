@@ -165,7 +165,7 @@ func TestBuild(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedError: archive.PathError{
+			expectedError: &archive.PathError{
 				Path: "idontexist12345",
 				Code: archive.PathErrorCodeInfo,
 				Err: &os.PathError{
@@ -188,7 +188,7 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: archive.PathError{
+			expectedError: &archive.PathError{
 				Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm"),
 				Code: archive.PathErrorCodeInfo,
 				Err: &os.PathError{
@@ -214,7 +214,7 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: archive.PathError{
+			expectedError: &archive.PathError{
 				Path: path.Join(os.TempDir(), "toglacier-test-archive-file-noperm"),
 				Code: archive.PathErrorCodeOpeningFile,
 				Err: &os.PathError{
@@ -245,7 +245,7 @@ func TestBuild(t *testing.T) {
 
 				return []string{n}
 			}(),
-			expectedError: archive.PathError{
+			expectedError: &archive.PathError{
 				Path: path.Join(os.TempDir(), "toglacier-test-archive-dir-file-noperm", "file1"),
 				Code: archive.PathErrorCodeOpeningFile,
 				Err: &os.PathError{
@@ -288,7 +288,7 @@ func TestEncrypt(t *testing.T) {
 			description: "it should detect when it tries to encrypt a file that doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
 			secret:      "12345678901234567890123456789012",
-			expectedError: archive.Error{
+			expectedError: &archive.Error{
 				Filename: "toglacier-idontexist.tmp",
 				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
@@ -316,7 +316,7 @@ func TestEncrypt(t *testing.T) {
 			}(),
 			secret:       "12345678901234567890123456789012",
 			randomSource: rand.Reader,
-			expectedError: archive.Error{
+			expectedError: &archive.Error{
 				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
 				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
@@ -345,7 +345,7 @@ func TestEncrypt(t *testing.T) {
 					return 0, errors.New("random error")
 				},
 			}
-			scenario.expectedError = archive.Error{
+			scenario.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeGenerateRandomNumbers,
 				Err:      errors.New("random error"),
@@ -368,7 +368,7 @@ func TestEncrypt(t *testing.T) {
 			scenario.secret = "123456"
 			scenario.randomSource = rand.Reader
 
-			scenario.expectedError = archive.Error{
+			scenario.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
@@ -431,7 +431,7 @@ func TestDecrypt(t *testing.T) {
 				return n
 			}(),
 			secret: "12345678901234567890123456789012",
-			expectedError: archive.Error{
+			expectedError: &archive.Error{
 				Filename: path.Join(os.TempDir(), "toglacier-test-noperm"),
 				Code:     archive.ErrorCodeOpeningFile,
 				Err: &os.PathError{
@@ -475,7 +475,7 @@ func TestDecrypt(t *testing.T) {
 			scenario.encryptedFilename = f.Name()
 			scenario.secret = "123456"
 
-			scenario.expectedError = archive.Error{
+			scenario.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
@@ -501,7 +501,7 @@ func TestDecrypt(t *testing.T) {
 				f.Write(content)
 				return f.Name()
 			}(),
-			expectedError: archive.Error{
+			expectedError: &archive.Error{
 				Code: archive.ErrorCodeAuthFailed,
 			},
 		},

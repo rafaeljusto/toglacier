@@ -37,7 +37,7 @@ func NewAuditFile(filename string) *AuditFile {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case storage.Error:
+//       case *storage.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -68,7 +68,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case storage.Error:
+//       case *storage.Error:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -125,7 +125,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 //
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
-//       case storage.Error:
+//       case *storage.Error:
 //         // handle specifically
 //       default:
 //         // unknown error

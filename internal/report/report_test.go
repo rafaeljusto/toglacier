@@ -143,14 +143,14 @@ func TestBuild(t *testing.T) {
 			reports: []report.Report{
 				mockReport{
 					mockBuild: func() (string, error) {
-						return "", report.Error{
+						return "", &report.Error{
 							Code: report.ErrorCodeTemplate,
 							Err:  errors.New("error generating report"),
 						}
 					},
 				},
 			},
-			expectedError: report.Error{
+			expectedError: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("error generating report"),
 			},
