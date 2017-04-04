@@ -301,6 +301,15 @@ func Add(r Report) {
 	reports = append(reports, r)
 }
 
+// Clear removes all reports from the internal cache. Useful for testing
+// environments.
+func Clear() {
+	reportsLock.Lock()
+	defer reportsLock.Unlock()
+
+	reports = []Report{}
+}
+
 // Build generates the report in text format. Every time this function is called the
 // internal cache of reports is cleared. On error it will return an
 // Error type encapsulated in a traceable error. To retrieve the desired error
