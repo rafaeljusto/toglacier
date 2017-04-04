@@ -141,7 +141,9 @@ func main() {
 					}
 				})
 				scheduler.Every(1).Weeks().At("01:00").Do(func() {
-					removeOldBackups(config.Current().KeepBackups, awsCloud, auditFileStorage)
+					if err := removeOldBackups(config.Current().KeepBackups, awsCloud, auditFileStorage); err != nil {
+						logger.Error(err)
+					}
 				})
 				scheduler.Every(4).Weeks().At("12:00").Do(func() {
 					if _, err := listBackups(true, awsCloud, auditFileStorage); err != nil {
@@ -344,22 +346,32 @@ func removeBackup(id string, c cloud.Cloud, s storage.Storage) error {
 	return errors.WithStack(s.Remove(id))
 }
 
-func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) {
+func removeOldBackups(keepBackups int, c cloud.Cloud, s storage.Storage) error {
 	removeOldBackupsReport := report.NewRemoveOldBackups()
 	defer func() {
 		report.Add(removeOldBackupsReport)
 	}()
 
 	timeMark := time.Now()
-	backups, _ := listBackups(false, c, s)
+	backups, err := listBackups(false, c, s)
 	removeOldBackupsReport.Durations.List = time.Now().Sub(timeMark)
+
+	if err != nil {
+		removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
+		return errors.WithStack(err)
+	}
 
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
 		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
-		removeBackup(backups[i].ID, c, s)
+		if err := removeBackup(backups[i].ID, c, s); err != nil {
+			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
+			return errors.WithStack(err)
+		}
 	}
 	removeOldBackupsReport.Durations.Remove = time.Now().Sub(timeMark)
+
+	return nil
 }
 
 func sendReport(emailSender emailSender, emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) error {

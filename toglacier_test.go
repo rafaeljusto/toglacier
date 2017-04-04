@@ -631,10 +631,11 @@ func TestRemoveOldBackups(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
-		description string
-		keepBackups int
-		cloud       cloud.Cloud
-		storage     storage.Storage
+		description   string
+		keepBackups   int
+		cloud         cloud.Cloud
+		storage       storage.Storage
+		expectedError error
 	}{
 		{
 			description: "it should remove all old backups correctly",
@@ -678,11 +679,105 @@ func TestRemoveOldBackups(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "it should detect when there's an error listing the local backups",
+			keepBackups: 2,
+			storage: mockStorage{
+				mockList: func() ([]cloud.Backup, error) {
+					return nil, errors.New("local storage corrupted")
+				},
+			},
+			expectedError: errors.New("local storage corrupted"),
+		},
+		{
+			description: "it should detect when there's an error removing an old backup from the cloud",
+			keepBackups: 2,
+			cloud: mockCloud{
+				mockRemove: func(id string) error {
+					return errors.New("backup not found")
+				},
+			},
+			storage: mockStorage{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+						{
+							ID:        "123457",
+							CreatedAt: now.Add(time.Second),
+							Checksum:  "0484ed70359cd1a4337d16a4143a3d247e0a3ecbce01482c318d709ed5161016",
+							VaultName: "test",
+						},
+						{
+							ID:        "123458",
+							CreatedAt: now.Add(time.Minute),
+							Checksum:  "5f9c426fb1e150c1c09dda260bb962c7602b595df7586a1f3899735b839b138f",
+							VaultName: "test",
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					if id != "123458" {
+						return fmt.Errorf("removing unexpected id %s", id)
+					}
+					return nil
+				},
+			},
+			expectedError: errors.New("backup not found"),
+		},
+		{
+			description: "it should detect when there's an error removing an old backup from the local storage",
+			keepBackups: 2,
+			cloud: mockCloud{
+				mockRemove: func(id string) error {
+					if id != "123458" {
+						return fmt.Errorf("unexpected id %s", id)
+					}
+					return nil
+				},
+			},
+			storage: mockStorage{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+						{
+							ID:        "123457",
+							CreatedAt: now.Add(time.Second),
+							Checksum:  "0484ed70359cd1a4337d16a4143a3d247e0a3ecbce01482c318d709ed5161016",
+							VaultName: "test",
+						},
+						{
+							ID:        "123458",
+							CreatedAt: now.Add(time.Minute),
+							Checksum:  "5f9c426fb1e150c1c09dda260bb962c7602b595df7586a1f3899735b839b138f",
+							VaultName: "test",
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					return errors.New("backup not found")
+				},
+			},
+			expectedError: errors.New("backup not found"),
+		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			removeOldBackups(scenario.keepBackups, scenario.cloud, scenario.storage)
+			err := removeOldBackups(scenario.keepBackups, scenario.cloud, scenario.storage)
+
+			if !ErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
+			}
 		})
 	}
 }
