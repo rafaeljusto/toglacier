@@ -7,10 +7,12 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/kr/pretty"
+	"github.com/aryann/difflib"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
@@ -223,7 +225,7 @@ func TestAuditFile_List(t *testing.T) {
 			backups, err := auditFile.List()
 
 			if !reflect.DeepEqual(scenario.expected, backups) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
 
 			if !storage.ErrorEqual(scenario.expectedError, err) {
@@ -306,4 +308,9 @@ func TestAuditFile_Remove(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

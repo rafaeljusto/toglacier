@@ -16,10 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aryann/difflib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/glacier"
-	"github.com/kr/pretty"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
 )
@@ -71,7 +72,7 @@ func TestNewAWSCloud(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, awsCloud))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, awsCloud))
 			}
 			for key, value := range scenario.expectedEnv {
 				if env := os.Getenv(key); env != value {
@@ -593,7 +594,7 @@ func TestAWSCloud_Send(t *testing.T) {
 
 			backup, err := scenario.awsCloud.Send(scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backup))
 			}
 			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.MultipartErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
@@ -921,7 +922,7 @@ func TestAWSCloud_List(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			backups, err := scenario.awsCloud.List()
 			if !reflect.DeepEqual(scenario.expected, backups) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
 			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
@@ -1152,7 +1153,7 @@ func TestAWSCloud_Get(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			filename, err := scenario.awsCloud.Get(scenario.id)
 			if !reflect.DeepEqual(scenario.expected, filename) {
-				t.Errorf("filenames don't match.\n%s", pretty.Diff(scenario.expected, filename))
+				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
 			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
@@ -1568,4 +1569,9 @@ type mockReader struct {
 
 func (m mockReader) Read(p []byte) (n int, err error) {
 	return m.mockRead(p)
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

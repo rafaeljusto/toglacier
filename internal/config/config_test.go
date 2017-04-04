@@ -6,11 +6,13 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/aryann/difflib"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/kr/pretty"
 	"github.com/rafaeljusto/toglacier/internal/config"
 	"gopkg.in/yaml.v2"
 )
@@ -39,7 +41,7 @@ func TestDefault(t *testing.T) {
 			config.Default()
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 		})
 	}
@@ -383,7 +385,7 @@ aws:
 			err := config.LoadFromFile(scenario.filename)
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 
 			if !config.ErrorEqual(scenario.expectedError, err) {
@@ -620,7 +622,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 			err := config.LoadFromEnvironment()
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 
 			if !config.ErrorEqual(scenario.expectedError, err) {
@@ -628,4 +630,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }
