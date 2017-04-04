@@ -142,11 +142,10 @@ aws:
 - /usr/local/important-files-2
 `)
 
-			var scenario scenario
-			scenario.description = "it should detect an invalid YAML configuration file"
-			scenario.filename = f.Name()
-
-			scenario.expectedError = &config.Error{
+			var s scenario
+			s.description = "it should detect an invalid YAML configuration file"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &yaml.TypeError{
@@ -156,7 +155,7 @@ aws:
 				},
 			}
 
-			return scenario
+			return s
 		}(),
 		func() scenario {
 			f, err := ioutil.TempFile("", "toglacier-")
@@ -189,11 +188,10 @@ aws:
   vault name: backup
 `)
 
-			var scenario scenario
-			scenario.description = "it should detect invalid encrypted values"
-			scenario.filename = f.Name()
-
-			scenario.expectedError = &config.Error{
+			var s scenario
+			s.description = "it should detect invalid encrypted values"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &config.Error{
@@ -202,7 +200,7 @@ aws:
 				},
 			}
 
-			return scenario
+			return s
 		}(),
 		func() scenario {
 			f, err := ioutil.TempFile("", "toglacier-")
@@ -235,11 +233,10 @@ aws:
   vault name: backup
 `)
 
-			var scenario scenario
-			scenario.description = "it should detect an invalid backup secret"
-			scenario.filename = f.Name()
-
-			scenario.expectedError = &config.Error{
+			var s scenario
+			s.description = "it should detect an invalid backup secret"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
 				Filename: f.Name(),
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &config.Error{
@@ -248,7 +245,7 @@ aws:
 				},
 			}
 
-			return scenario
+			return s
 		}(),
 		{
 			description: "it should fill the backup secret when is less than 32 bytes",

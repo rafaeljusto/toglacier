@@ -75,43 +75,30 @@ const (
 // actual depending on the problem.
 type ErrorCode string
 
+var errorCodeString = map[ErrorCode]string{
+	ErrorCodeTARCreation:           "error creating the tar file",
+	ErrorCodeTARGeneration:         "error generating tar file",
+	ErrorCodeOpeningFile:           "error opening file",
+	ErrorCodeTmpFileCreation:       "error creating temporary file",
+	ErrorCodeCalculateHMACSHA256:   "error calculating hmac-sha256",
+	ErrorCodeGenerateRandomNumbers: "error filling iv with random numbers",
+	ErrorCodeWritingLabel:          "error writing label to encrypted file",
+	ErrorCodeReadingLabel:          "error reading encrypted file label",
+	ErrorCodeWritingAuth:           "error writing authentication to encrypted file",
+	ErrorCodeReadingAuth:           "error reading encrypted authentication",
+	ErrorCodeWritingIV:             "error writing iv to encrypt file",
+	ErrorCodeReadingIV:             "error reading iv to decrypt file",
+	ErrorCodeInitCipher:            "error initializing cipher",
+	ErrorCodeEncryptingFile:        "error encrypting file",
+	ErrorCodeDecryptingFile:        "error decrypting file",
+	ErrorCodeAuthFailed:            "encrypted content authentication failed",
+	ErrorCodeRewindingFile:         "error moving to the beggining of the file",
+}
+
 // String translate the error code to a human readable text.
 func (e ErrorCode) String() string {
-	switch e {
-	case ErrorCodeTARCreation:
-		return "error creating the tar file"
-	case ErrorCodeTARGeneration:
-		return "error generating tar file"
-	case ErrorCodeOpeningFile:
-		return "error opening file"
-	case ErrorCodeTmpFileCreation:
-		return "error creating temporary file"
-	case ErrorCodeCalculateHMACSHA256:
-		return "error calculating hmac-sha256"
-	case ErrorCodeGenerateRandomNumbers:
-		return "error filling iv with random numbers"
-	case ErrorCodeWritingLabel:
-		return "error writing label to encrypted file"
-	case ErrorCodeReadingLabel:
-		return "error reading encrypted file label"
-	case ErrorCodeWritingAuth:
-		return "error writing authentication to encrypted file"
-	case ErrorCodeReadingAuth:
-		return "error reading encrypted authentication"
-	case ErrorCodeWritingIV:
-		return "error writing iv to encrypt file"
-	case ErrorCodeReadingIV:
-		return "error reading iv to decrypt file"
-	case ErrorCodeInitCipher:
-		return "error initializing cipher"
-	case ErrorCodeEncryptingFile:
-		return "error encrypting file"
-	case ErrorCodeDecryptingFile:
-		return "error decrypting file"
-	case ErrorCodeAuthFailed:
-		return "encrypted content authentication failed"
-	case ErrorCodeRewindingFile:
-		return "error moving to the beggining of the file"
+	if msg, ok := errorCodeString[e]; ok {
+		return msg
 	}
 
 	return "unknown error code"

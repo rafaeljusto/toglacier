@@ -78,23 +78,22 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 
 			f.WriteString("Important information for the test backup")
 
-			var scenario scenario
-			scenario.description = "it should detect when the random source generates an error"
-			scenario.filename = f.Name()
-			scenario.secret = "1234567890123456"
-
-			scenario.randomSource = mockReader{
+			var s scenario
+			s.description = "it should detect when the random source generates an error"
+			s.filename = f.Name()
+			s.secret = "1234567890123456"
+			s.randomSource = mockReader{
 				mockRead: func(p []byte) (n int, err error) {
 					return 0, errors.New("random error")
 				},
 			}
-			scenario.expectedError = &archive.Error{
+			s.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeGenerateRandomNumbers,
 				Err:      errors.New("random error"),
 			}
 
-			return scenario
+			return s
 		}(),
 		func() scenario {
 			f, err := ioutil.TempFile("", "toglacier-test-")
@@ -105,19 +104,18 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 
 			f.WriteString("Important information for the test backup")
 
-			var scenario scenario
-			scenario.description = "it should detect when the AES secret length is invalid"
-			scenario.filename = f.Name()
-			scenario.secret = "123456"
-			scenario.randomSource = rand.Reader
-
-			scenario.expectedError = &archive.Error{
+			var s scenario
+			s.description = "it should detect when the AES secret length is invalid"
+			s.filename = f.Name()
+			s.secret = "123456"
+			s.randomSource = rand.Reader
+			s.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
 			}
 
-			return scenario
+			return s
 		}(),
 	}
 
@@ -214,18 +212,17 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 
 			f.Write(content)
 
-			var scenario scenario
-			scenario.description = "it should detect when the backup decrypt key has an invalid AES length"
-			scenario.encryptedFilename = f.Name()
-			scenario.secret = "123456"
-
-			scenario.expectedError = &archive.Error{
+			var s scenario
+			s.description = "it should detect when the backup decrypt key has an invalid AES length"
+			s.encryptedFilename = f.Name()
+			s.secret = "123456"
+			s.expectedError = &archive.Error{
 				Filename: f.Name(),
 				Code:     archive.ErrorCodeInitCipher,
 				Err:      aes.KeySizeError(6),
 			}
 
-			return scenario
+			return s
 		}(),
 		{
 			description: "it should detect when the decrypt authentication data is invalid",

@@ -71,41 +71,29 @@ const (
 // with the cloud.
 type ErrorCode string
 
+var errorCodeString = map[ErrorCode]string{
+	ErrorCodeInitializingSession: "error initializing cloud session",
+	ErrorCodeOpeningArchive:      "error opening archive",
+	ErrorCodeArchiveInfo:         "error retrieving archive information",
+	ErrorCodeSendingArchive:      "error sending archive to the cloud",
+	ErrorCodeComparingChecksums:  "error comparing checksums",
+	ErrorCodeInitMultipart:       "error initializing multipart upload",
+	ErrorCodeCompleteMultipart:   "error completing multipart upload",
+	ErrorCodeInitJob:             "error initiating the job",
+	ErrorCodeJobComplete:         "error retrieving the complete job data",
+	ErrorCodeRetrievingJob:       "error retrieving the job status",
+	ErrorCodeJobFailed:           "job failed to complete in the cloud",
+	ErrorCodeJobNotFound:         "job not found",
+	ErrorCodeDecodingData:        "error decoding the iventory",
+	ErrorCodeCreatingArchive:     "error creating backup file",
+	ErrorCodeCopyingData:         "error copying data to the backup file",
+	ErrorCodeRemovingArchive:     "error removing backup",
+}
+
 // String translate the error code to a human readable text.
 func (e ErrorCode) String() string {
-	switch e {
-	case ErrorCodeInitializingSession:
-		return "error initializing cloud session"
-	case ErrorCodeOpeningArchive:
-		return "error opening archive"
-	case ErrorCodeArchiveInfo:
-		return "error retrieving archive information"
-	case ErrorCodeSendingArchive:
-		return "error sending archive to the cloud"
-	case ErrorCodeComparingChecksums:
-		return "error comparing checksums"
-	case ErrorCodeInitMultipart:
-		return "error initializing multipart upload"
-	case ErrorCodeCompleteMultipart:
-		return "error completing multipart upload"
-	case ErrorCodeInitJob:
-		return "error initiating the job"
-	case ErrorCodeJobComplete:
-		return "error retrieving the complete job data"
-	case ErrorCodeRetrievingJob:
-		return "error retrieving the job status"
-	case ErrorCodeJobFailed:
-		return "job failed to complete in the cloud"
-	case ErrorCodeJobNotFound:
-		return "job not found"
-	case ErrorCodeDecodingData:
-		return "error decoding the iventory"
-	case ErrorCodeCreatingArchive:
-		return "error creating backup file"
-	case ErrorCodeCopyingData:
-		return "error copying data to the backup file"
-	case ErrorCodeRemovingArchive:
-		return "error removing backup"
+	if msg, ok := errorCodeString[e]; ok {
+		return msg
 	}
 
 	return "unknown error code"

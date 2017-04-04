@@ -19,6 +19,8 @@ var (
 	reportsLock sync.Mutex
 )
 
+// Report is the contract that every report must respect so it can be included
+// in the notification engine.
 type Report interface {
 	Build() (string, error)
 }
@@ -243,6 +245,7 @@ func (r RemoveOldBackups) Build() (string, error) {
 	return buffer.String(), nil
 }
 
+// Test is a simple test report only to check if everything is working well.
 type Test struct {
 	basic
 }
