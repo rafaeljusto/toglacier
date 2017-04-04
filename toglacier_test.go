@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/aes"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -29,6 +28,8 @@ func TestBackup(t *testing.T) {
 		description   string
 		backupPaths   []string
 		backupSecret  string
+		builder       archive.Builder
+		envelop       archive.Envelop
 		cloud         cloud.Cloud
 		storage       storage.Storage
 		expectedError error
@@ -47,6 +48,17 @@ func TestBackup(t *testing.T) {
 
 				return []string{d}
 			}(),
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{
@@ -78,6 +90,28 @@ func TestBackup(t *testing.T) {
 				return []string{d}
 			}(),
 			backupSecret: "12345678901234567890123456789012",
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
+			envelop: mockEnvelop{
+				mockEncrypt: func(filename, secret string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{
@@ -99,15 +133,12 @@ func TestBackup(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			expectedError: &archive.PathError{
-				Path: "idontexist12345",
-				Code: archive.PathErrorCodeInfo,
-				Err: &os.PathError{
-					Op:   "lstat",
-					Path: "idontexist12345",
-					Err:  errors.New("no such file or directory"),
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					return "", errors.New("path doesn't exist")
 				},
 			},
+			expectedError: errors.New("path doesn't exist"),
 		},
 		{
 			description: "it should detect an error while encrypting the package",
@@ -124,6 +155,22 @@ func TestBackup(t *testing.T) {
 				return []string{d}
 			}(),
 			backupSecret: "123456",
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
+			envelop: mockEnvelop{
+				mockEncrypt: func(filename, secret string) (string, error) {
+					return "", errors.New("failed to encrypt the archive")
+				},
+			},
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{
@@ -139,11 +186,7 @@ func TestBackup(t *testing.T) {
 					return nil
 				},
 			},
-			expectedError: &archive.Error{
-				Filename: "", // TODO
-				Code:     archive.ErrorCodeInitCipher,
-				Err:      aes.KeySizeError(6),
-			},
+			expectedError: errors.New("failed to encrypt the archive"),
 		},
 		{
 			description: "it should detect an error while sending the backup",
@@ -159,6 +202,17 @@ func TestBackup(t *testing.T) {
 
 				return []string{d}
 			}(),
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{}, errors.New("error sending backup")
@@ -180,6 +234,17 @@ func TestBackup(t *testing.T) {
 
 				return []string{d}
 			}(),
+			builder: mockBuilder{
+				mockBuild: func(backupPaths ...string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{
@@ -201,7 +266,7 @@ func TestBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := backup(scenario.backupPaths, scenario.backupSecret, scenario.cloud, scenario.storage)
+			err := backup(scenario.backupPaths, scenario.backupSecret, scenario.builder, scenario.envelop, scenario.cloud, scenario.storage)
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -467,6 +532,7 @@ func TestRetrieveBackup(t *testing.T) {
 		description   string
 		id            string
 		backupSecret  string
+		envelop       archive.Envelop
 		cloud         cloud.Cloud
 		expected      string
 		expectedError error
@@ -483,6 +549,17 @@ func TestRetrieveBackup(t *testing.T) {
 		{
 			description:  "it should retrieve an encrypted backup correctly",
 			backupSecret: "1234567890123456",
+			envelop: mockEnvelop{
+				mockDecrypt: func(encryptedFilename, secret string) (string, error) {
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), nil
+				},
+			},
 			cloud: mockCloud{
 				mockGet: func(id string) (filename string, err error) {
 					n := path.Join(os.TempDir(), "toglacier-test-getenc")
@@ -518,6 +595,11 @@ func TestRetrieveBackup(t *testing.T) {
 		{
 			description:  "it should detect an error decrypting the backup",
 			backupSecret: "123456",
+			envelop: mockEnvelop{
+				mockDecrypt: func(encryptedFilename, secret string) (string, error) {
+					return "", errors.New("invalid encrypted content")
+				},
+			},
 			cloud: mockCloud{
 				mockGet: func(id string) (filename string, err error) {
 					n := path.Join(os.TempDir(), "toglacier-test-getenc")
@@ -539,17 +621,13 @@ func TestRetrieveBackup(t *testing.T) {
 					return n, nil
 				},
 			},
-			expectedError: &archive.Error{
-				Filename: "/tmp/toglacier-test-getenc",
-				Code:     archive.ErrorCodeInitCipher,
-				Err:      aes.KeySizeError(6),
-			},
+			expectedError: errors.New("invalid encrypted content"),
 		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			filename, err := retrieveBackup(scenario.id, scenario.backupSecret, scenario.cloud)
+			filename, err := retrieveBackup(scenario.id, scenario.backupSecret, scenario.envelop, scenario.cloud)
 
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)
@@ -912,6 +990,27 @@ Subject: toglacier report
 			}
 		})
 	}
+}
+
+type mockBuilder struct {
+	mockBuild func(backupPaths ...string) (string, error)
+}
+
+func (m mockBuilder) Build(backupPaths ...string) (string, error) {
+	return m.mockBuild(backupPaths...)
+}
+
+type mockEnvelop struct {
+	mockEncrypt func(filename, secret string) (string, error)
+	mockDecrypt func(encryptedFilename, secret string) (string, error)
+}
+
+func (m mockEnvelop) Encrypt(filename, secret string) (string, error) {
+	return m.mockEncrypt(filename, secret)
+}
+
+func (m mockEnvelop) Decrypt(encryptedFilename, secret string) (string, error) {
+	return m.mockDecrypt(encryptedFilename, secret)
 }
 
 type mockCloud struct {

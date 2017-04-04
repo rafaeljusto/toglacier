@@ -20,6 +20,8 @@ import (
 
 func main() {
 	var logger *logrus.Logger
+	var tarBuilder archive.Builder
+	var ofbEnvelop archive.Envelop
 	var awsCloud cloud.Cloud
 	var auditFileStorage storage.Storage
 
@@ -62,6 +64,9 @@ func main() {
 		// TODO: optionally set logger output file defined in configuration. if not
 		// defined stdout will be used
 
+		tarBuilder = archive.NewTARBuilder()
+		ofbEnvelop = archive.NewOFBEnvelop()
+
 		if awsCloud, err = cloud.NewAWSCloud(config.Current(), false); err != nil {
 			fmt.Printf("error initializing AWS cloud. details: %s\n", err)
 			return err
@@ -75,7 +80,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, awsCloud, auditFileStorage); err != nil {
+				if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, auditFileStorage); err != nil {
 					logger.Error(err)
 				}
 				return nil
@@ -86,7 +91,7 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile, err := retrieveBackup(c.Args().First(), config.Current().BackupSecret.Value, awsCloud); err != nil {
+				if backupFile, err := retrieveBackup(c.Args().First(), config.Current().BackupSecret.Value, ofbEnvelop, awsCloud); err != nil {
 					logger.Error(err)
 				} else if backupFile != "" {
 					fmt.Printf("Backup recovered at %s\n", backupFile)
@@ -136,7 +141,7 @@ func main() {
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
 				scheduler.Every(1).Day().At("00:00").Do(func() {
-					if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, awsCloud, auditFileStorage); err != nil {
+					if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, auditFileStorage); err != nil {
 						logger.Error(err)
 					}
 				})
@@ -209,7 +214,7 @@ func main() {
 	app.Run(os.Args)
 }
 
-func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.Storage) error {
+func backup(backupPaths []string, backupSecret string, b archive.Builder, e archive.Envelop, c cloud.Cloud, s storage.Storage) error {
 	backupReport := report.NewSendBackup()
 	backupReport.Paths = backupPaths
 
@@ -218,7 +223,7 @@ func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.
 	}()
 
 	timeMark := time.Now()
-	filename, err := archive.Build(backupPaths...)
+	filename, err := b.Build(backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
@@ -231,7 +236,7 @@ func backup(backupPaths []string, backupSecret string, c cloud.Cloud, s storage.
 		var encryptedFilename string
 
 		timeMark = time.Now()
-		if encryptedFilename, err = archive.Encrypt(filename, backupSecret); err != nil {
+		if encryptedFilename, err = e.Encrypt(filename, backupSecret); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			return errors.WithStack(err)
 		}
@@ -318,7 +323,7 @@ func listBackups(remote bool, c cloud.Cloud, s storage.Storage) ([]cloud.Backup,
 	return remoteBackups, nil
 }
 
-func retrieveBackup(id, backupSecret string, c cloud.Cloud) (string, error) {
+func retrieveBackup(id, backupSecret string, e archive.Envelop, c cloud.Cloud) (string, error) {
 	backupFile, err := c.Get(id)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -326,7 +331,7 @@ func retrieveBackup(id, backupSecret string, c cloud.Cloud) (string, error) {
 
 	if backupSecret != "" {
 		var filename string
-		if filename, err = archive.Decrypt(backupFile, backupSecret); err != nil {
+		if filename, err = e.Decrypt(backupFile, backupSecret); err != nil {
 			return "", errors.WithStack(err)
 		}
 
