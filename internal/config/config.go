@@ -22,6 +22,7 @@ var config unsafe.Pointer
 type Config struct {
 	Paths        []string `yaml:"paths" envconfig:"paths"`
 	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
+	LogFile      string   `yaml:"log file" envconfig:"log_file"`
 	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
 	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
 

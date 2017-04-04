@@ -67,6 +67,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_AWS_VAULT_NAME         | AWS vault name                          |
 | TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
 | TOGLACIER_AUDIT                  | Path where we keep track of the backups |
+| TOGLACIER_LOG_FILE               | File where all events are written       |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 | TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
 | TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
@@ -79,6 +80,11 @@ configuration file. You can find the configuration file example on
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#glacier_region).
+
+By default the tool prints everything on the standard output. If you want to
+redirect it to a log file, you can define the location of the file with the
+`TOGLACIER_LOG_FILE`. Even with the output redirection, the messages are still
+writen in the standard output.
 
 There are some commands in the tool to manage the backups:
 
@@ -125,6 +131,7 @@ TOGLACIER_AWS_REGION="us-east-1" \
 TOGLACIER_AWS_VAULT_NAME="backup" \
 TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
 TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
+TOGLACIER_LOG_FILE="/var/log/toglacier/toglacier.log" \
 TOGLACIER_KEEP_BACKUPS="10" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 TOGLACIER_EMAIL_SERVER="smtp.example.com" \
@@ -133,7 +140,7 @@ TOGLACIER_EMAIL_USERNAME="user@example.com" \
 TOGLACIER_EMAIL_PASSWORD="encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==" \
 TOGLACIER_EMAIL_FROM="user@example.com" \
 TOGLACIER_EMAIL_TO="report1@example.com,report2@example.com" \
-toglacier $@ 2> >(tee /var/log/toglacier/error.log)
+toglacier $@
 ```
 
 With that you can just run the following command to start the scheduler:
@@ -184,6 +191,7 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_AWS_VAULT_NAME=backup ^
   TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
   TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
+  TOGLACIER_LOG_FILE=c:\log\toglacier\toglacier.log ^
   TOGLACIER_KEEP_BACKUPS=10 ^
   TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ== ^
   TOGLACIER_EMAIL_SERVER=smtp.example.com ^

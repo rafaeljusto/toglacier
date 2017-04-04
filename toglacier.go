@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/smtp"
 	"os"
 	"strings"
@@ -24,6 +25,9 @@ func main() {
 	var ofbEnvelop archive.Envelop
 	var awsCloud cloud.Cloud
 	var auditFileStorage storage.Storage
+
+	var logFile *os.File
+	defer logFile.Close()
 
 	app := cli.NewApp()
 	app.Name = "toglacier"
@@ -61,8 +65,17 @@ func main() {
 		logger = logrus.New()
 		logger.Out = os.Stdout
 
-		// TODO: optionally set logger output file defined in configuration. if not
+		// optionally set logger output file defined in configuration. if not
 		// defined stdout will be used
+		if config.Current().LogFile != "" {
+			if logFile, err = os.OpenFile(config.Current().LogFile, os.O_CREATE|os.O_WRONLY, os.ModePerm); err != nil {
+				fmt.Printf("error opening log file “%s”. details: %s\n", config.Current().LogFile, err)
+				return err
+			}
+
+			// writes to the stdout and to the log file
+			logger.Out = io.MultiWriter(os.Stdout, logFile)
+		}
 
 		tarBuilder = archive.NewTARBuilder()
 		ofbEnvelop = archive.NewOFBEnvelop()

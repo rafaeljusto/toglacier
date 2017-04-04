@@ -70,6 +70,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 email:
@@ -98,6 +99,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.Email.Server = "smtp.example.com"
@@ -169,6 +171,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 email:
@@ -214,6 +217,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:invalid
 email:
@@ -261,6 +265,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: a123456789012345678901234567890
 email:
@@ -289,6 +294,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
 				c.Email.Server = "smtp.example.com"
@@ -322,6 +328,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: a12345678901234567890123456789012
 email:
@@ -350,6 +357,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.Email.Server = "smtp.example.com"
@@ -415,6 +423,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
@@ -425,6 +434,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.Email.Server = "smtp.example.com"
@@ -460,6 +470,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
@@ -493,6 +504,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 			},
@@ -526,6 +538,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a123456789012345678901234567890",
 			},
@@ -536,6 +549,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
 				c.Email.Server = "smtp.example.com"
@@ -571,6 +585,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a12345678901234567890123456789012",
 			},
@@ -581,6 +596,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.Email.Server = "smtp.example.com"
