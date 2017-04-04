@@ -3,6 +3,18 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "ZKxETlJdB2XubMrZnXB0FQimVA8=",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "10f801ebc38b33738c9d17d50860f484a0988ff5",
+			"revisionTime": "2017-03-17T14:32:14Z"
+		},
+		{
+			"checksumSHA1": "ulFwBsxjpyu+bk44+LKDl8AKQiA=",
+			"path": "github.com/aryann/difflib",
+			"revision": "a1a4dd44eb11820695fbe83e00fb2301ee6eb54c",
+			"revisionTime": "2017-02-26T19:44:04Z"
+		},
+		{
 			"path": "github.com/aws/aws-sdk-go/aws",
 			"revision": ""
 		},
@@ -121,6 +133,12 @@
 			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
+			"checksumSHA1": "dvabztWVQX8f6oMLRyv4dLH+TGY=",
+			"path": "github.com/davecgh/go-spew/spew",
+			"revision": "346938d642f2ec3594ed81d874461961cd0faa76",
+			"revisionTime": "2016-10-29T20:57:26Z"
+		},
+		{
 			"checksumSHA1": "cVyhKIRI2gQrgpn5qrBeAqErmWM=",
 			"path": "github.com/go-ini/ini",
 			"revision": "6e4869b434bd001f6983749881c7ead3545887d8",
@@ -145,22 +163,22 @@
 			"revisionTime": "2017-02-06T22:33:54Z"
 		},
 		{
-			"checksumSHA1": "eOXF2PEvYLMeD8DSzLZJWbjYzco=",
-			"path": "github.com/kr/pretty",
-			"revision": "cfb55aafdaf3ec08f0db22699ab822c50091b1c4",
-			"revisionTime": "2016-08-23T17:07:15Z"
-		},
-		{
-			"checksumSHA1": "uulQHQ7IsRKqDudBC8Go9J0gtAc=",
-			"path": "github.com/kr/text",
-			"revision": "7cafcd837844e784b526369c9bce262804aebc60",
-			"revisionTime": "2016-05-04T02:26:26Z"
+			"checksumSHA1": "ynJSWoF6v+3zMnh9R0QmmG6iGV8=",
+			"path": "github.com/pkg/errors",
+			"revision": "ff09b135c25aae272398c51a07235b90a75aa4f0",
+			"revisionTime": "2017-03-16T20:15:38Z"
 		},
 		{
 			"checksumSHA1": "LMu1NsthSqcXfKu0m6YGPAmwBcY=",
 			"path": "github.com/urfave/cli",
 			"revision": "0bdeddeeb0f650497d603c4ad7b20cfe685682f6",
 			"revisionTime": "2016-11-22T04:36:10Z"
+		},
+		{
+			"checksumSHA1": "oomO3tMbCTnwZSWKg2VACMnn/IY=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "493114f68206f85e7e333beccfabc11e98cba8dd",
+			"revisionTime": "2017-03-31T21:25:38Z"
 		},
 		{
 			"checksumSHA1": "0KwOlQV1dNUh9X8t+5s7nX5bqfk=",

@@ -16,10 +16,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aryann/difflib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/glacier"
-	"github.com/kr/pretty"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
 )
@@ -71,7 +72,7 @@ func TestNewAWSCloud(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, awsCloud))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, awsCloud))
 			}
 			for key, value := range scenario.expectedEnv {
 				if env := os.Getenv(key); env != value {
@@ -104,11 +105,14 @@ func TestAWSCloud_Send(t *testing.T) {
 			filename:             "toglacier-idontexist.tmp",
 			multipartUploadLimit: 102400,
 			partSize:             4096,
-			expectedError: fmt.Errorf("error opening archive. details: %s", &os.PathError{
-				Op:   "open",
-				Path: "toglacier-idontexist.tmp",
-				Err:  errors.New("no such file or directory"),
-			}),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeOpeningArchive,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-idontexist.tmp",
+					Err:  errors.New("no such file or directory"),
+				},
+			},
 		},
 		{
 			description: "it should send a small backup correctly",
@@ -177,7 +181,10 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error sending archive to aws glacier. details: connection error"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeSendingArchive,
+				Err:  errors.New("connection error"),
+			},
 		},
 		{
 			description: "it should detect when the hash is different after sending a small backup",
@@ -211,7 +218,9 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should send a big backup correctly",
@@ -302,7 +311,10 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error initializing multipart upload. details: aws is out"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeInitMultipart,
+				Err:  errors.New("aws is out"),
+			},
 		},
 		{
 			description: "it should detect an error while sending big backup part",
@@ -351,7 +363,12 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error sending an archive part (400). details: part rejected"),
+			expectedError: &cloud.MultipartError{
+				Offset: 400,
+				Size:   42000,
+				Code:   cloud.MultipartErrorCodeSendingArchive,
+				Err:    errors.New("part rejected"),
+			},
 		},
 		{
 			description: "it should detect when backup part checksum don't match",
@@ -391,7 +408,11 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums on archive part (0)"),
+			expectedError: &cloud.MultipartError{
+				Offset: 0,
+				Size:   42000,
+				Code:   cloud.MultipartErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should detect an error while completing a big backup upload",
@@ -435,7 +456,11 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error completing multipart upload. details: backup too big"),
+			expectedError: &cloud.Error{
+				ID:   "UPLOAD123",
+				Code: cloud.ErrorCodeCompleteMultipart,
+				Err:  errors.New("backup too big"),
+			},
 		},
 		{
 			description: "it should detect when a big backup checksum don't match",
@@ -487,7 +512,16 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums. backup removed"),
+			expected: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VaultName: "vault",
+			},
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should detect when a big backup checksum don't match and fail to remove it",
@@ -535,7 +569,21 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums. fail to remove backup “AWSID123”. details: error removing backup. details: connection error"),
+			expected: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VaultName: "vault",
+			},
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeComparingChecksums,
+				Err: &cloud.Error{
+					ID:   "AWSID123",
+					Code: cloud.ErrorCodeRemovingArchive,
+					Err:  errors.New("connection error"),
+				},
+			},
 		},
 	}
 
@@ -546,9 +594,9 @@ func TestAWSCloud_Send(t *testing.T) {
 
 			backup, err := scenario.awsCloud.Send(scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backup))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.MultipartErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -648,7 +696,10 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error initiating the job. details: a crazy error"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeInitJob,
+				Err:  errors.New("a crazy error"),
+			},
 		},
 		{
 			description: "it should detect when there's an error listing the existing jobs",
@@ -666,7 +717,11 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: another crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeRetrievingJob,
+				Err:  errors.New("another crazy error"),
+			},
 		},
 		{
 			description: "it should detect when the job failed",
@@ -693,7 +748,11 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: something went wrong"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobFailed,
+				Err:  errors.New("something went wrong"),
+			},
 		},
 		{
 			description: "it should detect when the job was not found",
@@ -719,7 +778,10 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("job not found in aws"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobNotFound,
+			},
 		},
 		{
 			description: "it should continue checking jobs until it completes",
@@ -811,7 +873,11 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobComplete,
+				Err:  errors.New("job corrupted"),
+			},
 		},
 		{
 			description: "it should detect an error while decoding the job data",
@@ -844,7 +910,11 @@ func TestAWSCloud_List(t *testing.T) {
 			},
 			// *json.SyntaxError doesn't export the msg attribute, so we need to
 			// hard-coded the error message here
-			expectedError: errors.New(`error decoding the iventory. details: invalid character '{' looking for beginning of object key string`),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeDecodingData,
+				Err:  errors.New("invalid character '{' looking for beginning of object key string"),
+			},
 		},
 	}
 
@@ -852,9 +922,9 @@ func TestAWSCloud_List(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			backups, err := scenario.awsCloud.List()
 			if !reflect.DeepEqual(scenario.expected, backups) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -916,7 +986,11 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error initiating the job. details: a crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeInitJob,
+				Err:  errors.New("a crazy error"),
+			},
 		},
 		{
 			description: "it should detect when there's an error listing the existing jobs",
@@ -935,7 +1009,11 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: another crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeRetrievingJob,
+				Err:  errors.New("another crazy error"),
+			},
 		},
 		{
 			description: "it should detect when the job failed",
@@ -963,7 +1041,11 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: something went wrong"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobFailed,
+				Err:  errors.New("something went wrong"),
+			},
 		},
 		{
 			description: "it should detect when the job was not found",
@@ -990,7 +1072,10 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("job not found in aws"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobNotFound,
+			},
 		},
 		{
 			description: "it should continue checking jobs until it completes",
@@ -1056,7 +1141,11 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobComplete,
+				Err:  errors.New("job corrupted"),
+			},
 		},
 	}
 
@@ -1064,9 +1153,9 @@ func TestAWSCloud_Get(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			filename, err := scenario.awsCloud.Get(scenario.id)
 			if !reflect.DeepEqual(scenario.expected, filename) {
-				t.Errorf("filenames don't match.\n%s", pretty.Diff(scenario.expected, filename))
+				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -1105,14 +1194,18 @@ func TestAWSCloud_Remove(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error removing backup. details: no backup here"),
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeRemovingArchive,
+				Err:  errors.New("no backup here"),
+			},
 		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			err := scenario.awsCloud.Remove(scenario.id)
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -1476,4 +1569,9 @@ type mockReader struct {
 
 func (m mockReader) Read(p []byte) (n int, err error) {
 	return m.mockRead(p)
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

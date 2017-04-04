@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Encrypt/decrypt backup with a shared secret
 - Encryption data authentication (HMAC-SHA256)
 - Send report with the scheduler actions periodically
+- Output to a log file using logrus library
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
 
 ### Changed
 - Archive algorithm refactory to simplify the tar file
+- Internal API now has well defined errors
 
 ## [2.0.3] - 2017-03-24
 ### Fixed

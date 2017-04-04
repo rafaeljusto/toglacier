@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -22,6 +22,7 @@ var config unsafe.Pointer
 type Config struct {
 	Paths        []string `yaml:"paths" envconfig:"paths"`
 	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
+	LogFile      string   `yaml:"log file" envconfig:"log_file"`
 	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
 	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
 
@@ -68,10 +69,25 @@ func Default() {
 }
 
 // LoadFromFile parse an YAML file and fill the system configuration parameters.
+// On error it will return an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func LoadFromFile(filename string) error {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		return errors.WithStack(newError(filename, ErrorCodeReadingFile, err))
 	}
 
 	c := Current()
@@ -80,14 +96,29 @@ func LoadFromFile(filename string) error {
 	}
 
 	if err = yaml.Unmarshal(content, c); err != nil {
-		return err
+		return errors.WithStack(newError(filename, ErrorCodeParsingYAML, err))
 	}
 
 	Update(c)
 	return nil
 }
 
-// LoadFromEnvironment analysis all project environment variables.
+// LoadFromEnvironment analysis all project environment variables. On error it
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func LoadFromEnvironment() error {
 	c := Current()
 	if c == nil {
@@ -95,7 +126,7 @@ func LoadFromEnvironment() error {
 	}
 
 	if err := envconfig.Process(prefix, c); err != nil {
-		return err
+		return errors.WithStack(newError("", ErrorCodeReadingEnvVars, err))
 	}
 
 	Update(c)
@@ -106,13 +137,29 @@ type encrypted struct {
 	Value string
 }
 
+// UnmarshalText automatically decrypts a value from the configuration. On error
+// it will return an Error type encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (e *encrypted) UnmarshalText(value []byte) error {
 	e.Value = string(value)
 
 	if strings.HasPrefix(e.Value, "encrypted:") {
 		var err error
 		if e.Value, err = passwordDecrypt(strings.TrimPrefix(e.Value, "encrypted:")); err != nil {
-			return fmt.Errorf("error decrypting value. details: %s", err)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -123,9 +170,25 @@ type aesKey struct {
 	encrypted
 }
 
+// UnmarshalText automatically decrypts a value from the configuration. On error
+// it will return an Error type encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (a *aesKey) UnmarshalText(value []byte) error {
 	if err := a.encrypted.UnmarshalText(value); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	// The key argument should be the AES key, either 16, 24, or 32 bytes to

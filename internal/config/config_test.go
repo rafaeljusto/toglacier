@@ -2,16 +2,17 @@ package config_test
 
 import (
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"syscall"
 	"testing"
 
+	"github.com/aryann/difflib"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/kr/pretty"
 	"github.com/rafaeljusto/toglacier/internal/config"
 	"gopkg.in/yaml.v2"
 )
@@ -40,19 +41,21 @@ func TestDefault(t *testing.T) {
 			config.Default()
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 		})
 	}
 }
 
 func TestLoadFromFile(t *testing.T) {
-	scenarios := []struct {
+	type scenario struct {
 		description   string
 		filename      string
 		expected      *config.Config
 		expectedError error
-	}{
+	}
+
+	scenarios := []scenario{
 		{
 			description: "it should load a YAML configuration file correctly",
 			filename: func() string {
@@ -67,6 +70,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 email:
@@ -95,6 +99,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.Email.Server = "smtp.example.com"
@@ -117,48 +122,56 @@ aws:
 		{
 			description: "it should detect when the file doesn't exist",
 			filename:    "toglacier-idontexist.tmp",
-			expectedError: &os.PathError{
-				Op:   "open",
-				Path: "toglacier-idontexist.tmp",
-				Err:  syscall.Errno(2),
+			expectedError: &config.Error{
+				Filename: "toglacier-idontexist.tmp",
+				Code:     config.ErrorCodeReadingFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-idontexist.tmp",
+					Err:  syscall.Errno(2),
+				},
 			},
 		},
-		{
-			description: "it should detect an invalid YAML configuration file",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
 
-				f.WriteString(`
+			f.WriteString(`
 - /usr/local/important-files-1
 - /usr/local/important-files-2
 `)
 
-				return f.Name()
-			}(),
-			expectedError: &yaml.TypeError{
-				Errors: []string{
-					"line 2: cannot unmarshal !!seq into config.Config",
+			var s scenario
+			s.description = "it should detect an invalid YAML configuration file"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &yaml.TypeError{
+					Errors: []string{
+						"line 2: cannot unmarshal !!seq into config.Config",
+					},
 				},
-			},
-		},
-		{
-			description: "it should detect invalid encrypted values",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+			}
 
-				f.WriteString(`
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 email:
@@ -178,24 +191,33 @@ aws:
   vault name: backup
 `)
 
-				return f.Name()
-			}(),
-			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
-		},
-		{
-			description: "it should detect an invalid backup secret",
-			filename: func() string {
-				f, err := ioutil.TempFile("", "toglacier-")
-				if err != nil {
-					t.Fatalf("error creating a temporary file. details %s", err)
-				}
-				defer f.Close()
+			var s scenario
+			s.description = "it should detect invalid encrypted values"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodeDecodeBase64,
+					Err:  base64.CorruptInputError(4),
+				},
+			}
 
-				f.WriteString(`
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: encrypted:invalid
 email:
@@ -215,10 +237,20 @@ aws:
   vault name: backup
 `)
 
-				return f.Name()
-			}(),
-			expectedError: fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
-		},
+			var s scenario
+			s.description = "it should detect an invalid backup secret"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodeDecodeBase64,
+					Err:  base64.CorruptInputError(4),
+				},
+			}
+
+			return s
+		}(),
 		{
 			description: "it should fill the backup secret when is less than 32 bytes",
 			filename: func() string {
@@ -233,6 +265,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: a123456789012345678901234567890
 email:
@@ -261,6 +294,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
 				c.Email.Server = "smtp.example.com"
@@ -294,6 +328,7 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 audit file: /var/log/toglacier/audit.log
+log file: /var/log/toglacier/toglacier.log
 keep backups: 10
 backup secret: a12345678901234567890123456789012
 email:
@@ -322,6 +357,7 @@ aws:
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.Email.Server = "smtp.example.com"
@@ -354,10 +390,10 @@ aws:
 			err := config.LoadFromFile(scenario.filename)
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !config.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -387,6 +423,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
@@ -397,6 +434,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.Email.Server = "smtp.example.com"
@@ -432,15 +470,22 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 			},
-			expectedError: &envconfig.ParseError{
-				KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
-				FieldName: "AccountID",
-				TypeName:  "config.encrypted",
-				Value:     "encrypted:invalid",
-				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
+					FieldName: "AccountID",
+					TypeName:  "config.encrypted",
+					Value:     "encrypted:invalid",
+					Err: &config.Error{
+						Code: config.ErrorCodeDecodeBase64,
+						Err:  base64.CorruptInputError(4),
+					},
+				},
 			},
 		},
 		{
@@ -459,15 +504,22 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 			},
-			expectedError: &envconfig.ParseError{
-				KeyName:   "TOGLACIER_BACKUP_SECRET",
-				FieldName: "BackupSecret",
-				TypeName:  "config.aesKey",
-				Value:     "encrypted:invalid",
-				Err:       fmt.Errorf("error decrypting value. details: %s", base64.CorruptInputError(4)),
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_BACKUP_SECRET",
+					FieldName: "BackupSecret",
+					TypeName:  "config.aesKey",
+					Value:     "encrypted:invalid",
+					Err: &config.Error{
+						Code: config.ErrorCodeDecodeBase64,
+						Err:  base64.CorruptInputError(4),
+					},
+				},
 			},
 		},
 		{
@@ -486,6 +538,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a123456789012345678901234567890",
 			},
@@ -496,6 +549,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
 				c.Email.Server = "smtp.example.com"
@@ -531,6 +585,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
 				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a12345678901234567890123456789012",
 			},
@@ -541,6 +596,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-2",
 				}
 				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.LogFile = "/var/log/toglacier/toglacier.log"
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.Email.Server = "smtp.example.com"
@@ -579,12 +635,17 @@ func TestLoadFromEnvironment(t *testing.T) {
 			err := config.LoadFromEnvironment()
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
-				t.Errorf("config don't match.\n%s", pretty.Diff(scenario.expected, c))
+				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !config.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
 	}
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

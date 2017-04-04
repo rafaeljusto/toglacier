@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kr/pretty"
+	"github.com/aryann/difflib"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/report"
 )
@@ -143,15 +144,23 @@ func TestBuild(t *testing.T) {
 			reports: []report.Report{
 				mockReport{
 					mockBuild: func() (string, error) {
-						return "", errors.New("error generating report")
+						return "", &report.Error{
+							Code: report.ErrorCodeTemplate,
+							Err:  errors.New("error generating report"),
+						}
 					},
 				},
 			},
-			expectedError: errors.New("error generating report"),
+			expectedError: &report.Error{
+				Code: report.ErrorCodeTemplate,
+				Err:  errors.New("error generating report"),
+			},
 		},
 	}
 
 	for _, scenario := range scenarios {
+		report.Clear()
+
 		t.Run(scenario.description, func(t *testing.T) {
 			for _, r := range scenario.reports {
 				report.Add(r)
@@ -172,10 +181,10 @@ func TestBuild(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(expectedLines, outputLines) {
-				t.Errorf("output don't match.\n%s", pretty.Diff(expectedLines, outputLines))
+				t.Errorf("output don't match.\n%s", Diff(expectedLines, outputLines))
 			}
 
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !report.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -188,4 +197,9 @@ type mockReport struct {
 
 func (r mockReport) Build() (string, error) {
 	return r.mockBuild()
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

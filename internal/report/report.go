@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
 
@@ -18,6 +19,8 @@ var (
 	reportsLock sync.Mutex
 )
 
+// Report is the contract that every report must respect so it can be included
+// in the notification engine.
 type Report interface {
 	Build() (string, error)
 }
@@ -58,6 +61,22 @@ func NewSendBackup() SendBackup {
 	}
 }
 
+// Build creates a report with details of an uploaded backup to the cloud. On
+// error it will return an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *report.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (s SendBackup) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
@@ -90,7 +109,7 @@ func (s SendBackup) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, s); err != nil {
-		return "", err
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -112,6 +131,22 @@ func NewListBackups() ListBackups {
 	}
 }
 
+// Build creates a report with details of a remote backups listing. On
+// error it will return an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *report.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (l ListBackups) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] List Backup
@@ -133,7 +168,7 @@ func (l ListBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, l); err != nil {
-		return "", err
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -158,6 +193,22 @@ func NewRemoveOldBackups() RemoveOldBackups {
 	}
 }
 
+// Build creates a report with details of old backups removal procedure. On
+// error it will return an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *report.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (r RemoveOldBackups) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Remove Old Backups
@@ -189,11 +240,12 @@ func (r RemoveOldBackups) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, r); err != nil {
-		return "", err
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
 
+// Test is a simple test report only to check if everything is working well.
 type Test struct {
 	basic
 }
@@ -205,6 +257,22 @@ func NewTest() Test {
 	}
 }
 
+// Build creates a report for testing purpose. On error it will return an
+// Error type encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *report.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (tr Test) Build() (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Test report
@@ -223,7 +291,7 @@ func (tr Test) Build() (string, error) {
 
 	var buffer bytes.Buffer
 	if err := t.Execute(&buffer, tr); err != nil {
-		return "", err
+		return "", errors.WithStack(newError(ErrorCodeTemplate, err))
 	}
 	return buffer.String(), nil
 }
@@ -236,8 +304,32 @@ func Add(r Report) {
 	reports = append(reports, r)
 }
 
+// Clear removes all reports from the internal cache. Useful for testing
+// environments.
+func Clear() {
+	reportsLock.Lock()
+	defer reportsLock.Unlock()
+
+	reports = []Report{}
+}
+
 // Build generates the report in text format. Every time this function is called the
-// internal cache of reports is cleared.
+// internal cache of reports is cleared. On error it will return an
+// Error type encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *report.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func Build() (string, error) {
 	reportsLock.Lock()
 	defer reportsLock.Unlock()
@@ -249,7 +341,7 @@ func Build() (string, error) {
 	for _, r := range reports {
 		tmp, err := r.Build()
 		if err != nil {
-			return "", err
+			return "", errors.WithStack(err)
 		}
 
 		// using fmt.Sprintln to create a cross platform line break
