@@ -385,6 +385,19 @@ func TestPathErrorEqual(t *testing.T) {
 			expected: false,
 		},
 		{
+			description: "it should detect when only one causes of the error is undefined",
+			err1: &archive.PathError{
+				Path: "/tmp/data",
+				Code: archive.PathErrorCodeInfo,
+				Err:  errors.New("low level error"),
+			},
+			err2: &archive.PathError{
+				Path: "/tmp/data",
+				Code: archive.PathErrorCodeInfo,
+			},
+			expected: false,
+		},
+		{
 			description: "it should detect when one the error isn't PathError type",
 			err1: &archive.PathError{
 				Path: "/tmp/data",
