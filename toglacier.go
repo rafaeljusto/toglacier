@@ -93,7 +93,7 @@ func main() {
 		}
 
 		tarBuilder = archive.NewTARBuilder(logger)
-		ofbEnvelop = archive.NewOFBEnvelop()
+		ofbEnvelop = archive.NewOFBEnvelop(logger)
 
 		if awsCloud, err = cloud.NewAWSCloud(config.Current(), false); err != nil {
 			fmt.Printf("error initializing AWS cloud. details: %s\n", err)

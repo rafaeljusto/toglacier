@@ -46,7 +46,7 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 //       }
 //     }
 func (t TARBuilder) Build(backupPaths ...string) (string, error) {
-	t.logger.Debug("archive: creating tar file in temporary directory")
+	t.logger.Debugf("archive: build tar for backup paths %v", backupPaths)
 
 	tarFile, err := ioutil.TempFile("", "toglacier-")
 	if err != nil {
