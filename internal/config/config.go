@@ -22,9 +22,13 @@ var config unsafe.Pointer
 type Config struct {
 	Paths        []string `yaml:"paths" envconfig:"paths"`
 	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
-	LogFile      string   `yaml:"log file" envconfig:"log_file"`
 	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
 	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+
+	Log struct {
+		File  string   `yaml:"file" envconfig:"file"`
+		Level LogLevel `yaml:"level" envconfig:"level"`
+	} `yaml:"log" envconfig:"log"`
 
 	Email struct {
 		Server   string    `yaml:"server" envconfig:"server"`
@@ -64,6 +68,7 @@ func Default() {
 
 	c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
 	c.KeepBackups = 10
+	c.Log.Level = LogLevelError
 
 	Update(c)
 }
@@ -130,6 +135,55 @@ func LoadFromEnvironment() error {
 	}
 
 	Update(c)
+	return nil
+}
+
+const (
+	// LogLevelDebug usually only enabled when debugging. Very verbose logging.
+	LogLevelDebug LogLevel = "debug"
+
+	// LogLevelInfo general operational entries about what's going on inside the
+	// application.
+	LogLevelInfo LogLevel = "info"
+
+	// LogLevelWarning non-critical entries that deserve eyes.
+	LogLevelWarning LogLevel = "warning"
+
+	// LogLevelError used for errors that should definitely be noted.
+	LogLevelError LogLevel = "error"
+
+	// LogLevelFatal it will terminates the process after the the entry is logged.
+	LogLevelFatal LogLevel = "fatal"
+
+	// LogLevelPanic highest level of severity. Logs and then calls panic with the
+	// message passed to Debug, Info, ...
+	LogLevelPanic LogLevel = "panic"
+)
+
+var logLevelValid = map[string]bool{
+	string(LogLevelDebug):   true,
+	string(LogLevelInfo):    true,
+	string(LogLevelWarning): true,
+	string(LogLevelError):   true,
+	string(LogLevelFatal):   true,
+	string(LogLevelPanic):   true,
+}
+
+// LogLevel determinate the verbosity of the log entries.
+type LogLevel string
+
+// UnmarshalText ensure that the log level defined in the configuration is
+// valid.
+func (l *LogLevel) UnmarshalText(value []byte) error {
+	logLevel := string(value)
+	logLevel = strings.TrimSpace(logLevel)
+	logLevel = strings.ToLower(logLevel)
+
+	if ok := logLevelValid[logLevel]; !ok {
+		return newError("", ErrorCodeLogLevel, nil)
+	}
+
+	*l = LogLevel(logLevel)
 	return nil
 }
 

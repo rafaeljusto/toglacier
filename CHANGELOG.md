@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Encryption data authentication (HMAC-SHA256)
 - Send report with the scheduler actions periodically
 - Output to a log file using logrus library
+- Log verbosity defined in configuration
 
 ### Fixed
 - Add sample configuration file to deb and txz packages

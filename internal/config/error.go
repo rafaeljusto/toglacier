@@ -30,6 +30,10 @@ const (
 
 	// ErrorCodeFillingIV error while filling the IV array with random bytes.
 	ErrorCodeFillingIV ErrorCode = "filling-iv"
+
+	// ErrorCodeLogLevel informed log level is unknown, it should be "debug",
+	// "info", "warning", "error", "fatal" or "panic".
+	ErrorCodeLogLevel ErrorCode = "log-level"
 )
 
 // ErrorCode stores the error type that occurred while reading
@@ -53,6 +57,8 @@ func (e ErrorCode) String() string {
 		return "invalid password size"
 	case ErrorCodeFillingIV:
 		return "error filling iv"
+	case ErrorCodeLogLevel:
+		return "invalid log level"
 	}
 
 	return "unknown error code"

@@ -67,9 +67,9 @@ func main() {
 
 		// optionally set logger output file defined in configuration. if not
 		// defined stdout will be used
-		if config.Current().LogFile != "" {
-			if logFile, err = os.OpenFile(config.Current().LogFile, os.O_CREATE|os.O_WRONLY, os.ModePerm); err != nil {
-				fmt.Printf("error opening log file “%s”. details: %s\n", config.Current().LogFile, err)
+		if config.Current().Log.File != "" {
+			if logFile, err = os.OpenFile(config.Current().Log.File, os.O_CREATE|os.O_WRONLY, os.ModePerm); err != nil {
+				fmt.Printf("error opening log file “%s”. details: %s\n", config.Current().Log.File, err)
 				return err
 			}
 
@@ -77,7 +77,22 @@ func main() {
 			logger.Out = io.MultiWriter(os.Stdout, logFile)
 		}
 
-		tarBuilder = archive.NewTARBuilder()
+		switch config.Current().Log.Level {
+		case config.LogLevelDebug:
+			logger.Level = logrus.DebugLevel
+		case config.LogLevelInfo:
+			logger.Level = logrus.InfoLevel
+		case config.LogLevelWarning:
+			logger.Level = logrus.WarnLevel
+		case config.LogLevelError:
+			logger.Level = logrus.ErrorLevel
+		case config.LogLevelFatal:
+			logger.Level = logrus.FatalLevel
+		case config.LogLevelPanic:
+			logger.Level = logrus.PanicLevel
+		}
+
+		tarBuilder = archive.NewTARBuilder(logger)
 		ofbEnvelop = archive.NewOFBEnvelop()
 
 		if awsCloud, err = cloud.NewAWSCloud(config.Current(), false); err != nil {
