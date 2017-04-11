@@ -122,7 +122,7 @@ func (o OFBEnvelop) Encrypt(filename, secret string) (string, error) {
 	}
 
 	o.logger.Debugf("archive: wrote %d bytes to file (encrypted content)", written)
-
+	o.logger.Infof("archive: file “%s” encrypted", filename)
 	return encryptedArchive.Name(), nil
 }
 
@@ -216,6 +216,7 @@ func (o OFBEnvelop) Decrypt(encryptedFilename, secret string) (string, error) {
 		return "", errors.WithStack(newError("", ErrorCodeAuthFailed, nil))
 	}
 
+	o.logger.Infof("archive: file “%s” decrypted", archive.Name())
 	return archive.Name(), nil
 }
 
