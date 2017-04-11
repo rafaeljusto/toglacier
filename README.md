@@ -68,6 +68,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
 | TOGLACIER_AUDIT                  | Path where we keep track of the backups |
 | TOGLACIER_LOG_FILE               | File where all events are written       |
+| TOGLACIER_LOG_LEVEL              | Verbosity of the logger                 |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 | TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
 | TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
@@ -84,7 +85,10 @@ and `Glacier Service`). You will find your AWS region identification
 By default the tool prints everything on the standard output. If you want to
 redirect it to a log file, you can define the location of the file with the
 `TOGLACIER_LOG_FILE`. Even with the output redirection, the messages are still
-writen in the standard output.
+writen in the standard output. You can define the verbosity using the
+`TOGLACIER_LOG_LEVEL` parameter, that can have the values `debug`, `info`,
+`warning`, `error`, `fatal` or `panic`. By default the `error` log level is
+used.
 
 There are some commands in the tool to manage the backups:
 

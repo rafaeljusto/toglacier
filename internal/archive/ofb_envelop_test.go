@@ -18,7 +18,7 @@ import (
 func TestOFBEnvelop_Encrypt(t *testing.T) {
 	type scenario struct {
 		description   string
-		envelop       archive.OFBEnvelop
+		envelop       *archive.OFBEnvelop
 		filename      string
 		secret        string
 		randomSource  io.Reader
@@ -29,8 +29,14 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 	scenarios := []scenario{
 		{
 			description: "it should detect when it tries to encrypt a file that doesn't exist",
-			filename:    "toglacier-idontexist.tmp",
-			secret:      "12345678901234567890123456789012",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			filename: "toglacier-idontexist.tmp",
+			secret:   "12345678901234567890123456789012",
 			expectedError: &archive.Error{
 				Filename: "toglacier-idontexist.tmp",
 				Code:     archive.ErrorCodeOpeningFile,
@@ -43,6 +49,12 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 		},
 		{
 			description: "it should detect when the archive has no read permission",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			filename: func() string {
 				n := path.Join(os.TempDir(), "toglacier-test-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -80,6 +92,12 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 
 			var s scenario
 			s.description = "it should detect when the random source generates an error"
+			s.envelop = archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
 			s.filename = f.Name()
 			s.secret = "1234567890123456"
 			s.randomSource = mockReader{
@@ -106,6 +124,12 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 
 			var s scenario
 			s.description = "it should detect when the AES secret length is invalid"
+			s.envelop = archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
 			s.filename = f.Name()
 			s.secret = "123456"
 			s.randomSource = rand.Reader
@@ -148,7 +172,7 @@ func TestOFBEnvelop_Encrypt(t *testing.T) {
 func TestOFBEnvelop_Decrypt(t *testing.T) {
 	type scenario struct {
 		description       string
-		envelop           archive.OFBEnvelop
+		envelop           *archive.OFBEnvelop
 		encryptedFilename string
 		secret            string
 		expectedFile      string
@@ -158,6 +182,12 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 	scenarios := []scenario{
 		{
 			description: "it should detect when the archive has no read permission",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			encryptedFilename: func() string {
 				n := path.Join(os.TempDir(), "toglacier-test-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -185,7 +215,13 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 		},
 		{
 			description: "it should ignore an unencrypted data even if the secret is defined",
-			secret:      "12345678901234567890123456789012",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			secret: "12345678901234567890123456789012",
 			encryptedFilename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -214,6 +250,12 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 
 			var s scenario
 			s.description = "it should detect when the backup decrypt key has an invalid AES length"
+			s.envelop = archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
 			s.encryptedFilename = f.Name()
 			s.secret = "123456"
 			s.expectedError = &archive.Error{
@@ -226,7 +268,13 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 		}(),
 		{
 			description: "it should detect when the decrypt authentication data is invalid",
-			secret:      "1234567890123456",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			secret: "1234567890123456",
 			encryptedFilename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -285,7 +333,7 @@ func TestOFBEnvelop_Decrypt(t *testing.T) {
 func TestOFBEnvelop_EncryptDecrypt(t *testing.T) {
 	scenarios := []struct {
 		description          string
-		envelop              archive.OFBEnvelop
+		envelop              *archive.OFBEnvelop
 		filename             string
 		secret               string
 		expectedFile         string
@@ -294,6 +342,12 @@ func TestOFBEnvelop_EncryptDecrypt(t *testing.T) {
 	}{
 		{
 			description: "it should encrypt and decrypt the archive correctly",
+			envelop: archive.NewOFBEnvelop(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {

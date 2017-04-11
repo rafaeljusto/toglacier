@@ -23,11 +23,13 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
 func TestNewAWSCloud(t *testing.T) {
 	scenarios := []struct {
 		description   string
+		logger        log.Logger
 		config        *config.Config
 		debug         bool
 		expected      *cloud.AWSCloud
@@ -62,7 +64,7 @@ func TestNewAWSCloud(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			os.Clearenv()
 
-			awsCloud, err := cloud.NewAWSCloud(scenario.config, scenario.debug)
+			awsCloud, err := cloud.NewAWSCloud(scenario.logger, scenario.config, scenario.debug)
 
 			// we are not interested on testing low level structures from AWS library
 			// or clock controlling layer
@@ -105,6 +107,14 @@ func TestAWSCloud_Send(t *testing.T) {
 			filename:             "toglacier-idontexist.tmp",
 			multipartUploadLimit: 102400,
 			partSize:             4096,
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+			},
 			expectedError: &cloud.Error{
 				Code: cloud.ErrorCodeOpeningArchive,
 				Err: &os.PathError{
@@ -129,6 +139,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -168,6 +184,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -201,6 +223,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -237,6 +265,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             1048576,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -298,6 +332,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -331,6 +371,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -385,6 +431,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -429,6 +481,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -477,6 +535,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -538,6 +602,12 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -616,6 +686,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should list all backups correctly",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -688,6 +764,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect an error while initiating the job",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -704,6 +786,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect when there's an error listing the existing jobs",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -726,6 +814,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect when the job failed",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -757,6 +851,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect when the job was not found",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -786,6 +886,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should continue checking jobs until it completes",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -849,6 +955,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect an error while retrieving the job data",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -882,6 +994,12 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect an error while decoding the job data",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -946,6 +1064,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should retrieve a backup correctly",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -978,6 +1102,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect an error while initiating the job",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -996,6 +1126,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect when there's an error listing the existing jobs",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1019,6 +1155,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect when the job failed",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1051,6 +1193,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect when the job was not found",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1081,6 +1229,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should continue checking jobs until it completes",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1117,6 +1271,12 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect an error while retrieving the job data",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1173,6 +1333,12 @@ func TestAWSCloud_Remove(t *testing.T) {
 			description: "it should remove a backup correctly",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1186,6 +1352,12 @@ func TestAWSCloud_Remove(t *testing.T) {
 			description: "it should detect an error while removing a backup",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
@@ -1569,6 +1741,26 @@ type mockReader struct {
 
 func (m mockReader) Read(p []byte) (n int, err error) {
 	return m.mockRead(p)
+}
+
+type mockLogger struct {
+	mockDebug  func(args ...interface{})
+	mockDebugf func(format string, args ...interface{})
+	mockInfo   func(args ...interface{})
+	mockInfof  func(format string, args ...interface{})
+}
+
+func (m mockLogger) Debug(args ...interface{}) {
+	m.mockDebug(args...)
+}
+func (m mockLogger) Debugf(format string, args ...interface{}) {
+	m.mockDebugf(format, args...)
+}
+func (m mockLogger) Info(args ...interface{}) {
+	m.mockInfo(args...)
+}
+func (m mockLogger) Infof(format string, args ...interface{}) {
+	m.mockInfof(format, args...)
 }
 
 // Diff is useful to see the difference when comparing two complex types.

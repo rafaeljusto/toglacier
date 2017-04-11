@@ -17,13 +17,19 @@ import (
 func TestTARBuilder_Build(t *testing.T) {
 	scenarios := []struct {
 		description   string
-		builder       archive.TARBuilder
+		builder       *archive.TARBuilder
 		backupPaths   []string
 		expected      func(filename string) error
 		expectedError error
 	}{
 		{
 			description: "it should create an archive correctly from directory path",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				d, err := ioutil.TempDir("", "toglacier-test")
 				if err != nil {
@@ -101,6 +107,12 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should create an archive correctly from file path",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -159,6 +171,12 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path does not exist",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
@@ -174,6 +192,12 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path (directory) does not have permission",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				n := path.Join(os.TempDir(), "toglacier-test-archive-dir-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -197,6 +221,12 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path (file) does not have permission",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				n := path.Join(os.TempDir(), "toglacier-test-archive-file-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -223,6 +253,12 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while walking in the path",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
 			backupPaths: func() []string {
 				n := path.Join(os.TempDir(), "toglacier-test-archive-dir-file-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -270,22 +306,22 @@ func TestTARBuilder_Build(t *testing.T) {
 	}
 }
 
-type mockLog struct {
+type mockLogger struct {
 	mockDebug  func(args ...interface{})
 	mockDebugf func(format string, args ...interface{})
 	mockInfo   func(args ...interface{})
 	mockInfof  func(format string, args ...interface{})
 }
 
-func (m mockLog) Debug(args ...interface{}) {
+func (m mockLogger) Debug(args ...interface{}) {
 	m.mockDebug(args...)
 }
-func (m mockLog) Debugf(format string, args ...interface{}) {
+func (m mockLogger) Debugf(format string, args ...interface{}) {
 	m.mockDebugf(format, args...)
 }
-func (m mockLog) Info(args ...interface{}) {
+func (m mockLogger) Info(args ...interface{}) {
 	m.mockInfo(args...)
 }
-func (m mockLog) Infof(format string, args ...interface{}) {
+func (m mockLogger) Infof(format string, args ...interface{}) {
 	m.mockInfof(format, args...)
 }
