@@ -9,16 +9,19 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
 // AuditFile stores all backup information in a simple text file.
 type AuditFile struct {
+	logger   log.Logger
 	Filename string
 }
 
 // NewAuditFile initializes a new AuditFile object.
-func NewAuditFile(filename string) *AuditFile {
+func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 	return &AuditFile{
+		logger:   logger,
 		Filename: filename,
 	}
 }
@@ -44,6 +47,8 @@ func NewAuditFile(filename string) *AuditFile {
 //       }
 //     }
 func (a *AuditFile) Save(backup cloud.Backup) error {
+	a.logger.Debugf("storage: saving backup “%s” in audit file storage", backup.ID)
+
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
@@ -55,6 +60,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 		return errors.WithStack(newError(ErrorCodeWritingFile, err))
 	}
 
+	a.logger.Infof("storage: backup “%s” saved successfully in audit file storage", backup.ID)
 	return nil
 }
 
@@ -75,6 +81,8 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 //       }
 //     }
 func (a *AuditFile) List() ([]cloud.Backup, error) {
+	a.logger.Debug("storage: listing backups from audit file storage")
+
 	auditFile, err := os.Open(a.Filename)
 	if err != nil {
 		// if the file doesn't exist we can presume that there's no backups yet
@@ -112,6 +120,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 		return nil, errors.WithStack(newError(ErrorCodeReadingFile, err))
 	}
 
+	a.logger.Infof("storage: backups listed successfully from audit file storage")
 	return backups, nil
 }
 
@@ -132,17 +141,22 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 //       }
 //     }
 func (a *AuditFile) Remove(id string) error {
+	a.logger.Debugf("storage: removing backup “%s” from audit file storage", id)
+
 	backups, err := a.List()
 	if err != nil {
 		return err
 	}
 
-	if err = os.Rename(a.Filename, a.Filename+"."+time.Now().Format("20060102150405")); err != nil {
+	backupName := a.Filename + "." + time.Now().Format("20060102150405")
+	a.logger.Debugf("storage: moving current audit file to “%s”", backupName)
+	if err = os.Rename(a.Filename, backupName); err != nil {
 		return errors.WithStack(newError(ErrorCodeMovingFile, err))
 	}
 
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
+		// TODO: recover backup file
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer auditFile.Close()
@@ -154,9 +168,11 @@ func (a *AuditFile) Remove(id string) error {
 
 		audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
 		if _, err = auditFile.WriteString(audit); err != nil {
+			// TODO: recover backup file
 			return errors.WithStack(newError(ErrorCodeWritingFile, err))
 		}
 	}
 
+	a.logger.Infof("storage: backup “%s” removed successfully from audit file storage", id)
 	return nil
 }

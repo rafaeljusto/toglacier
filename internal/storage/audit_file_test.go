@@ -14,6 +14,7 @@ import (
 	"github.com/aryann/difflib"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/log"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
 
@@ -22,6 +23,7 @@ func TestAuditFile_Save(t *testing.T) {
 
 	scenarios := []struct {
 		description   string
+		logger        log.Logger
 		filename      string
 		backup        cloud.Backup
 		expected      string
@@ -29,6 +31,12 @@ func TestAuditFile_Save(t *testing.T) {
 	}{
 		{
 			description: "it should save a backup information correctly",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -48,6 +56,12 @@ func TestAuditFile_Save(t *testing.T) {
 		},
 		{
 			description: "it should detect when the filename refers to a directory",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				d := path.Join(os.TempDir(), "toglacier-test-dir")
 				if err := os.MkdirAll(d, os.ModePerm); err != nil {
@@ -74,7 +88,7 @@ func TestAuditFile_Save(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			auditFile := storage.NewAuditFile(scenario.filename)
+			auditFile := storage.NewAuditFile(scenario.logger, scenario.filename)
 			err := auditFile.Save(scenario.backup)
 
 			auditFileContent, auditFileErr := ioutil.ReadFile(scenario.filename)
@@ -98,12 +112,19 @@ func TestAuditFile_List(t *testing.T) {
 
 	scenarios := []struct {
 		description   string
+		logger        log.Logger
 		filename      string
 		expected      []cloud.Backup
 		expectedError error
 	}{
 		{
 			description: "it should list all backups information correctly",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -131,12 +152,24 @@ func TestAuditFile_List(t *testing.T) {
 		},
 		{
 			description: "it should return no backups when the audit file doesn't exist",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				return path.Join(os.TempDir(), "toglacier-idontexist")
 			}(),
 		},
 		{
 			description: "it should detect when the audit file has no read permission",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				n := path.Join(os.TempDir(), "toglacier-test-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -162,6 +195,12 @@ func TestAuditFile_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when the filename references to a directory",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				d := path.Join(os.TempDir(), "toglacier-test-dir")
 				if err := os.MkdirAll(d, os.ModePerm); err != nil {
@@ -180,6 +219,12 @@ func TestAuditFile_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when an audit file line has the wrong number of columns",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -196,6 +241,12 @@ func TestAuditFile_List(t *testing.T) {
 		},
 		{
 			description: "it should detect when the audit file contains an invalid date",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -221,7 +272,7 @@ func TestAuditFile_List(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			auditFile := storage.NewAuditFile(scenario.filename)
+			auditFile := storage.NewAuditFile(scenario.logger, scenario.filename)
 			backups, err := auditFile.List()
 
 			if !reflect.DeepEqual(scenario.expected, backups) {
@@ -240,6 +291,7 @@ func TestAuditFile_Remove(t *testing.T) {
 
 	scenarios := []struct {
 		description   string
+		logger        log.Logger
 		filename      string
 		id            string
 		expected      string
@@ -247,6 +299,12 @@ func TestAuditFile_Remove(t *testing.T) {
 	}{
 		{
 			description: "it should remove a backup information correctly",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test")
 				if err != nil {
@@ -263,6 +321,12 @@ func TestAuditFile_Remove(t *testing.T) {
 		},
 		{
 			description: "it should detect when the audit file has no read permission",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			filename: func() string {
 				n := path.Join(os.TempDir(), "toglacier-test-noperm")
 				if _, err := os.Stat(n); os.IsNotExist(err) {
@@ -291,7 +355,7 @@ func TestAuditFile_Remove(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			auditFile := storage.NewAuditFile(scenario.filename)
+			auditFile := storage.NewAuditFile(scenario.logger, scenario.filename)
 			err := auditFile.Remove(scenario.id)
 
 			auditFileContent, auditFileErr := ioutil.ReadFile(scenario.filename)
@@ -308,6 +372,26 @@ func TestAuditFile_Remove(t *testing.T) {
 			}
 		})
 	}
+}
+
+type mockLogger struct {
+	mockDebug  func(args ...interface{})
+	mockDebugf func(format string, args ...interface{})
+	mockInfo   func(args ...interface{})
+	mockInfof  func(format string, args ...interface{})
+}
+
+func (m mockLogger) Debug(args ...interface{}) {
+	m.mockDebug(args...)
+}
+func (m mockLogger) Debugf(format string, args ...interface{}) {
+	m.mockDebugf(format, args...)
+}
+func (m mockLogger) Info(args ...interface{}) {
+	m.mockInfo(args...)
+}
+func (m mockLogger) Infof(format string, args ...interface{}) {
+	m.mockInfof(format, args...)
 }
 
 // Diff is useful to see the difference when comparing two complex types.

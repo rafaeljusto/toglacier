@@ -100,7 +100,7 @@ func main() {
 			return err
 		}
 
-		auditFileStorage = storage.NewAuditFile(config.Current().AuditFile)
+		auditFileStorage = storage.NewAuditFile(logger, config.Current().AuditFile)
 		return nil
 	}
 	app.Commands = []cli.Command{
