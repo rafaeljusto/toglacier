@@ -29,6 +29,25 @@ const (
 
 	// ErrorCodeDateFormat strange date format found in the local storage file.
 	ErrorCodeDateFormat ErrorCode = "date-format"
+
+	// ErrorCodeEncodingBackup failed to encode the backup to a storage
+	// representation.
+	ErrorCodeEncodingBackup ErrorCode = "encoding-backup"
+
+	// ErrorCodeDecodingBackup failed to decode the backup to the original format.
+	ErrorCodeDecodingBackup ErrorCode = "decoding-backup"
+
+	// ErrorCodeDatabaseNotFound database wasn't found.
+	ErrorCodeDatabaseNotFound ErrorCode = "database-not-found"
+
+	// ErrorCodeListing failed to list the backups from the database.
+	ErrorCodeListing ErrorCode = "listing"
+
+	// ErrorCodeSave failed to save the item in the database.
+	ErrorCodeSave ErrorCode = "save"
+
+	// ErrorCodeDelete failed to remove the item from the database.
+	ErrorCodeDelete ErrorCode = "delete"
 )
 
 // ErrorCode stores the error type that occurred while managing the local
@@ -50,6 +69,18 @@ func (e ErrorCode) String() string {
 		return "unexpected storage file format"
 	case ErrorCodeDateFormat:
 		return "invalid date format"
+	case ErrorCodeEncodingBackup:
+		return "failed to encode backup to a storage representation"
+	case ErrorCodeDecodingBackup:
+		return "failed to decode backup to the original representation"
+	case ErrorCodeDatabaseNotFound:
+		return "database not found"
+	case ErrorCodeListing:
+		return "failed to list backups in the database"
+	case ErrorCodeSave:
+		return "failed to save the item in the database"
+	case ErrorCodeDelete:
+		return "failed to remove the item from the database"
 	}
 
 	return "unknown error code"
