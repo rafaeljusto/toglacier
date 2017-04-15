@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"os"
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
@@ -9,16 +10,15 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
-var boltDBBucket = []byte("toglacier")
-
-const boltDBFileMode = 0600
+var BoltDBBucket = []byte("toglacier")
+var BoltDBFileMode = os.FileMode(0600)
 
 type BoltDB struct {
 	logger   log.Logger
 	Filename string
 }
 
-func NewBoltDB(filename string, logger log.Logger) *BoltDB {
+func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 	return &BoltDB{
 		logger:   logger,
 		Filename: filename,
@@ -26,7 +26,7 @@ func NewBoltDB(filename string, logger log.Logger) *BoltDB {
 }
 
 func (b *BoltDB) Save(backup cloud.Backup) error {
-	db, err := bolt.Open(b.Filename, boltDBFileMode, nil)
+	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
@@ -38,9 +38,9 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(boltDBBucket)
-		if bucket == nil {
-			return errors.WithStack(newError(ErrorCodeDatabaseNotFound, nil))
+		bucket, err := tx.CreateBucketIfNotExists(BoltDBBucket)
+		if err != nil {
+			return errors.WithStack(newError(ErrorCodeDatabaseNotFound, err)) // TODO: better error code?
 		}
 
 		if err := bucket.Put([]byte(backup.ID), encoded); err != nil {
@@ -58,7 +58,7 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 }
 
 func (b BoltDB) List() ([]cloud.Backup, error) {
-	db, err := bolt.Open(b.Filename, boltDBFileMode, nil)
+	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return nil, errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
@@ -67,7 +67,7 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 	var backups []cloud.Backup
 
 	db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(boltDBBucket)
+		bucket := tx.Bucket(BoltDBBucket)
 		if bucket == nil {
 			// no backup stored yet
 			return nil
@@ -93,14 +93,14 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 }
 
 func (b BoltDB) Remove(id string) error {
-	db, err := bolt.Open(b.Filename, boltDBFileMode, nil)
+	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer db.Close()
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(boltDBBucket)
+		bucket := tx.Bucket(BoltDBBucket)
 		if bucket == nil {
 			return errors.WithStack(newError(ErrorCodeDatabaseNotFound, nil))
 		}
