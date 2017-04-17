@@ -40,14 +40,23 @@ const (
 	// ErrorCodeDatabaseNotFound database wasn't found.
 	ErrorCodeDatabaseNotFound ErrorCode = "database-not-found"
 
-	// ErrorCodeListing failed to list the backups from the database.
-	ErrorCodeListing ErrorCode = "listing"
+	// ErrorCodeUpdatingDatabase problem while updating the database.
+	ErrorCodeUpdatingDatabase ErrorCode = "updating-database"
+
+	// ErrorCodeListingDatabase failed to list the backups from the database.
+	ErrorCodeListingDatabase ErrorCode = "listing-database"
 
 	// ErrorCodeSave failed to save the item in the database.
 	ErrorCodeSave ErrorCode = "save"
 
 	// ErrorCodeDelete failed to remove the item from the database.
 	ErrorCodeDelete ErrorCode = "delete"
+
+	// ErrorCodeIterating error while iterating over the database results.
+	ErrorCodeIterating ErrorCode = "iterating"
+
+	// ErrorAccessingBucket failed to open or create a database bucket.
+	ErrorAccessingBucket ErrorCode = "accessing-bucket"
 )
 
 // ErrorCode stores the error type that occurred while managing the local
@@ -75,12 +84,18 @@ func (e ErrorCode) String() string {
 		return "failed to decode backup to the original representation"
 	case ErrorCodeDatabaseNotFound:
 		return "database not found"
-	case ErrorCodeListing:
+	case ErrorCodeUpdatingDatabase:
+		return "failed to update database"
+	case ErrorCodeListingDatabase:
 		return "failed to list backups in the database"
 	case ErrorCodeSave:
 		return "failed to save the item in the database"
 	case ErrorCodeDelete:
 		return "failed to remove the item from the database"
+	case ErrorCodeIterating:
+		return "error while iterating over the database results"
+	case ErrorAccessingBucket:
+		return "failed to open or create a database bucket"
 	}
 
 	return "unknown error code"

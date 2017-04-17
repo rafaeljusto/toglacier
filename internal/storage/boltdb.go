@@ -40,7 +40,7 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 	err = db.Update(func(tx *bolt.Tx) error {
 		bucket, err := tx.CreateBucketIfNotExists(BoltDBBucket)
 		if err != nil {
-			return errors.WithStack(newError(ErrorCodeDatabaseNotFound, err)) // TODO: better error code?
+			return errors.WithStack(newError(ErrorAccessingBucket, err))
 		}
 
 		if err := bucket.Put([]byte(backup.ID), encoded); err != nil {
@@ -51,7 +51,7 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 	})
 
 	if err != nil {
-		return errors.WithStack(newError(ErrorCodeWritingFile, err))
+		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
 	return nil
@@ -66,7 +66,7 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 
 	var backups []cloud.Backup
 
-	db.View(func(tx *bolt.Tx) error {
+	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(BoltDBBucket)
 		if bucket == nil {
 			// no backup stored yet
@@ -83,11 +83,15 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 		})
 
 		if err != nil {
-			return errors.WithStack(newError(ErrorCodeListing, err))
+			return errors.WithStack(newError(ErrorCodeIterating, err))
 		}
 
 		return nil
 	})
+
+	if err != nil {
+		return nil, errors.WithStack(newError(ErrorCodeListingDatabase, err))
+	}
 
 	return backups, nil
 }
@@ -113,7 +117,7 @@ func (b BoltDB) Remove(id string) error {
 	})
 
 	if err != nil {
-		return errors.WithStack(newError(ErrorCodeWritingFile, err))
+		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
 	return nil
