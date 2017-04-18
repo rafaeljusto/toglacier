@@ -24,7 +24,7 @@ func main() {
 	var tarBuilder archive.Builder
 	var ofbEnvelop archive.Envelop
 	var awsCloud cloud.Cloud
-	var auditFileStorage storage.Storage
+	var localStorage storage.Storage
 
 	var logFile *os.File
 	defer logFile.Close()
@@ -100,7 +100,13 @@ func main() {
 			return err
 		}
 
-		auditFileStorage = storage.NewAuditFile(logger, config.Current().AuditFile)
+		switch config.Current().DatabaseType {
+		case config.DatabaseTypeAuditFile:
+			localStorage = storage.NewAuditFile(logger, config.Current().AuditFile)
+		case config.DatabaseTypeBoltDB:
+			localStorage = storage.NewBoltDB(logger, config.Current().AuditFile)
+		}
+
 		return nil
 	}
 	app.Commands = []cli.Command{
@@ -108,7 +114,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, auditFileStorage); err != nil {
+				if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, localStorage); err != nil {
 					logger.Error(err)
 				}
 				return nil
@@ -133,7 +139,7 @@ func main() {
 			Usage:     "remove a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if err := removeBackup(c.Args().First(), awsCloud, auditFileStorage); err != nil {
+				if err := removeBackup(c.Args().First(), awsCloud, localStorage); err != nil {
 					logger.Error(err)
 				}
 				return nil
@@ -150,7 +156,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				if backups, err := listBackups(c.Bool("remote"), awsCloud, auditFileStorage); err != nil {
+				if backups, err := listBackups(c.Bool("remote"), awsCloud, localStorage); err != nil {
 					logger.Error(err)
 
 				} else if len(backups) > 0 {
@@ -169,17 +175,17 @@ func main() {
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
 				scheduler.Every(1).Day().At("00:00").Do(func() {
-					if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, auditFileStorage); err != nil {
+					if err := backup(config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, localStorage); err != nil {
 						logger.Error(err)
 					}
 				})
 				scheduler.Every(1).Weeks().At("01:00").Do(func() {
-					if err := removeOldBackups(config.Current().KeepBackups, awsCloud, auditFileStorage); err != nil {
+					if err := removeOldBackups(config.Current().KeepBackups, awsCloud, localStorage); err != nil {
 						logger.Error(err)
 					}
 				})
 				scheduler.Every(4).Weeks().At("12:00").Do(func() {
-					if _, err := listBackups(true, awsCloud, auditFileStorage); err != nil {
+					if _, err := listBackups(true, awsCloud, localStorage); err != nil {
 						logger.Error(err)
 					}
 				})
