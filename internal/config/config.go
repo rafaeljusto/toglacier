@@ -20,11 +20,14 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths        []string     `yaml:"paths" envconfig:"paths"`
-	AuditFile    string       `yaml:"audit file" envconfig:"audit"`
-	KeepBackups  int          `yaml:"keep backups" envconfig:"keep_backups"`
-	BackupSecret aesKey       `yaml:"backup secret" envconfig:"backup_secret"`
-	DatabaseType DatabaseType `yaml:"database type" envconfig:"database_type"`
+	Paths        []string `yaml:"paths" envconfig:"paths"`
+	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
+	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+
+	Database struct {
+		Type DatabaseType `yaml:"type" envconfig:"type"`
+		File string       `yaml:"file" envconfig:"file"`
+	} `yaml:"database" envconfig:"db"`
 
 	Log struct {
 		File  string   `yaml:"file" envconfig:"file"`
@@ -67,9 +70,9 @@ func Default() {
 		c = new(Config)
 	}
 
-	c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
 	c.KeepBackups = 10
-	c.DatabaseType = DatabaseTypeBoltDB
+	c.Database.Type = DatabaseTypeBoltDB
+	c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 	c.Log.Level = LogLevelError
 
 	Update(c)

@@ -26,8 +26,8 @@ func TestDefault(t *testing.T) {
 			description: "it should set the default configuration values",
 			expected: func() *config.Config {
 				c := new(config.Config)
-				c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeBoltDB
+				c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 				c.KeepBackups = 10
 				c.Log.Level = config.LogLevelError
 				return c
@@ -73,8 +73,9 @@ func TestLoadFromFile(t *testing.T) {
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
@@ -105,8 +106,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -152,8 +153,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: idontexist
+database:
+  type: idontexist
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: error
@@ -200,8 +202,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: idontexist
@@ -275,8 +278,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -324,8 +328,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -375,8 +380,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -407,8 +413,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -443,8 +449,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
-database type: boltdb
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -475,8 +482,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -543,8 +550,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -556,8 +563,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -594,8 +601,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "idontexist",
+				"TOGLACIER_DB_TYPE":               "idontexist",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "error",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -604,8 +611,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
-					KeyName:   "TOGLACIER_DATABASE_TYPE",
-					FieldName: "DatabaseType",
+					KeyName:   "TOGLACIER_DB_TYPE",
+					FieldName: "Type",
 					TypeName:  "config.DatabaseType",
 					Value:     "idontexist",
 					Err: &config.Error{
@@ -629,8 +636,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "idontexist",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -664,8 +671,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -700,8 +707,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -736,8 +743,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -749,8 +756,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -787,8 +794,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
-				"TOGLACIER_DATABASE_TYPE":         "boltdb",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -800,8 +807,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
-				c.DatabaseType = config.DatabaseTypeBoltDB
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10

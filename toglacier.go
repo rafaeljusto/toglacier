@@ -100,11 +100,11 @@ func main() {
 			return err
 		}
 
-		switch config.Current().DatabaseType {
+		switch config.Current().Database.Type {
 		case config.DatabaseTypeAuditFile:
-			localStorage = storage.NewAuditFile(logger, config.Current().AuditFile)
+			localStorage = storage.NewAuditFile(logger, config.Current().Database.File)
 		case config.DatabaseTypeBoltDB:
-			localStorage = storage.NewBoltDB(logger, config.Current().AuditFile)
+			localStorage = storage.NewBoltDB(logger, config.Current().Database.File)
 		}
 
 		return nil

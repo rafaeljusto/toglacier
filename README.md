@@ -66,8 +66,8 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_AWS_REGION             | AWS region                              |
 | TOGLACIER_AWS_VAULT_NAME         | AWS vault name                          |
 | TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
-| TOGLACIER_AUDIT                  | Path where we keep track of the backups |
-| TOGLACIER_DATABASE_TYPE          | Local backup storage strategy           |
+| TOGLACIER_DB_TYPE                | Local backup storage strategy           |
+| TOGLACIER_DB_FILE                | Path where we keep track of the backups |
 | TOGLACIER_LOG_FILE               | File where all events are written       |
 | TOGLACIER_LOG_LEVEL              | Verbosity of the logger                 |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
@@ -110,11 +110,11 @@ file. The tool will detect an encrypted value when it starts with the label
 
 For keeping track of the backups locally you can choose `boltdb`
 ([BoltDB](https://github.com/boltdb/bolt)) or `auditfile` in the
-`TOGLACIER_DATABASE_TYPE` variable. By default `boltdb` is used. If you choose
-the audit file, as it is a human readable and a technology free solution, the
-format is defined bellow. It's a good idea to periodically copy the audit file
-or the BoltDB file somewhere else, so if you lose your server you can recover
-the files faster from the AWS Glacier (don't need to wait for the inventory).
+`TOGLACIER_DB_TYPE` variable. By default `boltdb` is used. If you choose the
+audit file, as it is a human readable and a technology free solution, the format
+is defined bellow. It's a good idea to periodically copy the audit file or the
+BoltDB file somewhere else, so if you lose your server you can recover the files
+faster from the AWS Glacier (don't need to wait for the inventory).
 
     [datetime] [vaultName] [archiveID] [checksum]
 
@@ -138,8 +138,8 @@ TOGLACIER_AWS_SECRET_ACCESS_KEY="encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg
 TOGLACIER_AWS_REGION="us-east-1" \
 TOGLACIER_AWS_VAULT_NAME="backup" \
 TOGLACIER_PATHS="/usr/local/important-files-1,/usr/local/important-files-2" \
-TOGLACIER_AUDIT="/var/log/toglacier/audit.log" \
-TOGLACIER_DATABASE_TYPE="boltdb" \
+TOGLACIER_DB_TYPE="boltdb" \
+TOGLACIER_DB_FILE="/var/log/toglacier/toglacier.db" \
 TOGLACIER_LOG_FILE="/var/log/toglacier/toglacier.log" \
 TOGLACIER_LOG_LEVEL="error" \
 TOGLACIER_KEEP_BACKUPS="10" \
@@ -200,8 +200,8 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_AWS_REGION=us-east-1 ^
   TOGLACIER_AWS_VAULT_NAME=backup ^
   TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
-  TOGLACIER_AUDIT=c:\log\toglacier\audit.log ^
-  TOGLACIER_DATABASE_TYPE=boltdb ^
+  TOGLACIER_DB_TYPE=boltdb ^
+  TOGLACIER_DB_FILE=c:\log\toglacier\toglacier.db ^
   TOGLACIER_LOG_FILE=c:\log\toglacier\toglacier.log ^
   TOGLACIER_LOG_LEVEL=error ^
   TOGLACIER_KEEP_BACKUPS=10 ^
