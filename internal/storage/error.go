@@ -63,39 +63,28 @@ const (
 // storage.
 type ErrorCode string
 
+var errorCodeString = map[ErrorCode]string{
+	ErrorCodeOpeningFile:      "error opening the storage file",
+	ErrorCodeWritingFile:      "error writing the storage file",
+	ErrorCodeReadingFile:      "error reading the storage file",
+	ErrorCodeMovingFile:       "error moving the storage file",
+	ErrorCodeFormat:           "unexpected storage file format",
+	ErrorCodeDateFormat:       "invalid date format",
+	ErrorCodeEncodingBackup:   "failed to encode backup to a storage representation",
+	ErrorCodeDecodingBackup:   "failed to decode backup to the original representation",
+	ErrorCodeDatabaseNotFound: "database not found",
+	ErrorCodeUpdatingDatabase: "failed to update database",
+	ErrorCodeListingDatabase:  "failed to list backups in the database",
+	ErrorCodeSave:             "failed to save the item in the database",
+	ErrorCodeDelete:           "failed to remove the item from the database",
+	ErrorCodeIterating:        "error while iterating over the database results",
+	ErrorAccessingBucket:      "failed to open or create a database bucket",
+}
+
 // String translate the error code to a human readable text.
 func (e ErrorCode) String() string {
-	switch e {
-	case ErrorCodeOpeningFile:
-		return "error opening the storage file"
-	case ErrorCodeWritingFile:
-		return "error writing the storage file"
-	case ErrorCodeReadingFile:
-		return "error reading the storage file"
-	case ErrorCodeMovingFile:
-		return "error moving the storage file"
-	case ErrorCodeFormat:
-		return "unexpected storage file format"
-	case ErrorCodeDateFormat:
-		return "invalid date format"
-	case ErrorCodeEncodingBackup:
-		return "failed to encode backup to a storage representation"
-	case ErrorCodeDecodingBackup:
-		return "failed to decode backup to the original representation"
-	case ErrorCodeDatabaseNotFound:
-		return "database not found"
-	case ErrorCodeUpdatingDatabase:
-		return "failed to update database"
-	case ErrorCodeListingDatabase:
-		return "failed to list backups in the database"
-	case ErrorCodeSave:
-		return "failed to save the item in the database"
-	case ErrorCodeDelete:
-		return "failed to remove the item from the database"
-	case ErrorCodeIterating:
-		return "error while iterating over the database results"
-	case ErrorAccessingBucket:
-		return "failed to open or create a database bucket"
+	if msg, ok := errorCodeString[e]; ok {
+		return msg
 	}
 
 	return "unknown error code"
