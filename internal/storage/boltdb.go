@@ -10,14 +10,23 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
+// BoltDBBucket defines the bucket in the BoltDB database where the data will be
+// stored.
 var BoltDBBucket = []byte("toglacier")
+
+// BoltDBFileMode defines the file mode used for the BoltDB database file. By
+// default only the owner has permission to access the file.
 var BoltDBFileMode = os.FileMode(0600)
 
+// BoltDB stores all necessary data to use the BoltDB database. BoltDB was
+// chosen as it is a fast key/value storage that uses only one local file. More
+// information can be found at https://github.com/boltdb/bolt
 type BoltDB struct {
 	logger   log.Logger
 	Filename string
 }
 
+// NewBoltDB initializes a BoltDB storage.
 func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 	return &BoltDB{
 		logger:   logger,
@@ -25,6 +34,21 @@ func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 	}
 }
 
+// Save a backup information. On error it will return an Error type encapsulated
+// in a traceable error. To retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *storage.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (b *BoltDB) Save(backup cloud.Backup) error {
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
@@ -57,6 +81,22 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 	return nil
 }
 
+// List all backup information in the storage. On error it will return an
+// Error type encapsulated in a traceable error. To retrieve the desired error
+// you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *storage.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (b BoltDB) List() ([]cloud.Backup, error) {
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
@@ -96,6 +136,22 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 	return backups, nil
 }
 
+// Remove a specific backup information from the storage. On error it will
+// return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *storage.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (b BoltDB) Remove(id string) error {
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
