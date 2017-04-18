@@ -174,12 +174,12 @@ func TestBoltDB_List(t *testing.T) {
 				defer boltDB.Close()
 
 				err = boltDB.Update(func(tx *bolt.Tx) error {
-					bucket, err := tx.CreateBucketIfNotExists(storage.BoltDBBucket)
-					if err != nil {
+					var bucket *bolt.Bucket
+					if bucket, err = tx.CreateBucketIfNotExists(storage.BoltDBBucket); err != nil {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err := bucket.Put([]byte(backup.ID), encoded); err != nil {
+					if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
@@ -282,12 +282,12 @@ func TestBoltDB_List(t *testing.T) {
 				defer boltDB.Close()
 
 				err = boltDB.Update(func(tx *bolt.Tx) error {
-					bucket, err := tx.CreateBucketIfNotExists(storage.BoltDBBucket)
-					if err != nil {
+					var bucket *bolt.Bucket
+					if bucket, err = tx.CreateBucketIfNotExists(storage.BoltDBBucket); err != nil {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err := bucket.Put([]byte("123456"), []byte("{invalid json")); err != nil {
+					if err = bucket.Put([]byte("123456"), []byte("{invalid json")); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
@@ -379,12 +379,12 @@ func TestBoltDB_Remove(t *testing.T) {
 				defer boltDB.Close()
 
 				err = boltDB.Update(func(tx *bolt.Tx) error {
-					bucket, err := tx.CreateBucketIfNotExists(storage.BoltDBBucket)
-					if err != nil {
+					var bucket *bolt.Bucket
+					if bucket, err = tx.CreateBucketIfNotExists(storage.BoltDBBucket); err != nil {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err := bucket.Put([]byte(backup.ID), encoded); err != nil {
+					if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 

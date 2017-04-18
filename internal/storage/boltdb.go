@@ -62,12 +62,12 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(BoltDBBucket)
-		if err != nil {
+		var bucket *bolt.Bucket
+		if bucket, err = tx.CreateBucketIfNotExists(BoltDBBucket); err != nil {
 			return errors.WithStack(newError(ErrorAccessingBucket, err))
 		}
 
-		if err := bucket.Put([]byte(backup.ID), encoded); err != nil {
+		if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
 			return errors.WithStack(newError(ErrorCodeSave, err))
 		}
 
@@ -113,9 +113,9 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 			return nil
 		}
 
-		err := bucket.ForEach(func(k, v []byte) error {
+		err = bucket.ForEach(func(k, v []byte) error {
 			var backup cloud.Backup
-			if err := json.Unmarshal(v, &backup); err != nil {
+			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}
 			backups = append(backups, backup)
@@ -165,7 +165,7 @@ func (b BoltDB) Remove(id string) error {
 			return errors.WithStack(newError(ErrorCodeDatabaseNotFound, nil))
 		}
 
-		if err := bucket.Delete([]byte(id)); err != nil {
+		if err = bucket.Delete([]byte(id)); err != nil {
 			return errors.WithStack(newError(ErrorCodeDelete, err))
 		}
 
