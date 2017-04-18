@@ -52,6 +52,36 @@ func TestError_Error(t *testing.T) {
 			expected:    "storage: invalid date format",
 		},
 		{
+			description: "it should show the correct error message for encoding backup problem",
+			err:         &storage.Error{Code: storage.ErrorCodeEncodingBackup},
+			expected:    "storage: failed to encode backup to a storage representation",
+		},
+		{
+			description: "it should show the correct error message for updating database problem",
+			err:         &storage.Error{Code: storage.ErrorCodeUpdatingDatabase},
+			expected:    "storage: failed to update database",
+		},
+		{
+			description: "it should show the correct error message for listing database problem",
+			err:         &storage.Error{Code: storage.ErrorCodeListingDatabase},
+			expected:    "storage: failed to list backups in the database",
+		},
+		{
+			description: "it should show the correct error message for deleting entry from the database problem",
+			err:         &storage.Error{Code: storage.ErrorCodeDelete},
+			expected:    "storage: failed to remove the item from the database",
+		},
+		{
+			description: "it should show the correct error message for accessing database bucket problem",
+			err:         &storage.Error{Code: storage.ErrorAccessingBucket},
+			expected:    "storage: failed to open or create a database bucket",
+		},
+		{
+			description: "it should show the correct error message for iterating database results problem",
+			err:         &storage.Error{Code: storage.ErrorCodeIterating},
+			expected:    "storage: error while iterating over the database results",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &storage.Error{Code: storage.ErrorCode("i-dont-exist")},
 			expected:    "storage: unknown error code",
