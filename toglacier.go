@@ -250,7 +250,6 @@ func main() {
 
 func backup(backupPaths []string, backupSecret string, b archive.Builder, e archive.Envelop, c cloud.Cloud, s storage.Storage) error {
 	backupReport := report.NewSendBackup()
-	backupReport.Paths = backupPaths
 
 	defer func() {
 		report.Add(backupReport)
@@ -288,6 +287,7 @@ func backup(backupPaths []string, backupSecret string, b archive.Builder, e arch
 		return errors.WithStack(err)
 	}
 	backupReport.Durations.Send = time.Now().Sub(timeMark)
+	backupReport.Backup.Paths = backupPaths
 
 	if err := s.Save(backupReport.Backup); err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)

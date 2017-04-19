@@ -167,6 +167,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 				Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 				VaultName: "vault",
+				Size:      41,
 			},
 		},
 		{
@@ -315,6 +316,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 				Checksum:  "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 				VaultName: "vault",
+				Size:      42000,
 			},
 		},
 		{

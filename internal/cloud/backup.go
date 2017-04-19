@@ -16,4 +16,10 @@ type Backup struct {
 	// VaultName is the identifier of the place in the cloud where the archive was
 	// stored.
 	VaultName string
+
+	// Paths are the folders that were synchronized with this backup.
+	Paths []string
+
+	// Size backup archive size.
+	Size int64
 }

@@ -47,6 +47,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "storage: unexpected storage file format",
 		},
 		{
+			description: "it should show the correct error message for invalid size problem",
+			err:         &storage.Error{Code: storage.ErrorCodeSizeFormat},
+			expected:    "storage: invalid size format",
+		},
+		{
 			description: "it should show the correct error message for invalid date problem",
 			err:         &storage.Error{Code: storage.ErrorCodeDateFormat},
 			expected:    "storage: invalid date format",

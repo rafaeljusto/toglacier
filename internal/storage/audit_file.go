@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,7 +30,7 @@ func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 // Save a backup information. It stores the backup information one per line with
 // the following columns:
 //
-//     [datetime] [vaultName] [archiveID] [checksum]
+//     [datetime] [vaultName] [archiveID] [checksum] [size] [path1,path2,...,pathN]
 //
 // On error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
@@ -55,7 +56,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
+	audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size, strings.Join(backup.Paths, ","))
 	if _, err = auditFile.WriteString(audit); err != nil {
 		return errors.WithStack(newError(ErrorCodeWritingFile, err))
 	}
@@ -98,19 +99,32 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
-		lineParts := strings.Split(scanner.Text(), " ")
-		if len(lineParts) != 4 {
+		line := strings.TrimSpace(scanner.Text())
+		lineParts := strings.Split(line, " ")
+
+		if len(lineParts) < 4 || len(lineParts) > 6 {
 			return nil, errors.WithStack(newError(ErrorCodeFormat, err))
 		}
 
-		backup := cloud.Backup{
-			VaultName: lineParts[1],
-			ID:        lineParts[2],
-			Checksum:  lineParts[3],
-		}
+		var backup cloud.Backup
 
 		if backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
 			return nil, errors.WithStack(newError(ErrorCodeDateFormat, err))
+		}
+
+		backup.VaultName = lineParts[1]
+		backup.ID = lineParts[2]
+		backup.Checksum = lineParts[3]
+
+		if len(lineParts) >= 5 {
+			backup.Size, err = strconv.ParseInt(lineParts[4], 10, 64)
+			if err != nil {
+				return nil, errors.WithStack(newError(ErrorCodeSizeFormat, err))
+			}
+		}
+
+		if len(lineParts) == 6 {
+			backup.Paths = strings.Split(lineParts[5], ",")
 		}
 
 		backups = append(backups, backup)
@@ -166,7 +180,7 @@ func (a *AuditFile) Remove(id string) error {
 			continue
 		}
 
-		audit := fmt.Sprintf("%s %s %s %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum)
+		audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size, strings.Join(backup.Paths, ","))
 		if _, err = auditFile.WriteString(audit); err != nil {
 			// TODO: recover backup file
 			return errors.WithStack(newError(ErrorCodeWritingFile, err))

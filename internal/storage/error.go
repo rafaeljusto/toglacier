@@ -27,6 +27,9 @@ const (
 	// (corrupted).
 	ErrorCodeFormat ErrorCode = "format"
 
+	// ErrorCodeSizeFormat backup size isn't a valid number.
+	ErrorCodeSizeFormat ErrorCode = "size-format"
+
 	// ErrorCodeDateFormat strange date format found in the local storage file.
 	ErrorCodeDateFormat ErrorCode = "date-format"
 
@@ -69,6 +72,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeReadingFile:      "error reading the storage file",
 	ErrorCodeMovingFile:       "error moving the storage file",
 	ErrorCodeFormat:           "unexpected storage file format",
+	ErrorCodeSizeFormat:       "invalid size format",
 	ErrorCodeDateFormat:       "invalid date format",
 	ErrorCodeEncodingBackup:   "failed to encode backup to a storage representation",
 	ErrorCodeDecodingBackup:   "failed to decode backup to the original representation",

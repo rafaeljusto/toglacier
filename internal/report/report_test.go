@@ -34,7 +34,7 @@ func TestBuild(t *testing.T) {
 						VaultName: "vault",
 						Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 					}
-					r.Paths = []string{"/data/important-files"}
+					r.Backup.Paths = []string{"/data/important-files"}
 					r.Durations.Build = 2 * time.Second
 					r.Durations.Encrypt = 6 * time.Second
 					r.Durations.Send = 6 * time.Minute
