@@ -24,7 +24,7 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
-var multipartUploadLimit int64 = 102400 // 100 MB
+var multipartUploadLimit int64 = 104857600 // 100 MB in bytes
 
 // MultipartUploadLimit defines the limit where we decide if we will send the
 // file in one shot or if we will use multipart upload strategy. By default we
@@ -33,7 +33,7 @@ func MultipartUploadLimit(value int64) {
 	atomic.StoreInt64(&multipartUploadLimit, value)
 }
 
-var partSize int64 = 4194304 // 4 MB will limit the archive in 40GB
+var partSize int64 = 4194304 // 4 MB (in bytes) will limit the archive in 40GB
 
 // PartSize the size of each part of the multipart upload except the last, in
 // bytes. The last part can be smaller than this part size. By default we use
