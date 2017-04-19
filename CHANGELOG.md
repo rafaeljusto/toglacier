@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [2.0.4] - 2017-04-19
+### Fixed
+- Use multipart upload when the archive is bigger than 100MB (was 100KB)
+
 ## [2.0.3] - 2017-03-24
 ### Fixed
 - Fix backup removal on checksum mismatch
