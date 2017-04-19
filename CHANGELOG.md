@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Internal API now has well defined errors
 - Variable `TOGLACIER_AUDIT` renamed to `TOGLACIER_DB_FILE`
 
+## [2.0.4] - 2017-04-19
+### Fixed
+- Use multipart upload when the archive is bigger than 100MB (was 100KB)
+
 ## [2.0.3] - 2017-03-24
 ### Fixed
 - Fix backup removal on checksum mismatch
