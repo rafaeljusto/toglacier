@@ -6,7 +6,8 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+
+	"github.com/pkg/errors"
 )
 
 // passwordKey returns the shared secret used to encrypt and decrypt the
@@ -27,16 +28,31 @@ func passwordKey() []byte {
 	return result
 }
 
-// PasswordEncrypt uses the secret to encode the password.
+// PasswordEncrypt uses the secret to encode the password. On error it
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func PasswordEncrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newError("", ErrorCodeInitCipher, err))
 	}
 
 	iv := make([]byte, block.BlockSize())
 	if _, err = rand.Read(iv); err != nil {
-		return "", err
+		return "", errors.WithStack(newError("", ErrorCodeFillingIV, err))
 	}
 
 	output := make([]byte, len(input))
@@ -48,20 +64,35 @@ func PasswordEncrypt(input string) (string, error) {
 	return base64.StdEncoding.EncodeToString(buffer.Bytes()), nil
 }
 
-// passwordDecrypt decodes a encrypted password.
+// passwordDecrypt decodes a encrypted password. On error it
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func passwordDecrypt(input string) (string, error) {
 	block, err := aes.NewCipher(passwordKey())
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newError("", ErrorCodeInitCipher, err))
 	}
 
 	inputBytes, err := base64.StdEncoding.DecodeString(input)
 	if err != nil {
-		return "", err
+		return "", errors.WithStack(newError("", ErrorCodeDecodeBase64, err))
 	}
 
 	if len(inputBytes) < block.BlockSize() {
-		return "", fmt.Errorf("invalid password size %d", len(inputBytes))
+		return "", errors.WithStack(newError("", ErrorCodePasswordSize, nil))
 	}
 
 	iv := inputBytes[:block.BlockSize()]

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Added
+- Encrypt/decrypt backup with a shared secret
+- Encryption data authentication (HMAC-SHA256)
+- Send report with the scheduler actions periodically
+- Output to a log file using logrus library
+- Log verbosity defined in configuration
+
+### Fixed
+- Add sample configuration file to deb and txz packages
+
+### Changed
+- Archive algorithm refactory to simplify the tar file
+- Internal API now has well defined errors
+
 ## [2.0.4] - 2017-04-19
 ### Fixed
 - Use multipart upload when the archive is bigger than 100MB (was 100KB)

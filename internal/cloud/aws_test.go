@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,17 +16,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aryann/difflib"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/glacier"
-	"github.com/kr/pretty"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
 func TestNewAWSCloud(t *testing.T) {
 	scenarios := []struct {
 		description   string
+		logger        log.Logger
 		config        *config.Config
 		debug         bool
 		expected      *cloud.AWSCloud
@@ -60,7 +64,7 @@ func TestNewAWSCloud(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			os.Clearenv()
 
-			awsCloud, err := cloud.NewAWSCloud(scenario.config, scenario.debug)
+			awsCloud, err := cloud.NewAWSCloud(scenario.logger, scenario.config, scenario.debug)
 
 			// we are not interested on testing low level structures from AWS library
 			// or clock controlling layer
@@ -70,7 +74,7 @@ func TestNewAWSCloud(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, awsCloud))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, awsCloud))
 			}
 			for key, value := range scenario.expectedEnv {
 				if env := os.Getenv(key); env != value {
@@ -94,6 +98,7 @@ func TestAWSCloud_Send(t *testing.T) {
 		multipartUploadLimit int64
 		partSize             int64
 		awsCloud             cloud.AWSCloud
+		randomSource         io.Reader
 		expected             cloud.Backup
 		expectedError        error
 	}{
@@ -102,11 +107,22 @@ func TestAWSCloud_Send(t *testing.T) {
 			filename:             "toglacier-idontexist.tmp",
 			multipartUploadLimit: 102400,
 			partSize:             4096,
-			expectedError: fmt.Errorf("error opening archive. details: %s", &os.PathError{
-				Op:   "open",
-				Path: "toglacier-idontexist.tmp",
-				Err:  errors.New("no such file or directory"),
-			}),
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+			},
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeOpeningArchive,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-idontexist.tmp",
+					Err:  errors.New("no such file or directory"),
+				},
+			},
 		},
 		{
 			description: "it should send a small backup correctly",
@@ -123,9 +139,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
@@ -162,9 +184,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return nil, errors.New("connection error")
 					},
@@ -175,7 +203,10 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error sending archive to aws glacier. details: connection error"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeSendingArchive,
+				Err:  errors.New("connection error"),
+			},
 		},
 		{
 			description: "it should detect when the hash is different after sending a small backup",
@@ -192,9 +223,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 102400,
 			partSize:             4096,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
@@ -209,7 +246,9 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should send a big backup correctly",
@@ -226,9 +265,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             1048576,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateMultipartUpload: func(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						partSize, err := strconv.ParseInt(*i.PartSize, 10, 64)
 						if err != nil {
@@ -287,9 +332,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 						return nil, errors.New("aws is out")
 					},
@@ -300,7 +351,10 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error initializing multipart upload. details: aws is out"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeInitMultipart,
+				Err:  errors.New("aws is out"),
+			},
 		},
 		{
 			description: "it should detect an error while sending big backup part",
@@ -317,9 +371,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
@@ -349,7 +409,12 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error sending an archive part (400). details: part rejected"),
+			expectedError: &cloud.MultipartError{
+				Offset: 400,
+				Size:   42000,
+				Code:   cloud.MultipartErrorCodeSendingArchive,
+				Err:    errors.New("part rejected"),
+			},
 		},
 		{
 			description: "it should detect when backup part checksum don't match",
@@ -366,9 +431,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
@@ -389,7 +460,11 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums on archive part (0)"),
+			expectedError: &cloud.MultipartError{
+				Offset: 0,
+				Size:   42000,
+				Code:   cloud.MultipartErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should detect an error while completing a big backup upload",
@@ -406,9 +481,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
@@ -433,7 +514,11 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error completing multipart upload. details: backup too big"),
+			expectedError: &cloud.Error{
+				ID:   "UPLOAD123",
+				Code: cloud.ErrorCodeCompleteMultipart,
+				Err:  errors.New("backup too big"),
+			},
 		},
 		{
 			description: "it should detect when a big backup checksum don't match",
@@ -450,9 +535,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockDeleteArchive: func(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
 						if *d.ArchiveId != "AWSID123" {
 							return nil, fmt.Errorf("unexpected id %s", *d.ArchiveId)
@@ -485,7 +576,16 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums. backup removed"),
+			expected: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VaultName: "vault",
+			},
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeComparingChecksums,
+			},
 		},
 		{
 			description: "it should detect when a big backup checksum don't match and fail to remove it",
@@ -502,9 +602,15 @@ func TestAWSCloud_Send(t *testing.T) {
 			multipartUploadLimit: 1024,
 			partSize:             100,
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
 						return nil, errors.New("connection error")
 					},
@@ -533,7 +639,21 @@ func TestAWSCloud_Send(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error comparing checksums. fail to remove backup “AWSID123”. details: error removing backup. details: connection error"),
+			expected: cloud.Backup{
+				ID:        "AWSID123",
+				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VaultName: "vault",
+			},
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeComparingChecksums,
+				Err: &cloud.Error{
+					ID:   "AWSID123",
+					Code: cloud.ErrorCodeRemovingArchive,
+					Err:  errors.New("connection error"),
+				},
+			},
 		},
 	}
 
@@ -544,9 +664,9 @@ func TestAWSCloud_Send(t *testing.T) {
 
 			backup, err := scenario.awsCloud.Send(scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backup))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backup))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.MultipartErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -566,9 +686,15 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should list all backups correctly",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -589,9 +715,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -638,22 +764,37 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect an error while initiating the job",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return nil, errors.New("a crazy error")
 					},
 				},
 			},
-			expectedError: errors.New("error initiating the job. details: a crazy error"),
+			expectedError: &cloud.Error{
+				Code: cloud.ErrorCodeInitJob,
+				Err:  errors.New("a crazy error"),
+			},
 		},
 		{
 			description: "it should detect when there's an error listing the existing jobs",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -664,14 +805,24 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: another crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeRetrievingJob,
+				Err:  errors.New("another crazy error"),
+			},
 		},
 		{
 			description: "it should detect when the job failed",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -691,14 +842,24 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: something went wrong"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobFailed,
+				Err:  errors.New("something went wrong"),
+			},
 		},
 		{
 			description: "it should detect when the job was not found",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -717,14 +878,23 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("job not found in aws"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobNotFound,
+			},
 		},
 		{
 			description: "it should continue checking jobs until it completes",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -749,9 +919,9 @@ func TestAWSCloud_List(t *testing.T) {
 						iventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
-							ArchiveList   cloud.AWSIventoryArchiveList
+							ArchiveList   cloud.AWSInventoryArchiveList
 						}{
-							ArchiveList: cloud.AWSIventoryArchiveList{
+							ArchiveList: cloud.AWSInventoryArchiveList{
 								{
 									ArchiveID:          "AWSID123",
 									ArchiveDescription: "another test backup",
@@ -785,9 +955,15 @@ func TestAWSCloud_List(t *testing.T) {
 		{
 			description: "it should detect an error while retrieving the job data",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -809,14 +985,24 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobComplete,
+				Err:  errors.New("job corrupted"),
+			},
 		},
 		{
 			description: "it should detect an error while decoding the job data",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -842,7 +1028,11 @@ func TestAWSCloud_List(t *testing.T) {
 			},
 			// *json.SyntaxError doesn't export the msg attribute, so we need to
 			// hard-coded the error message here
-			expectedError: errors.New(`error decoding the iventory. details: invalid character '{' looking for beginning of object key string`),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeDecodingData,
+				Err:  errors.New("invalid character '{' looking for beginning of object key string"),
+			},
 		},
 	}
 
@@ -850,9 +1040,9 @@ func TestAWSCloud_List(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			backups, err := scenario.awsCloud.List()
 			if !reflect.DeepEqual(scenario.expected, backups) {
-				t.Errorf("backups don't match.\n%s", pretty.Diff(scenario.expected, backups))
+				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -874,9 +1064,15 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should retrieve a backup correctly",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -906,23 +1102,39 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect an error while initiating the job",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return nil, errors.New("a crazy error")
 					},
 				},
 			},
-			expectedError: errors.New("error initiating the job. details: a crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeInitJob,
+				Err:  errors.New("a crazy error"),
+			},
 		},
 		{
 			description: "it should detect when there's an error listing the existing jobs",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -933,15 +1145,25 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: another crazy error"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeRetrievingJob,
+				Err:  errors.New("another crazy error"),
+			},
 		},
 		{
 			description: "it should detect when the job failed",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -961,15 +1183,25 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job from aws. details: something went wrong"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobFailed,
+				Err:  errors.New("something went wrong"),
+			},
 		},
 		{
 			description: "it should detect when the job was not found",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -988,15 +1220,24 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("job not found in aws"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobNotFound,
+			},
 		},
 		{
 			description: "it should continue checking jobs until it completes",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -1030,9 +1271,15 @@ func TestAWSCloud_Get(t *testing.T) {
 			description: "it should detect an error while retrieving the job data",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
@@ -1054,7 +1301,11 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: errors.New("error retrieving the job information. details: job corrupted"),
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeJobComplete,
+				Err:  errors.New("job corrupted"),
+			},
 		},
 	}
 
@@ -1062,9 +1313,9 @@ func TestAWSCloud_Get(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			filename, err := scenario.awsCloud.Get(scenario.id)
 			if !reflect.DeepEqual(scenario.expected, filename) {
-				t.Errorf("filenames don't match.\n%s", pretty.Diff(scenario.expected, filename))
+				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -1082,9 +1333,15 @@ func TestAWSCloud_Remove(t *testing.T) {
 			description: "it should remove a backup correctly",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
 						return &glacier.DeleteArchiveOutput{}, nil
 					},
@@ -1095,29 +1352,39 @@ func TestAWSCloud_Remove(t *testing.T) {
 			description: "it should detect an error while removing a backup",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
 				AccountID: "account",
 				VaultName: "vault",
-				Glacier: glacierAPIMock{
+				Glacier: mockGlacierAPI{
 					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
 						return nil, errors.New("no backup here")
 					},
 				},
 			},
-			expectedError: errors.New("error removing backup. details: no backup here"),
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeRemovingArchive,
+				Err:  errors.New("no backup here"),
+			},
 		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			err := scenario.awsCloud.Remove(scenario.id)
-			if !reflect.DeepEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
 	}
 }
 
-type glacierAPIMock struct {
+type mockGlacierAPI struct {
 	mockAbortMultipartUploadRequest     func(*glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput)
 	mockAbortMultipartUpload            func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error)
 	mockAbortVaultLockRequest           func(*glacier.AbortVaultLockInput) (*request.Request, *glacier.AbortVaultLockOutput)
@@ -1188,275 +1455,275 @@ type glacierAPIMock struct {
 	mockWaitUntilVaultNotExists         func(*glacier.DescribeVaultInput) error
 }
 
-func (g glacierAPIMock) AbortMultipartUploadRequest(a *glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput) {
+func (g mockGlacierAPI) AbortMultipartUploadRequest(a *glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput) {
 	return g.mockAbortMultipartUploadRequest(a)
 }
 
-func (g glacierAPIMock) AbortMultipartUpload(a *glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+func (g mockGlacierAPI) AbortMultipartUpload(a *glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
 	return g.mockAbortMultipartUpload(a)
 }
 
-func (g glacierAPIMock) AbortVaultLockRequest(a *glacier.AbortVaultLockInput) (*request.Request, *glacier.AbortVaultLockOutput) {
+func (g mockGlacierAPI) AbortVaultLockRequest(a *glacier.AbortVaultLockInput) (*request.Request, *glacier.AbortVaultLockOutput) {
 	return g.mockAbortVaultLockRequest(a)
 }
 
-func (g glacierAPIMock) AbortVaultLock(a *glacier.AbortVaultLockInput) (*glacier.AbortVaultLockOutput, error) {
+func (g mockGlacierAPI) AbortVaultLock(a *glacier.AbortVaultLockInput) (*glacier.AbortVaultLockOutput, error) {
 	return g.mockAbortVaultLock(a)
 }
 
-func (g glacierAPIMock) AddTagsToVaultRequest(a *glacier.AddTagsToVaultInput) (*request.Request, *glacier.AddTagsToVaultOutput) {
+func (g mockGlacierAPI) AddTagsToVaultRequest(a *glacier.AddTagsToVaultInput) (*request.Request, *glacier.AddTagsToVaultOutput) {
 	return g.mockAddTagsToVaultRequest(a)
 }
 
-func (g glacierAPIMock) AddTagsToVault(a *glacier.AddTagsToVaultInput) (*glacier.AddTagsToVaultOutput, error) {
+func (g mockGlacierAPI) AddTagsToVault(a *glacier.AddTagsToVaultInput) (*glacier.AddTagsToVaultOutput, error) {
 	return g.mockAddTagsToVault(a)
 }
 
-func (g glacierAPIMock) CompleteMultipartUploadRequest(c *glacier.CompleteMultipartUploadInput) (*request.Request, *glacier.ArchiveCreationOutput) {
+func (g mockGlacierAPI) CompleteMultipartUploadRequest(c *glacier.CompleteMultipartUploadInput) (*request.Request, *glacier.ArchiveCreationOutput) {
 	return g.mockCompleteMultipartUploadRequest(c)
 }
 
-func (g glacierAPIMock) CompleteMultipartUpload(c *glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+func (g mockGlacierAPI) CompleteMultipartUpload(c *glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
 	return g.mockCompleteMultipartUpload(c)
 }
 
-func (g glacierAPIMock) CompleteVaultLockRequest(c *glacier.CompleteVaultLockInput) (*request.Request, *glacier.CompleteVaultLockOutput) {
+func (g mockGlacierAPI) CompleteVaultLockRequest(c *glacier.CompleteVaultLockInput) (*request.Request, *glacier.CompleteVaultLockOutput) {
 	return g.mockCompleteVaultLockRequest(c)
 }
 
-func (g glacierAPIMock) CompleteVaultLock(c *glacier.CompleteVaultLockInput) (*glacier.CompleteVaultLockOutput, error) {
+func (g mockGlacierAPI) CompleteVaultLock(c *glacier.CompleteVaultLockInput) (*glacier.CompleteVaultLockOutput, error) {
 	return g.mockCompleteVaultLock(c)
 }
 
-func (g glacierAPIMock) CreateVaultRequest(c *glacier.CreateVaultInput) (*request.Request, *glacier.CreateVaultOutput) {
+func (g mockGlacierAPI) CreateVaultRequest(c *glacier.CreateVaultInput) (*request.Request, *glacier.CreateVaultOutput) {
 	return g.mockCreateVaultRequest(c)
 }
 
-func (g glacierAPIMock) CreateVault(c *glacier.CreateVaultInput) (*glacier.CreateVaultOutput, error) {
+func (g mockGlacierAPI) CreateVault(c *glacier.CreateVaultInput) (*glacier.CreateVaultOutput, error) {
 	return g.mockCreateVault(c)
 }
 
-func (g glacierAPIMock) DeleteArchiveRequest(d *glacier.DeleteArchiveInput) (*request.Request, *glacier.DeleteArchiveOutput) {
+func (g mockGlacierAPI) DeleteArchiveRequest(d *glacier.DeleteArchiveInput) (*request.Request, *glacier.DeleteArchiveOutput) {
 	return g.mockDeleteArchiveRequest(d)
 }
 
-func (g glacierAPIMock) DeleteArchive(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+func (g mockGlacierAPI) DeleteArchive(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
 	return g.mockDeleteArchive(d)
 }
 
-func (g glacierAPIMock) DeleteVaultRequest(d *glacier.DeleteVaultInput) (*request.Request, *glacier.DeleteVaultOutput) {
+func (g mockGlacierAPI) DeleteVaultRequest(d *glacier.DeleteVaultInput) (*request.Request, *glacier.DeleteVaultOutput) {
 	return g.mockDeleteVaultRequest(d)
 }
 
-func (g glacierAPIMock) DeleteVault(d *glacier.DeleteVaultInput) (*glacier.DeleteVaultOutput, error) {
+func (g mockGlacierAPI) DeleteVault(d *glacier.DeleteVaultInput) (*glacier.DeleteVaultOutput, error) {
 	return g.mockDeleteVault(d)
 }
 
-func (g glacierAPIMock) DeleteVaultAccessPolicyRequest(d *glacier.DeleteVaultAccessPolicyInput) (*request.Request, *glacier.DeleteVaultAccessPolicyOutput) {
+func (g mockGlacierAPI) DeleteVaultAccessPolicyRequest(d *glacier.DeleteVaultAccessPolicyInput) (*request.Request, *glacier.DeleteVaultAccessPolicyOutput) {
 	return g.mockDeleteVaultAccessPolicyRequest(d)
 }
 
-func (g glacierAPIMock) DeleteVaultAccessPolicy(d *glacier.DeleteVaultAccessPolicyInput) (*glacier.DeleteVaultAccessPolicyOutput, error) {
+func (g mockGlacierAPI) DeleteVaultAccessPolicy(d *glacier.DeleteVaultAccessPolicyInput) (*glacier.DeleteVaultAccessPolicyOutput, error) {
 	return g.mockDeleteVaultAccessPolicy(d)
 }
 
-func (g glacierAPIMock) DeleteVaultNotificationsRequest(d *glacier.DeleteVaultNotificationsInput) (*request.Request, *glacier.DeleteVaultNotificationsOutput) {
+func (g mockGlacierAPI) DeleteVaultNotificationsRequest(d *glacier.DeleteVaultNotificationsInput) (*request.Request, *glacier.DeleteVaultNotificationsOutput) {
 	return g.mockDeleteVaultNotificationsRequest(d)
 }
 
-func (g glacierAPIMock) DeleteVaultNotifications(d *glacier.DeleteVaultNotificationsInput) (*glacier.DeleteVaultNotificationsOutput, error) {
+func (g mockGlacierAPI) DeleteVaultNotifications(d *glacier.DeleteVaultNotificationsInput) (*glacier.DeleteVaultNotificationsOutput, error) {
 	return g.mockDeleteVaultNotifications(d)
 }
 
-func (g glacierAPIMock) DescribeJobRequest(d *glacier.DescribeJobInput) (*request.Request, *glacier.JobDescription) {
+func (g mockGlacierAPI) DescribeJobRequest(d *glacier.DescribeJobInput) (*request.Request, *glacier.JobDescription) {
 	return g.mockDescribeJobRequest(d)
 }
 
-func (g glacierAPIMock) DescribeJob(d *glacier.DescribeJobInput) (*glacier.JobDescription, error) {
+func (g mockGlacierAPI) DescribeJob(d *glacier.DescribeJobInput) (*glacier.JobDescription, error) {
 	return g.mockDescribeJob(d)
 }
 
-func (g glacierAPIMock) DescribeVaultRequest(d *glacier.DescribeVaultInput) (*request.Request, *glacier.DescribeVaultOutput) {
+func (g mockGlacierAPI) DescribeVaultRequest(d *glacier.DescribeVaultInput) (*request.Request, *glacier.DescribeVaultOutput) {
 	return g.mockDescribeVaultRequest(d)
 }
 
-func (g glacierAPIMock) DescribeVault(d *glacier.DescribeVaultInput) (*glacier.DescribeVaultOutput, error) {
+func (g mockGlacierAPI) DescribeVault(d *glacier.DescribeVaultInput) (*glacier.DescribeVaultOutput, error) {
 	return g.mockDescribeVault(d)
 }
 
-func (g glacierAPIMock) GetDataRetrievalPolicyRequest(d *glacier.GetDataRetrievalPolicyInput) (*request.Request, *glacier.GetDataRetrievalPolicyOutput) {
+func (g mockGlacierAPI) GetDataRetrievalPolicyRequest(d *glacier.GetDataRetrievalPolicyInput) (*request.Request, *glacier.GetDataRetrievalPolicyOutput) {
 	return g.mockGetDataRetrievalPolicyRequest(d)
 }
 
-func (g glacierAPIMock) GetDataRetrievalPolicy(d *glacier.GetDataRetrievalPolicyInput) (*glacier.GetDataRetrievalPolicyOutput, error) {
+func (g mockGlacierAPI) GetDataRetrievalPolicy(d *glacier.GetDataRetrievalPolicyInput) (*glacier.GetDataRetrievalPolicyOutput, error) {
 	return g.mockGetDataRetrievalPolicy(d)
 }
 
-func (g glacierAPIMock) GetJobOutputRequest(d *glacier.GetJobOutputInput) (*request.Request, *glacier.GetJobOutputOutput) {
+func (g mockGlacierAPI) GetJobOutputRequest(d *glacier.GetJobOutputInput) (*request.Request, *glacier.GetJobOutputOutput) {
 	return g.mockGetJobOutputRequest(d)
 }
 
-func (g glacierAPIMock) GetJobOutput(d *glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+func (g mockGlacierAPI) GetJobOutput(d *glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
 	return g.mockGetJobOutput(d)
 }
 
-func (g glacierAPIMock) GetVaultAccessPolicyRequest(d *glacier.GetVaultAccessPolicyInput) (*request.Request, *glacier.GetVaultAccessPolicyOutput) {
+func (g mockGlacierAPI) GetVaultAccessPolicyRequest(d *glacier.GetVaultAccessPolicyInput) (*request.Request, *glacier.GetVaultAccessPolicyOutput) {
 	return g.mockGetVaultAccessPolicyRequest(d)
 }
 
-func (g glacierAPIMock) GetVaultAccessPolicy(d *glacier.GetVaultAccessPolicyInput) (*glacier.GetVaultAccessPolicyOutput, error) {
+func (g mockGlacierAPI) GetVaultAccessPolicy(d *glacier.GetVaultAccessPolicyInput) (*glacier.GetVaultAccessPolicyOutput, error) {
 	return g.mockGetVaultAccessPolicy(d)
 }
 
-func (g glacierAPIMock) GetVaultLockRequest(d *glacier.GetVaultLockInput) (*request.Request, *glacier.GetVaultLockOutput) {
+func (g mockGlacierAPI) GetVaultLockRequest(d *glacier.GetVaultLockInput) (*request.Request, *glacier.GetVaultLockOutput) {
 	return g.mockGetVaultLockRequest(d)
 }
 
-func (g glacierAPIMock) GetVaultLock(d *glacier.GetVaultLockInput) (*glacier.GetVaultLockOutput, error) {
+func (g mockGlacierAPI) GetVaultLock(d *glacier.GetVaultLockInput) (*glacier.GetVaultLockOutput, error) {
 	return g.mockGetVaultLock(d)
 }
 
-func (g glacierAPIMock) GetVaultNotificationsRequest(d *glacier.GetVaultNotificationsInput) (*request.Request, *glacier.GetVaultNotificationsOutput) {
+func (g mockGlacierAPI) GetVaultNotificationsRequest(d *glacier.GetVaultNotificationsInput) (*request.Request, *glacier.GetVaultNotificationsOutput) {
 	return g.mockGetVaultNotificationsRequest(d)
 }
 
-func (g glacierAPIMock) GetVaultNotifications(d *glacier.GetVaultNotificationsInput) (*glacier.GetVaultNotificationsOutput, error) {
+func (g mockGlacierAPI) GetVaultNotifications(d *glacier.GetVaultNotificationsInput) (*glacier.GetVaultNotificationsOutput, error) {
 	return g.mockGetVaultNotifications(d)
 }
 
-func (g glacierAPIMock) InitiateJobRequest(i *glacier.InitiateJobInput) (*request.Request, *glacier.InitiateJobOutput) {
+func (g mockGlacierAPI) InitiateJobRequest(i *glacier.InitiateJobInput) (*request.Request, *glacier.InitiateJobOutput) {
 	return g.mockInitiateJobRequest(i)
 }
 
-func (g glacierAPIMock) InitiateJob(i *glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+func (g mockGlacierAPI) InitiateJob(i *glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
 	return g.mockInitiateJob(i)
 }
 
-func (g glacierAPIMock) InitiateMultipartUploadRequest(i *glacier.InitiateMultipartUploadInput) (*request.Request, *glacier.InitiateMultipartUploadOutput) {
+func (g mockGlacierAPI) InitiateMultipartUploadRequest(i *glacier.InitiateMultipartUploadInput) (*request.Request, *glacier.InitiateMultipartUploadOutput) {
 	return g.mockInitiateMultipartUploadRequest(i)
 }
 
-func (g glacierAPIMock) InitiateMultipartUpload(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+func (g mockGlacierAPI) InitiateMultipartUpload(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
 	return g.mockInitiateMultipartUpload(i)
 }
 
-func (g glacierAPIMock) InitiateVaultLockRequest(i *glacier.InitiateVaultLockInput) (*request.Request, *glacier.InitiateVaultLockOutput) {
+func (g mockGlacierAPI) InitiateVaultLockRequest(i *glacier.InitiateVaultLockInput) (*request.Request, *glacier.InitiateVaultLockOutput) {
 	return g.mockInitiateVaultLockRequest(i)
 }
 
-func (g glacierAPIMock) InitiateVaultLock(i *glacier.InitiateVaultLockInput) (*glacier.InitiateVaultLockOutput, error) {
+func (g mockGlacierAPI) InitiateVaultLock(i *glacier.InitiateVaultLockInput) (*glacier.InitiateVaultLockOutput, error) {
 	return g.mockInitiateVaultLock(i)
 }
 
-func (g glacierAPIMock) ListJobsRequest(l *glacier.ListJobsInput) (*request.Request, *glacier.ListJobsOutput) {
+func (g mockGlacierAPI) ListJobsRequest(l *glacier.ListJobsInput) (*request.Request, *glacier.ListJobsOutput) {
 	return g.mockListJobsRequest(l)
 }
 
-func (g glacierAPIMock) ListJobs(l *glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+func (g mockGlacierAPI) ListJobs(l *glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
 	return g.mockListJobs(l)
 }
 
-func (g glacierAPIMock) ListJobsPages(l *glacier.ListJobsInput, f func(*glacier.ListJobsOutput, bool) bool) error {
+func (g mockGlacierAPI) ListJobsPages(l *glacier.ListJobsInput, f func(*glacier.ListJobsOutput, bool) bool) error {
 	return g.mockListJobsPages(l, f)
 }
 
-func (g glacierAPIMock) ListMultipartUploadsRequest(l *glacier.ListMultipartUploadsInput) (*request.Request, *glacier.ListMultipartUploadsOutput) {
+func (g mockGlacierAPI) ListMultipartUploadsRequest(l *glacier.ListMultipartUploadsInput) (*request.Request, *glacier.ListMultipartUploadsOutput) {
 	return g.mockListMultipartUploadsRequest(l)
 }
 
-func (g glacierAPIMock) ListMultipartUploads(l *glacier.ListMultipartUploadsInput) (*glacier.ListMultipartUploadsOutput, error) {
+func (g mockGlacierAPI) ListMultipartUploads(l *glacier.ListMultipartUploadsInput) (*glacier.ListMultipartUploadsOutput, error) {
 	return g.mockListMultipartUploads(l)
 }
 
-func (g glacierAPIMock) ListMultipartUploadsPages(l *glacier.ListMultipartUploadsInput, f func(*glacier.ListMultipartUploadsOutput, bool) bool) error {
+func (g mockGlacierAPI) ListMultipartUploadsPages(l *glacier.ListMultipartUploadsInput, f func(*glacier.ListMultipartUploadsOutput, bool) bool) error {
 	return g.mockListMultipartUploadsPages(l, f)
 }
 
-func (g glacierAPIMock) ListPartsRequest(l *glacier.ListPartsInput) (*request.Request, *glacier.ListPartsOutput) {
+func (g mockGlacierAPI) ListPartsRequest(l *glacier.ListPartsInput) (*request.Request, *glacier.ListPartsOutput) {
 	return g.mockListPartsRequest(l)
 }
 
-func (g glacierAPIMock) ListParts(l *glacier.ListPartsInput) (*glacier.ListPartsOutput, error) {
+func (g mockGlacierAPI) ListParts(l *glacier.ListPartsInput) (*glacier.ListPartsOutput, error) {
 	return g.mockListParts(l)
 }
 
-func (g glacierAPIMock) ListPartsPages(l *glacier.ListPartsInput, f func(*glacier.ListPartsOutput, bool) bool) error {
+func (g mockGlacierAPI) ListPartsPages(l *glacier.ListPartsInput, f func(*glacier.ListPartsOutput, bool) bool) error {
 	return g.mockListPartsPages(l, f)
 }
 
-func (g glacierAPIMock) ListTagsForVaultRequest(l *glacier.ListTagsForVaultInput) (*request.Request, *glacier.ListTagsForVaultOutput) {
+func (g mockGlacierAPI) ListTagsForVaultRequest(l *glacier.ListTagsForVaultInput) (*request.Request, *glacier.ListTagsForVaultOutput) {
 	return g.mockListTagsForVaultRequest(l)
 }
 
-func (g glacierAPIMock) ListTagsForVault(l *glacier.ListTagsForVaultInput) (*glacier.ListTagsForVaultOutput, error) {
+func (g mockGlacierAPI) ListTagsForVault(l *glacier.ListTagsForVaultInput) (*glacier.ListTagsForVaultOutput, error) {
 	return g.mockListTagsForVault(l)
 }
 
-func (g glacierAPIMock) ListVaultsRequest(l *glacier.ListVaultsInput) (*request.Request, *glacier.ListVaultsOutput) {
+func (g mockGlacierAPI) ListVaultsRequest(l *glacier.ListVaultsInput) (*request.Request, *glacier.ListVaultsOutput) {
 	return g.mockListVaultsRequest(l)
 }
 
-func (g glacierAPIMock) ListVaults(l *glacier.ListVaultsInput) (*glacier.ListVaultsOutput, error) {
+func (g mockGlacierAPI) ListVaults(l *glacier.ListVaultsInput) (*glacier.ListVaultsOutput, error) {
 	return g.mockListVaults(l)
 }
 
-func (g glacierAPIMock) ListVaultsPages(l *glacier.ListVaultsInput, f func(*glacier.ListVaultsOutput, bool) bool) error {
+func (g mockGlacierAPI) ListVaultsPages(l *glacier.ListVaultsInput, f func(*glacier.ListVaultsOutput, bool) bool) error {
 	return g.mockListVaultsPages(l, f)
 }
 
-func (g glacierAPIMock) RemoveTagsFromVaultRequest(r *glacier.RemoveTagsFromVaultInput) (*request.Request, *glacier.RemoveTagsFromVaultOutput) {
+func (g mockGlacierAPI) RemoveTagsFromVaultRequest(r *glacier.RemoveTagsFromVaultInput) (*request.Request, *glacier.RemoveTagsFromVaultOutput) {
 	return g.mockRemoveTagsFromVaultRequest(r)
 }
 
-func (g glacierAPIMock) RemoveTagsFromVault(r *glacier.RemoveTagsFromVaultInput) (*glacier.RemoveTagsFromVaultOutput, error) {
+func (g mockGlacierAPI) RemoveTagsFromVault(r *glacier.RemoveTagsFromVaultInput) (*glacier.RemoveTagsFromVaultOutput, error) {
 	return g.mockRemoveTagsFromVault(r)
 }
 
-func (g glacierAPIMock) SetDataRetrievalPolicyRequest(s *glacier.SetDataRetrievalPolicyInput) (*request.Request, *glacier.SetDataRetrievalPolicyOutput) {
+func (g mockGlacierAPI) SetDataRetrievalPolicyRequest(s *glacier.SetDataRetrievalPolicyInput) (*request.Request, *glacier.SetDataRetrievalPolicyOutput) {
 	return g.mockSetDataRetrievalPolicyRequest(s)
 }
 
-func (g glacierAPIMock) SetDataRetrievalPolicy(s *glacier.SetDataRetrievalPolicyInput) (*glacier.SetDataRetrievalPolicyOutput, error) {
+func (g mockGlacierAPI) SetDataRetrievalPolicy(s *glacier.SetDataRetrievalPolicyInput) (*glacier.SetDataRetrievalPolicyOutput, error) {
 	return g.mockSetDataRetrievalPolicy(s)
 }
 
-func (g glacierAPIMock) SetVaultAccessPolicyRequest(s *glacier.SetVaultAccessPolicyInput) (*request.Request, *glacier.SetVaultAccessPolicyOutput) {
+func (g mockGlacierAPI) SetVaultAccessPolicyRequest(s *glacier.SetVaultAccessPolicyInput) (*request.Request, *glacier.SetVaultAccessPolicyOutput) {
 	return g.mockSetVaultAccessPolicyRequest(s)
 }
 
-func (g glacierAPIMock) SetVaultAccessPolicy(s *glacier.SetVaultAccessPolicyInput) (*glacier.SetVaultAccessPolicyOutput, error) {
+func (g mockGlacierAPI) SetVaultAccessPolicy(s *glacier.SetVaultAccessPolicyInput) (*glacier.SetVaultAccessPolicyOutput, error) {
 	return g.mockSetVaultAccessPolicy(s)
 }
 
-func (g glacierAPIMock) SetVaultNotificationsRequest(s *glacier.SetVaultNotificationsInput) (*request.Request, *glacier.SetVaultNotificationsOutput) {
+func (g mockGlacierAPI) SetVaultNotificationsRequest(s *glacier.SetVaultNotificationsInput) (*request.Request, *glacier.SetVaultNotificationsOutput) {
 	return g.mockSetVaultNotificationsRequest(s)
 }
 
-func (g glacierAPIMock) SetVaultNotifications(s *glacier.SetVaultNotificationsInput) (*glacier.SetVaultNotificationsOutput, error) {
+func (g mockGlacierAPI) SetVaultNotifications(s *glacier.SetVaultNotificationsInput) (*glacier.SetVaultNotificationsOutput, error) {
 	return g.mockSetVaultNotifications(s)
 }
 
-func (g glacierAPIMock) UploadArchiveRequest(u *glacier.UploadArchiveInput) (*request.Request, *glacier.ArchiveCreationOutput) {
+func (g mockGlacierAPI) UploadArchiveRequest(u *glacier.UploadArchiveInput) (*request.Request, *glacier.ArchiveCreationOutput) {
 	return g.mockUploadArchiveRequest(u)
 }
 
-func (g glacierAPIMock) UploadArchive(u *glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
+func (g mockGlacierAPI) UploadArchive(u *glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
 	return g.mockUploadArchive(u)
 }
 
-func (g glacierAPIMock) UploadMultipartPartRequest(u *glacier.UploadMultipartPartInput) (*request.Request, *glacier.UploadMultipartPartOutput) {
+func (g mockGlacierAPI) UploadMultipartPartRequest(u *glacier.UploadMultipartPartInput) (*request.Request, *glacier.UploadMultipartPartOutput) {
 	return g.mockUploadMultipartPartRequest(u)
 }
 
-func (g glacierAPIMock) UploadMultipartPart(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+func (g mockGlacierAPI) UploadMultipartPart(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
 	return g.mockUploadMultipartPart(u)
 }
 
-func (g glacierAPIMock) WaitUntilVaultExists(d *glacier.DescribeVaultInput) error {
+func (g mockGlacierAPI) WaitUntilVaultExists(d *glacier.DescribeVaultInput) error {
 	return g.mockWaitUntilVaultExists(d)
 }
 
-func (g glacierAPIMock) WaitUntilVaultNotExists(d *glacier.DescribeVaultInput) error {
+func (g mockGlacierAPI) WaitUntilVaultNotExists(d *glacier.DescribeVaultInput) error {
 	return g.mockWaitUntilVaultNotExists(d)
 }
 
@@ -1466,4 +1733,37 @@ type fakeClock struct {
 
 func (f fakeClock) Now() time.Time {
 	return f.mockNow()
+}
+
+type mockReader struct {
+	mockRead func(p []byte) (n int, err error)
+}
+
+func (m mockReader) Read(p []byte) (n int, err error) {
+	return m.mockRead(p)
+}
+
+type mockLogger struct {
+	mockDebug  func(args ...interface{})
+	mockDebugf func(format string, args ...interface{})
+	mockInfo   func(args ...interface{})
+	mockInfof  func(format string, args ...interface{})
+}
+
+func (m mockLogger) Debug(args ...interface{}) {
+	m.mockDebug(args...)
+}
+func (m mockLogger) Debugf(format string, args ...interface{}) {
+	m.mockDebugf(format, args...)
+}
+func (m mockLogger) Info(args ...interface{}) {
+	m.mockInfo(args...)
+}
+func (m mockLogger) Infof(format string, args ...interface{}) {
+	m.mockInfof(format, args...)
+}
+
+// Diff is useful to see the difference when comparing two complex types.
+func Diff(a, b interface{}) []difflib.DiffRecord {
+	return difflib.Diff(strings.SplitAfter(spew.Sdump(a), "\n"), strings.SplitAfter(spew.Sdump(b), "\n"))
 }

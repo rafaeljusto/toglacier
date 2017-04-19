@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"path"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"unsafe"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -20,10 +20,26 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths       []string `yaml:"paths" envconfig:"paths"`
-	AuditFile   string   `yaml:"audit file" envconfig:"audit"`
-	KeepBackups int      `yaml:"keep backups" envconfig:"keep_backups"`
-	AWS         struct {
+	Paths        []string `yaml:"paths" envconfig:"paths"`
+	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
+	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
+	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+
+	Log struct {
+		File  string   `yaml:"file" envconfig:"file"`
+		Level LogLevel `yaml:"level" envconfig:"level"`
+	} `yaml:"log" envconfig:"log"`
+
+	Email struct {
+		Server   string    `yaml:"server" envconfig:"server"`
+		Port     int       `yaml:"port" envconfig:"port"`
+		Username string    `yaml:"username" envconfig:"username"`
+		Password encrypted `yaml:"password" envconfig:"password"`
+		From     string    `yaml:"from" envconfig:"from"`
+		To       []string  `yaml:"to" envconfig:"to"`
+	} `yaml:"email" envconfig:"email"`
+
+	AWS struct {
 		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`
 		AccessKeyID     encrypted `yaml:"access key id" envconfig:"access_key_id"`
 		SecretAccessKey encrypted `yaml:"secret access key" envconfig:"secret_access_key"`
@@ -52,15 +68,31 @@ func Default() {
 
 	c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
 	c.KeepBackups = 10
+	c.Log.Level = LogLevelError
 
 	Update(c)
 }
 
 // LoadFromFile parse an YAML file and fill the system configuration parameters.
+// On error it will return an Error type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func LoadFromFile(filename string) error {
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return err
+		return errors.WithStack(newError(filename, ErrorCodeReadingFile, err))
 	}
 
 	c := Current()
@@ -69,14 +101,29 @@ func LoadFromFile(filename string) error {
 	}
 
 	if err = yaml.Unmarshal(content, c); err != nil {
-		return err
+		return errors.WithStack(newError(filename, ErrorCodeParsingYAML, err))
 	}
 
 	Update(c)
 	return nil
 }
 
-// LoadFromEnvironment analysis all project environment variables.
+// LoadFromEnvironment analysis all project environment variables. On error it
+// will return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func LoadFromEnvironment() error {
 	c := Current()
 	if c == nil {
@@ -84,10 +131,59 @@ func LoadFromEnvironment() error {
 	}
 
 	if err := envconfig.Process(prefix, c); err != nil {
-		return err
+		return errors.WithStack(newError("", ErrorCodeReadingEnvVars, err))
 	}
 
 	Update(c)
+	return nil
+}
+
+const (
+	// LogLevelDebug usually only enabled when debugging. Very verbose logging.
+	LogLevelDebug LogLevel = "debug"
+
+	// LogLevelInfo general operational entries about what's going on inside the
+	// application.
+	LogLevelInfo LogLevel = "info"
+
+	// LogLevelWarning non-critical entries that deserve eyes.
+	LogLevelWarning LogLevel = "warning"
+
+	// LogLevelError used for errors that should definitely be noted.
+	LogLevelError LogLevel = "error"
+
+	// LogLevelFatal it will terminates the process after the the entry is logged.
+	LogLevelFatal LogLevel = "fatal"
+
+	// LogLevelPanic highest level of severity. Logs and then calls panic with the
+	// message passed to Debug, Info, ...
+	LogLevelPanic LogLevel = "panic"
+)
+
+var logLevelValid = map[string]bool{
+	string(LogLevelDebug):   true,
+	string(LogLevelInfo):    true,
+	string(LogLevelWarning): true,
+	string(LogLevelError):   true,
+	string(LogLevelFatal):   true,
+	string(LogLevelPanic):   true,
+}
+
+// LogLevel determinate the verbosity of the log entries.
+type LogLevel string
+
+// UnmarshalText ensure that the log level defined in the configuration is
+// valid.
+func (l *LogLevel) UnmarshalText(value []byte) error {
+	logLevel := string(value)
+	logLevel = strings.TrimSpace(logLevel)
+	logLevel = strings.ToLower(logLevel)
+
+	if ok := logLevelValid[logLevel]; !ok {
+		return newError("", ErrorCodeLogLevel, nil)
+	}
+
+	*l = LogLevel(logLevel)
 	return nil
 }
 
@@ -95,13 +191,67 @@ type encrypted struct {
 	Value string
 }
 
+// UnmarshalText automatically decrypts a value from the configuration. On error
+// it will return an Error type encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (e *encrypted) UnmarshalText(value []byte) error {
 	e.Value = string(value)
 
 	if strings.HasPrefix(e.Value, "encrypted:") {
 		var err error
 		if e.Value, err = passwordDecrypt(strings.TrimPrefix(e.Value, "encrypted:")); err != nil {
-			return fmt.Errorf("error decrypting value. details: %s", err)
+			return errors.WithStack(err)
+		}
+	}
+
+	return nil
+}
+
+type aesKey struct {
+	encrypted
+}
+
+// UnmarshalText automatically decrypts a value from the configuration. On error
+// it will return an Error type encapsulated in a traceable error. To retrieve
+// the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *config.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
+func (a *aesKey) UnmarshalText(value []byte) error {
+	if err := a.encrypted.UnmarshalText(value); err != nil {
+		return errors.WithStack(err)
+	}
+
+	// The key argument should be the AES key, either 16, 24, or 32 bytes to
+	// select AES-128, AES-192, or AES-256. We will always force AES-256.
+	if a.Value != "" {
+		if len(a.Value) < 32 {
+			a.Value = a.Value + strings.Repeat("0", 32-len(a.Value))
+		} else if len(a.Value) > 32 {
+			a.Value = a.Value[:32]
 		}
 	}
 
