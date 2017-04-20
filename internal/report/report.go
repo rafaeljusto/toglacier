@@ -42,6 +42,7 @@ type SendBackup struct {
 	basic
 
 	Backup    cloud.Backup
+	Paths     []string
 	Durations struct {
 		Build   time.Duration
 		Encrypt time.Duration
@@ -83,7 +84,7 @@ func (s SendBackup) Build() (string, error) {
     Date:        {{.Backup.CreatedAt.Format "2006-01-02 15:04:05"}}
     Vault:       {{.Backup.VaultName}}
     Checksum:    {{.Backup.Checksum}}
-    Paths:       {{range $path := .Backup.Paths}}{{$path}} {{end}}
+    Paths:       {{range $path := .Paths}}{{$path}} {{end}}
 
   Durations
   ---------

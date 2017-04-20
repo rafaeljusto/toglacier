@@ -30,7 +30,7 @@ func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 // Save a backup information. It stores the backup information one per line with
 // the following columns:
 //
-//     [datetime] [vaultName] [archiveID] [checksum] [size] [path1,path2,...,pathN]
+//     [datetime] [vaultName] [archiveID] [checksum] [size]
 //
 // On error it will return an Error type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
@@ -56,7 +56,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size, strings.Join(backup.Paths, ","))
+	audit := fmt.Sprintf("%s %s %s %s %d\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		return errors.WithStack(newError(ErrorCodeWritingFile, err))
 	}
@@ -102,7 +102,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 		line := strings.TrimSpace(scanner.Text())
 		lineParts := strings.Split(line, " ")
 
-		if len(lineParts) < 4 || len(lineParts) > 6 {
+		if len(lineParts) < 4 || len(lineParts) > 5 {
 			return nil, errors.WithStack(newError(ErrorCodeFormat, err))
 		}
 
@@ -121,10 +121,6 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 			if err != nil {
 				return nil, errors.WithStack(newError(ErrorCodeSizeFormat, err))
 			}
-		}
-
-		if len(lineParts) == 6 {
-			backup.Paths = strings.Split(lineParts[5], ",")
 		}
 
 		backups = append(backups, backup)
@@ -180,7 +176,7 @@ func (a *AuditFile) Remove(id string) error {
 			continue
 		}
 
-		audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size, strings.Join(backup.Paths, ","))
+		audit := fmt.Sprintf("%s %s %s %s %d\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size)
 		if _, err = auditFile.WriteString(audit); err != nil {
 			// TODO: recover backup file
 			return errors.WithStack(newError(ErrorCodeWritingFile, err))

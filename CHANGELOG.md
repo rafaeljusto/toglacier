@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Output to a log file using logrus library
 - Log verbosity defined in configuration
 - BoltDB storage for tracking backups locally
-- Local backup now has paths and archive size information
+- Local backup now has archive size information
 
 ### Fixed
 - Add sample configuration file to deb and txz packages

@@ -49,7 +49,6 @@ func TestBoltDB_Save(t *testing.T) {
 				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 				VaultName: "test",
 				Size:      120,
-				Paths:     []string{"/important-files/path1", "/important-files/path2"},
 			},
 		},
 		{
@@ -157,7 +156,6 @@ func TestBoltDB_List(t *testing.T) {
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
 					Size:      120,
-					Paths:     []string{"/important-files/path1", "/important-files/path2"},
 				}
 
 				encoded, err := json.Marshal(backup)
@@ -209,7 +207,6 @@ func TestBoltDB_List(t *testing.T) {
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
 					Size:      120,
-					Paths:     []string{"/important-files/path1", "/important-files/path2"},
 				},
 			},
 		},
@@ -366,7 +363,6 @@ func TestBoltDB_Remove(t *testing.T) {
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
 					Size:      120,
-					Paths:     []string{"/important-files/path1", "/important-files/path2"},
 				}
 
 				encoded, err := json.Marshal(backup)

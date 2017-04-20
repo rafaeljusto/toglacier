@@ -53,9 +53,8 @@ func TestAuditFile_Save(t *testing.T) {
 				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 				VaultName: "test",
 				Size:      120,
-				Paths:     []string{"/important-files/path1", "/important-files/path2"},
 			},
-			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120 /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)),
+			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)),
 		},
 		{
 			description: "it should detect when the filename refers to a directory",
@@ -135,7 +134,7 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				defer f.Close()
 
-				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120 /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)))
+				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
 			expected: []cloud.Backup{
@@ -151,7 +150,6 @@ func TestAuditFile_List(t *testing.T) {
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
 					Size:      120,
-					Paths:     []string{"/important-files/path1", "/important-files/path2"},
 				},
 			},
 		},
@@ -250,7 +248,7 @@ func TestAuditFile_List(t *testing.T) {
 					}
 					defer f.Close()
 
-					f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120 /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)))
+					f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)))
 				}
 
 				return n
@@ -325,7 +323,7 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				defer f.Close()
 
-				f.WriteString("XXXX test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120 /important-files/path1,/important-files/path2\n")
+				f.WriteString("XXXX test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n")
 				return f.Name()
 			}(),
 			expectedError: &storage.Error{
@@ -354,7 +352,7 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				defer f.Close()
 
-				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 XXXX /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)))
+				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 XXXX\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
 			expectedError: &storage.Error{
@@ -410,12 +408,12 @@ func TestAuditFile_Remove(t *testing.T) {
 				}
 				defer f.Close()
 
-				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 100 /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)))
-				f.WriteString(fmt.Sprintf("%s test 123457 913b87897ffb6dca07e9f17e280aa8ecb9886dffeda8a15efeafec11dec0d108 200 /important-files/path3,/important-files/path4\n", now.Add(time.Second).Format(time.RFC3339)))
+				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 100\n", now.Format(time.RFC3339)))
+				f.WriteString(fmt.Sprintf("%s test 123457 913b87897ffb6dca07e9f17e280aa8ecb9886dffeda8a15efeafec11dec0d108 200\n", now.Add(time.Second).Format(time.RFC3339)))
 				return f.Name()
 			}(),
 			id:       "123457",
-			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 100 /important-files/path1,/important-files/path2\n", now.Format(time.RFC3339)),
+			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 100\n", now.Format(time.RFC3339)),
 		},
 		{
 			description: "it should remove a backup information correctly with backward compatibility",
@@ -437,7 +435,7 @@ func TestAuditFile_Remove(t *testing.T) {
 				return f.Name()
 			}(),
 			id:       "123457",
-			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 0 \n", now.Format(time.RFC3339)),
+			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 0\n", now.Format(time.RFC3339)),
 		},
 		{
 			description: "it should detect when the audit file has no read permission",

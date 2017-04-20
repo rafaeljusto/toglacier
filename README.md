@@ -116,7 +116,7 @@ is defined bellow. It's a good idea to periodically copy the audit file or the
 BoltDB file somewhere else, so if you lose your server you can recover the files
 faster from the AWS Glacier (don't need to wait for the inventory).
 
-    [datetime] [vaultName] [archiveID] [checksum] [size] [path1,path2,...,pathN]
+    [datetime] [vaultName] [archiveID] [checksum] [size]
 
 When running the scheduler (start command), **the tool will backup the files
 once a day at midnight**. This information isn't configurable yet (the library

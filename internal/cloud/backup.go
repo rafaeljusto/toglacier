@@ -17,9 +17,6 @@ type Backup struct {
 	// stored.
 	VaultName string
 
-	// Paths are the folders that were synchronized with this backup.
-	Paths []string
-
 	// Size backup archive size.
 	Size int64
 }
