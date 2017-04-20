@@ -68,7 +68,7 @@ func main() {
 		// optionally set logger output file defined in configuration. if not
 		// defined stdout will be used
 		if config.Current().Log.File != "" {
-			if logFile, err = os.OpenFile(config.Current().Log.File, os.O_CREATE|os.O_WRONLY, os.ModePerm); err != nil {
+			if logFile, err = os.OpenFile(config.Current().Log.File, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm); err != nil {
 				fmt.Printf("error opening log file “%s”. details: %s\n", config.Current().Log.File, err)
 				return err
 			}
