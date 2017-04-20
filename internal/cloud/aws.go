@@ -386,6 +386,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 			CreatedAt: archive.CreationDate,
 			Checksum:  archive.SHA256TreeHash,
 			VaultName: a.VaultName,
+			Size:      int64(archive.Size),
 		})
 	}
 
