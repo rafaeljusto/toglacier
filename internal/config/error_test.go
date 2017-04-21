@@ -74,6 +74,16 @@ func TestError_Error(t *testing.T) {
 			expected:    "config: error filling iv",
 		},
 		{
+			description: "it should show the correct error message for invalid database type",
+			err:         &config.Error{Code: config.ErrorCodeDatabaseType},
+			expected:    "config: invalid database type",
+		},
+		{
+			description: "it should show the correct error message for invalid log level",
+			err:         &config.Error{Code: config.ErrorCodeLogLevel},
+			expected:    "config: invalid log level",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &config.Error{Code: config.ErrorCode("i-dont-exist")},
 			expected:    "config: unknown error code",

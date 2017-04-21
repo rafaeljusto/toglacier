@@ -21,9 +21,13 @@ var config unsafe.Pointer
 // keep track in the local storage.
 type Config struct {
 	Paths        []string `yaml:"paths" envconfig:"paths"`
-	AuditFile    string   `yaml:"audit file" envconfig:"audit"`
 	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
 	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+
+	Database struct {
+		Type DatabaseType `yaml:"type" envconfig:"type"`
+		File string       `yaml:"file" envconfig:"file"`
+	} `yaml:"database" envconfig:"db"`
 
 	Log struct {
 		File  string   `yaml:"file" envconfig:"file"`
@@ -66,8 +70,9 @@ func Default() {
 		c = new(Config)
 	}
 
-	c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
 	c.KeepBackups = 10
+	c.Database.Type = DatabaseTypeBoltDB
+	c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 	c.Log.Level = LogLevelError
 
 	Update(c)
@@ -135,6 +140,42 @@ func LoadFromEnvironment() error {
 	}
 
 	Update(c)
+	return nil
+}
+
+const (
+	// DatabaseTypeAuditFile use a human readable file, that stores one backup
+	// information per line. As the structure is simple, this database format will
+	// have less features than other types.
+	DatabaseTypeAuditFile DatabaseType = "audit-file"
+
+	// DatabaseTypeBoltDB use a fast key/value storage that stores all binary
+	// content in only one file. For more information please check
+	// https://github.com/boltdb/bolt
+	DatabaseTypeBoltDB DatabaseType = "boltdb"
+)
+
+var databaseTypeValid = map[string]bool{
+	string(DatabaseTypeAuditFile): true,
+	string(DatabaseTypeBoltDB):    true,
+}
+
+// DatabaseType determinate what type of strategy will be used to store the
+// local backups information.
+type DatabaseType string
+
+// UnmarshalText ensure that the database type defined in the configuration is
+// valid.
+func (d *DatabaseType) UnmarshalText(value []byte) error {
+	databaseType := string(value)
+	databaseType = strings.TrimSpace(databaseType)
+	databaseType = strings.ToLower(databaseType)
+
+	if ok := databaseTypeValid[databaseType]; !ok {
+		return newError("", ErrorCodeDatabaseType, nil)
+	}
+
+	*d = DatabaseType(databaseType)
 	return nil
 }
 

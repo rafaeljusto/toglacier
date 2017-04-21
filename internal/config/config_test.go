@@ -26,7 +26,8 @@ func TestDefault(t *testing.T) {
 			description: "it should set the default configuration values",
 			expected: func() *config.Config {
 				c := new(config.Config)
-				c.AuditFile = path.Join("var", "log", "toglacier", "audit.log")
+				c.Database.Type = config.DatabaseTypeBoltDB
+				c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 				c.KeepBackups = 10
 				c.Log.Level = config.LogLevelError
 				return c
@@ -72,7 +73,9 @@ func TestLoadFromFile(t *testing.T) {
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
@@ -103,7 +106,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -149,7 +153,58 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: idontexist
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level: error
+keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+			var s scenario
+			s.description = "it should detect when the database type is unknown"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodeDatabaseType,
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: idontexist
@@ -223,7 +278,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -271,7 +328,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -321,7 +380,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -352,7 +413,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -387,7 +449,9 @@ aws:
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: debug
@@ -418,7 +482,8 @@ aws:
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -485,7 +550,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -497,7 +563,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -520,6 +587,41 @@ func TestLoadFromEnvironment(t *testing.T) {
 			}(),
 		},
 		{
+			description: "it should detect an invalid database type",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":               "idontexist",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":             "error",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_DB_TYPE",
+					FieldName: "Type",
+					TypeName:  "config.DatabaseType",
+					Value:     "idontexist",
+					Err: &config.Error{
+						Code: config.ErrorCodeDatabaseType,
+					},
+				},
+			},
+		},
+		{
 			description: "it should detect an invalid log level",
 			env: map[string]string{
 				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
@@ -534,7 +636,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "idontexist",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -568,7 +671,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -603,7 +707,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -638,7 +743,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -650,7 +756,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
@@ -687,7 +794,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_EMAIL_FROM":            "user@example.com",
 				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
 				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
-				"TOGLACIER_AUDIT":                 "/var/log/toglacier/audit.log",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
 				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
@@ -699,7 +807,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 					"/usr/local/important-files-1",
 					"/usr/local/important-files-2",
 				}
-				c.AuditFile = "/var/log/toglacier/audit.log"
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10

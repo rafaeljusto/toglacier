@@ -31,6 +31,10 @@ const (
 	// ErrorCodeFillingIV error while filling the IV array with random bytes.
 	ErrorCodeFillingIV ErrorCode = "filling-iv"
 
+	// ErrorCodeDatabaseType informed database type is unknown, it should be
+	// "audit-file" or "boltdb".
+	ErrorCodeDatabaseType ErrorCode = "database-type"
+
 	// ErrorCodeLogLevel informed log level is unknown, it should be "debug",
 	// "info", "warning", "error", "fatal" or "panic".
 	ErrorCodeLogLevel ErrorCode = "log-level"
@@ -57,6 +61,8 @@ func (e ErrorCode) String() string {
 		return "invalid password size"
 	case ErrorCodeFillingIV:
 		return "error filling iv"
+	case ErrorCodeDatabaseType:
+		return "invalid database type"
 	case ErrorCodeLogLevel:
 		return "invalid log level"
 	}

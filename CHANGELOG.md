@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Send report with the scheduler actions periodically
 - Output to a log file using logrus library
 - Log verbosity defined in configuration
+- BoltDB storage for tracking backups locally
+- Local backup now has archive size information
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
@@ -18,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 - Archive algorithm refactory to simplify the tar file
 - Internal API now has well defined errors
+- Variable `TOGLACIER_AUDIT` renamed to `TOGLACIER_DB_FILE`
 
 ## [2.0.4] - 2017-04-19
 ### Fixed

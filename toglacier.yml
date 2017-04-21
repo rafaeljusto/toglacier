@@ -1,7 +1,9 @@
 paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
-audit file: /var/log/toglacier/audit.log
+database:
+  type: boltdb
+  file: /var/log/toglacier/toglacier.db
 log:
   file: /var/log/toglacier/toglacier.log
   level: error

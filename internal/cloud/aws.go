@@ -150,13 +150,21 @@ func (a *AWSCloud) Send(filename string) (Backup, error) {
 		return Backup{}, errors.WithStack(newError("", ErrorCodeArchiveInfo, err))
 	}
 
+	var backup Backup
+
 	if archiveInfo.Size() <= multipartUploadLimit {
 		a.Logger.Debugf("cloud: using small file strategy (%d)", archiveInfo.Size())
-		return a.sendSmall(archive)
+		if backup, err = a.sendSmall(archive); err == nil {
+			backup.Size = archiveInfo.Size()
+		}
+		return backup, err
 	}
 
 	a.Logger.Debugf("cloud: using big file strategy (%d)", archiveInfo.Size())
-	return a.sendBig(archive, archiveInfo.Size())
+	if backup, err = a.sendBig(archive, archiveInfo.Size()); err == nil {
+		backup.Size = archiveInfo.Size()
+	}
+	return backup, err
 }
 
 func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
@@ -378,6 +386,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 			CreatedAt: archive.CreationDate,
 			Checksum:  archive.SHA256TreeHash,
 			VaultName: a.VaultName,
+			Size:      int64(archive.Size),
 		})
 	}
 

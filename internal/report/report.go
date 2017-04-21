@@ -41,12 +41,8 @@ func newBasic() basic {
 type SendBackup struct {
 	basic
 
-	Backup cloud.Backup
-
-	// Paths list of directories that were used in this backup.
-	// TODO: Move this to cloud.Backup type?
-	Paths []string
-
+	Backup    cloud.Backup
+	Paths     []string
 	Durations struct {
 		Build   time.Duration
 		Encrypt time.Duration

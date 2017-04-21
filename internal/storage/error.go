@@ -27,29 +27,68 @@ const (
 	// (corrupted).
 	ErrorCodeFormat ErrorCode = "format"
 
+	// ErrorCodeSizeFormat backup size isn't a valid number.
+	ErrorCodeSizeFormat ErrorCode = "size-format"
+
 	// ErrorCodeDateFormat strange date format found in the local storage file.
 	ErrorCodeDateFormat ErrorCode = "date-format"
+
+	// ErrorCodeEncodingBackup failed to encode the backup to a storage
+	// representation.
+	ErrorCodeEncodingBackup ErrorCode = "encoding-backup"
+
+	// ErrorCodeDecodingBackup failed to decode the backup to the original format.
+	ErrorCodeDecodingBackup ErrorCode = "decoding-backup"
+
+	// ErrorCodeDatabaseNotFound database wasn't found.
+	ErrorCodeDatabaseNotFound ErrorCode = "database-not-found"
+
+	// ErrorCodeUpdatingDatabase problem while updating the database.
+	ErrorCodeUpdatingDatabase ErrorCode = "updating-database"
+
+	// ErrorCodeListingDatabase failed to list the backups from the database.
+	ErrorCodeListingDatabase ErrorCode = "listing-database"
+
+	// ErrorCodeSave failed to save the item in the database.
+	ErrorCodeSave ErrorCode = "save"
+
+	// ErrorCodeDelete failed to remove the item from the database.
+	ErrorCodeDelete ErrorCode = "delete"
+
+	// ErrorCodeIterating error while iterating over the database results.
+	ErrorCodeIterating ErrorCode = "iterating"
+
+	// ErrorAccessingBucket failed to open or create a database bucket.
+	ErrorAccessingBucket ErrorCode = "accessing-bucket"
 )
 
 // ErrorCode stores the error type that occurred while managing the local
 // storage.
 type ErrorCode string
 
+var errorCodeString = map[ErrorCode]string{
+	ErrorCodeOpeningFile:      "error opening the storage file",
+	ErrorCodeWritingFile:      "error writing the storage file",
+	ErrorCodeReadingFile:      "error reading the storage file",
+	ErrorCodeMovingFile:       "error moving the storage file",
+	ErrorCodeFormat:           "unexpected storage file format",
+	ErrorCodeSizeFormat:       "invalid size format",
+	ErrorCodeDateFormat:       "invalid date format",
+	ErrorCodeEncodingBackup:   "failed to encode backup to a storage representation",
+	ErrorCodeDecodingBackup:   "failed to decode backup to the original representation",
+	ErrorCodeDatabaseNotFound: "database not found",
+	ErrorCodeUpdatingDatabase: "failed to update database",
+	ErrorCodeListingDatabase:  "failed to list backups in the database",
+	ErrorCodeSave:             "failed to save the item in the database",
+	ErrorCodeDelete:           "failed to remove the item from the database",
+	ErrorCodeIterating:        "error while iterating over the database results",
+	ErrorAccessingBucket:      "failed to open or create a database bucket",
+}
+
 // String translate the error code to a human readable text.
 func (e ErrorCode) String() string {
-	switch e {
-	case ErrorCodeOpeningFile:
-		return "error opening the storage file"
-	case ErrorCodeWritingFile:
-		return "error writing the storage file"
-	case ErrorCodeReadingFile:
-		return "error reading the storage file"
-	case ErrorCodeMovingFile:
-		return "error moving the storage file"
-	case ErrorCodeFormat:
-		return "unexpected storage file format"
-	case ErrorCodeDateFormat:
-		return "invalid date format"
+	if msg, ok := errorCodeString[e]; ok {
+		return msg
 	}
 
 	return "unknown error code"
