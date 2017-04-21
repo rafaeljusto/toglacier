@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -137,7 +138,7 @@ func NewAWSCloud(logger log.Logger, c *config.Config, debug bool) (*AWSCloud, er
 //         // unknown error
 //       }
 //     }
-func (a *AWSCloud) Send(filename string) (Backup, error) {
+func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 	a.Logger.Debugf("cloud: sending file “%s” to aws cloud", filename)
 
 	archive, err := os.Open(filename)
@@ -161,7 +162,7 @@ func (a *AWSCloud) Send(filename string) (Backup, error) {
 	}
 
 	a.Logger.Debugf("cloud: using big file strategy (%d)", archiveInfo.Size())
-	if backup, err = a.sendBig(archive, archiveInfo.Size()); err == nil {
+	if backup, err = a.sendBig(ctx, archive, archiveInfo.Size()); err == nil {
 		backup.Size = archiveInfo.Size()
 	}
 	return backup, err
@@ -203,7 +204,7 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	return backup, nil
 }
 
-func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) {
+func (a *AWSCloud) sendBig(ctx context.Context, archive *os.File, archiveSize int64) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
 	}
@@ -268,6 +269,21 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
 			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeComparingChecksums, err))
 		}
+
+		select {
+		case <-ctx.Done():
+			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
+				AccountId: aws.String(a.AccountID),
+				UploadId:  initiateMultipartUploadOutput.UploadId,
+				VaultName: aws.String(a.VaultName),
+			}
+
+			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
+			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeCancelled, ctx.Err()))
+
+		default:
+			continue
+		}
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -303,7 +319,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 		a.Logger.Debugf("cloud: local archive checksum (%s) different from remote checksum (%s)", hex.EncodeToString(hash.TreeHash), *archiveCreationOutput.Checksum)
 
 		// something went wrong with the uploaded archive, better remove it
-		if err := a.Remove(backup.ID); err != nil {
+		if err := a.Remove(ctx, backup.ID); err != nil {
 			// error while trying to remove the strange backup
 			return backup, errors.WithStack(newError(backup.ID, ErrorCodeComparingChecksums, err))
 		}
@@ -332,7 +348,7 @@ func (a *AWSCloud) sendBig(archive *os.File, archiveSize int64) (Backup, error) 
 //         // unknown error
 //       }
 //     }
-func (a *AWSCloud) List() ([]Backup, error) {
+func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 	a.Logger.Debug("cloud: retrieving list of archives from the aws cloud")
 
 	initiateJobInput := glacier.InitiateJobInput{
@@ -349,7 +365,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
 	}
 
-	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
+	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -411,7 +427,7 @@ func (a *AWSCloud) List() ([]Backup, error) {
 //         // unknown error
 //       }
 //     }
-func (a *AWSCloud) Get(id string) (string, error) {
+func (a *AWSCloud) Get(ctx context.Context, id string) (string, error) {
 	a.Logger.Debugf("cloud: retrieving archive “%s” from the aws cloud", id)
 
 	initiateJobInput := glacier.InitiateJobInput{
@@ -428,7 +444,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 		return "", errors.WithStack(newError(id, ErrorCodeInitJob, err))
 	}
 
-	if err := a.waitJob(*initiateJobOutput.JobId); err != nil {
+	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
 		return "", errors.WithStack(err)
 	}
 
@@ -474,7 +490,7 @@ func (a *AWSCloud) Get(id string) (string, error) {
 //         // unknown error
 //       }
 //     }
-func (a *AWSCloud) Remove(id string) error {
+func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 	a.Logger.Debugf("cloud: removing archive %s from the aws cloud", id)
 
 	deleteArchiveInput := glacier.DeleteArchiveInput{
@@ -491,7 +507,7 @@ func (a *AWSCloud) Remove(id string) error {
 	return nil
 }
 
-func (a *AWSCloud) waitJob(jobID string) error {
+func (a *AWSCloud) waitJob(ctx context.Context, jobID string) error {
 	a.Logger.Debugf("cloud: waiting for job %s", jobID)
 
 	waitJobTime.RLock()
@@ -535,7 +551,13 @@ func (a *AWSCloud) waitJob(jobID string) error {
 		}
 
 		a.Logger.Debugf("cloud: job %s not done, waiting %s for next check", jobID, sleep.String())
-		time.Sleep(sleep)
+
+		select {
+		case <-time.After(sleep):
+			continue
+		case <-ctx.Done():
+			return errors.WithStack(newError(jobID, ErrorCodeCancelled, ctx.Err()))
+		}
 	}
 }
 

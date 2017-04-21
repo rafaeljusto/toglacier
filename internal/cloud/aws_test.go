@@ -2,6 +2,7 @@ package cloud_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -664,7 +665,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			cloud.MultipartUploadLimit(scenario.multipartUploadLimit)
 			cloud.PartSize(scenario.partSize)
 
-			backup, err := scenario.awsCloud.Send(scenario.filename)
+			backup, err := scenario.awsCloud.Send(context.Background(), scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backup))
 			}
@@ -1043,7 +1044,7 @@ func TestAWSCloud_List(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			backups, err := scenario.awsCloud.List()
+			backups, err := scenario.awsCloud.List(context.Background())
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
@@ -1316,7 +1317,7 @@ func TestAWSCloud_Get(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			filename, err := scenario.awsCloud.Get(scenario.id)
+			filename, err := scenario.awsCloud.Get(context.Background(), scenario.id)
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
@@ -1381,7 +1382,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := scenario.awsCloud.Remove(scenario.id)
+			err := scenario.awsCloud.Remove(context.Background(), scenario.id)
 			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}

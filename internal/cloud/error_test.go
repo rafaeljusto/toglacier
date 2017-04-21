@@ -119,6 +119,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "cloud: error removing backup",
 		},
 		{
+			description: "it should show the correct error message for cancelled action",
+			err:         &cloud.Error{Code: cloud.ErrorCodeCancelled},
+			expected:    "cloud: action cancelled by the user",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &cloud.Error{Code: cloud.ErrorCode("i-dont-exist")},
 			expected:    "cloud: unknown error code",
@@ -270,6 +275,11 @@ func TestMultipartError_Error(t *testing.T) {
 			description: "it should show the correct error message for comparing checksums problem",
 			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCodeComparingChecksums},
 			expected:    "cloud: offset 0/0, error comparing checksums on archive part",
+		},
+		{
+			description: "it should show the correct error message for user cancelling action",
+			err:         &cloud.MultipartError{Code: cloud.MultipartErrorCodeCancelled},
+			expected:    "cloud: offset 0/0, action cancelled by the user",
 		},
 		{
 			description: "it should detect when the code doesn't exist",

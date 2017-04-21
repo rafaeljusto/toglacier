@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -266,7 +267,7 @@ func TestBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := backup(scenario.backupPaths, scenario.backupSecret, scenario.builder, scenario.envelop, scenario.cloud, scenario.storage)
+			err := backup(context.Background(), scenario.backupPaths, scenario.backupSecret, scenario.builder, scenario.envelop, scenario.cloud, scenario.storage)
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -514,7 +515,7 @@ func TestListBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			backups, err := listBackups(scenario.remote, scenario.cloud, scenario.storage)
+			backups, err := listBackups(context.Background(), scenario.remote, scenario.cloud, scenario.storage)
 
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
@@ -627,7 +628,7 @@ func TestRetrieveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			filename, err := retrieveBackup(scenario.id, scenario.backupSecret, scenario.envelop, scenario.cloud)
+			filename, err := retrieveBackup(context.Background(), scenario.id, scenario.backupSecret, scenario.envelop, scenario.cloud)
 
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)
@@ -696,7 +697,7 @@ func TestRemoveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := removeBackup(scenario.id, scenario.cloud, scenario.storage)
+			err := removeBackup(context.Background(), scenario.id, scenario.cloud, scenario.storage)
 
 			if !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -851,7 +852,7 @@ func TestRemoveOldBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := removeOldBackups(scenario.keepBackups, scenario.cloud, scenario.storage)
+			err := removeOldBackups(context.Background(), scenario.keepBackups, scenario.cloud, scenario.storage)
 
 			if !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -1020,19 +1021,19 @@ type mockCloud struct {
 	mockRemove func(id string) error
 }
 
-func (m mockCloud) Send(filename string) (cloud.Backup, error) {
+func (m mockCloud) Send(ctx context.Context, filename string) (cloud.Backup, error) {
 	return m.mockSend(filename)
 }
 
-func (m mockCloud) List() ([]cloud.Backup, error) {
+func (m mockCloud) List(ctx context.Context) ([]cloud.Backup, error) {
 	return m.mockList()
 }
 
-func (m mockCloud) Get(id string) (filename string, err error) {
+func (m mockCloud) Get(ctx context.Context, id string) (filename string, err error) {
 	return m.mockGet(id)
 }
 
-func (m mockCloud) Remove(id string) error {
+func (m mockCloud) Remove(ctx context.Context, id string) error {
 	return m.mockRemove(id)
 }
 
