@@ -65,6 +65,9 @@ const (
 
 	// ErrorCodeRemovingArchive error while removing the archive from the cloud.
 	ErrorCodeRemovingArchive ErrorCode = "removing-archive"
+
+	// ErrorCodeCancelled action cancelled by the user.
+	ErrorCodeCancelled ErrorCode = "cancelled"
 )
 
 // ErrorCode stores the error type that occurred while performing any operation
@@ -88,6 +91,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeCreatingArchive:     "error creating backup file",
 	ErrorCodeCopyingData:         "error copying data to the backup file",
 	ErrorCodeRemovingArchive:     "error removing backup",
+	ErrorCodeCancelled:           "action cancelled by the user",
 }
 
 // String translate the error code to a human readable text.
@@ -173,6 +177,9 @@ const (
 	// MultipartErrorCodeComparingChecksums error comparing checksums with the
 	// cloud of the uploaded archive part.
 	MultipartErrorCodeComparingChecksums MultipartErrorCode = "comparing-checksums"
+
+	// MultipartErrorCodeCancelled action cancelled by the user.
+	MultipartErrorCodeCancelled MultipartErrorCode = "cancelled"
 )
 
 // MultipartErrorCode stores the error type that occurred while sending a piece
@@ -188,6 +195,8 @@ func (c MultipartErrorCode) String() string {
 		return "error sending an archive part"
 	case MultipartErrorCodeComparingChecksums:
 		return "error comparing checksums on archive part"
+	case MultipartErrorCodeCancelled:
+		return "action cancelled by the user"
 	}
 
 	return "unknown error code"
