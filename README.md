@@ -43,10 +43,10 @@ your `$PATH` and run the following command:
 go get -u github.com/rafaeljusto/toglacier
 ```
 
-If you are thinking that is a good idea to encrypt some sensitive tool
-parameters and want to improve the security, is a good idea to replace the
-numbers of the slices in the function `passwordKey` of the `encpass.go` file for
-your random numbers. Remember to compile the tool again (`go install`).
+If you are thinking that is a good idea to encrypt some sensitive parameters and
+want to improve the security, you should replace the numbers of the slices in
+the function `passwordKey` of the `encpass.go` file for your own random numbers.
+Remember to compile the tool again (`go install`).
 
 As this program can work like a service/daemon (start command), in this case you
 should run it in background. It is a good practice to also add it to your system
