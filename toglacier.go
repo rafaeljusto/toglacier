@@ -36,6 +36,7 @@ func main() {
 	// iventories
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
+	var cancelFunc func()
 
 	app := cli.NewApp()
 	app.Name = "toglacier"
@@ -212,17 +213,9 @@ func main() {
 				})
 
 				stopped := scheduler.Start()
-
-				// create a graceful shutdown when receiving a signal (SIGINT, SIGKILL,
-				// SIGTERM, SIGSTOP)
-				sigs := make(chan os.Signal, 1)
-				signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGSTOP)
-
-				go func() {
-					<-sigs         // wait for signal
-					close(stopped) // stop cron
-					cancel()       // finish long running tasks
-				}()
+				cancelFunc = func() {
+					close(stopped)
+				}
 
 				select {
 				case <-stopped:
@@ -268,6 +261,20 @@ func main() {
 			},
 		},
 	}
+
+	// create a graceful shutdown when receiving a signal (SIGINT, SIGKILL,
+	// SIGTERM, SIGSTOP)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGSTOP)
+
+	go func() {
+		<-sigs
+		if cancelFunc != nil {
+			cancelFunc()
+		}
+
+		cancel()
+	}()
 
 	app.Run(os.Args)
 }

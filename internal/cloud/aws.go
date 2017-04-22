@@ -272,6 +272,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive *os.File, archiveSize in
 
 		select {
 		case <-ctx.Done():
+			a.Logger.Debug("cloud: upload cancelled by user")
+
 			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
 				AccountId: aws.String(a.AccountID),
 				UploadId:  initiateMultipartUploadOutput.UploadId,
@@ -556,6 +558,7 @@ func (a *AWSCloud) waitJob(ctx context.Context, jobID string) error {
 		case <-time.After(sleep):
 			continue
 		case <-ctx.Done():
+			a.Logger.Debugf("cloud: job %s cancelled by user", jobID)
 			return errors.WithStack(newError(jobID, ErrorCodeCancelled, ctx.Err()))
 		}
 	}
