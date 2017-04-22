@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
+- Debian script for cross compilation environments
 
 ### Changed
 - Archive algorithm refactory to simplify the tar file
