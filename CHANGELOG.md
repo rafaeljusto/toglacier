@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Log verbosity defined in configuration
 - BoltDB storage for tracking backups locally
 - Local backup now has archive size information
+- Graceful shutdown when an OS signal is detected
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
