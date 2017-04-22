@@ -155,20 +155,22 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 
 	if archiveInfo.Size() <= multipartUploadLimit {
 		a.Logger.Debugf("cloud: using small file strategy (%d)", archiveInfo.Size())
-		if backup, err = a.sendSmall(archive); err == nil {
-			backup.Size = archiveInfo.Size()
-		}
-		return backup, err
+		backup, err = a.sendSmall(archive)
+
+	} else {
+		a.Logger.Debugf("cloud: using big file strategy (%d)", archiveInfo.Size())
+		backup, err = a.sendBig(ctx, archive, archiveInfo.Size())
 	}
 
-	a.Logger.Debugf("cloud: using big file strategy (%d)", archiveInfo.Size())
-	if backup, err = a.sendBig(ctx, archive, archiveInfo.Size()); err == nil {
+	if err == nil {
+		a.Logger.Infof("cloud: file “%s” sent successfully to the aws cloud", filename)
 		backup.Size = archiveInfo.Size()
 	}
+
 	return backup, err
 }
 
-func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
+func (a *AWSCloud) sendSmall(archive io.ReadSeeker) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
 	}
@@ -200,11 +202,10 @@ func (a *AWSCloud) sendSmall(archive *os.File) (Backup, error) {
 	backup.Checksum = *archiveCreationOutput.Checksum
 	backup.VaultName = a.VaultName
 
-	a.Logger.Infof("cloud: file “%s” sent successfully to the aws cloud", archive.Name())
 	return backup, nil
 }
 
-func (a *AWSCloud) sendBig(ctx context.Context, archive *os.File, archiveSize int64) (Backup, error) {
+func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSize int64) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
 	}
@@ -330,7 +331,6 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive *os.File, archiveSize in
 		return backup, errors.WithStack(newError(backup.ID, ErrorCodeComparingChecksums, nil))
 	}
 
-	a.Logger.Infof("cloud: file “%s” sent successfully to the aws cloud", archive.Name())
 	return backup, nil
 }
 
