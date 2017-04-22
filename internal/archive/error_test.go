@@ -121,7 +121,7 @@ func TestError_Error(t *testing.T) {
 		{
 			description: "it should show the correct error message for rewinding file problem",
 			err:         &archive.Error{Code: archive.ErrorCodeRewindingFile},
-			expected:    "archive: error moving to the beggining of the file",
+			expected:    "archive: error moving to the beginning of the file",
 		},
 		{
 			description: "it should detect when the code doesn't exist",

@@ -92,7 +92,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeEncryptingFile:        "error encrypting file",
 	ErrorCodeDecryptingFile:        "error decrypting file",
 	ErrorCodeAuthFailed:            "encrypted content authentication failed",
-	ErrorCodeRewindingFile:         "error moving to the beggining of the file",
+	ErrorCodeRewindingFile:         "error moving to the beginning of the file",
 }
 
 // String translate the error code to a human readable text.
