@@ -93,6 +93,9 @@ func TestAWSCloud_Send(t *testing.T) {
 	defer cloud.MultipartUploadLimit(102400)
 	defer cloud.PartSize(4096)
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
 	scenarios := []struct {
 		description          string
 		filename             string
@@ -100,6 +103,7 @@ func TestAWSCloud_Send(t *testing.T) {
 		partSize             int64
 		awsCloud             cloud.AWSCloud
 		randomSource         io.Reader
+		goFunc               func()
 		expected             cloud.Backup
 		expectedError        error
 	}{
@@ -658,6 +662,85 @@ func TestAWSCloud_Send(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "it should detect when a big backup is cancelled",
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test-")
+				if err != nil {
+					t.Fatalf("error creating file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString(strings.Repeat("Important information for the test backup\n", 1000))
+				return f.Name()
+			}(),
+			multipartUploadLimit: 1024,
+			partSize:             1048576,
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateMultipartUpload: func(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+						partSize, err := strconv.ParseInt(*i.PartSize, 10, 64)
+						if err != nil {
+							return nil, err
+						}
+
+						// Part size must be a power of two and be between 1048576 and
+						// 4294967296 bytes
+						if partSize < 1048576 || partSize > 4294967296 || partSize&(partSize-1) != 0 {
+							return nil, errors.New("Invalid part size")
+						}
+
+						return &glacier.InitiateMultipartUploadOutput{
+							UploadId: aws.String("UPLOAD123"),
+						}, nil
+					},
+					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						// sleep for a small amount of time to allow the task to be
+						// cancelled
+						time.Sleep(200 * time.Millisecond)
+
+						hash := glacier.ComputeHashes(u.Body)
+						return &glacier.UploadMultipartPartOutput{
+							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
+						}, nil
+					},
+					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+						return &glacier.ArchiveCreationOutput{
+							ArchiveId: aws.String("AWSID123"),
+							Checksum:  aws.String("a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242"),
+							Location:  aws.String("/archive/AWSID123"),
+						}, nil
+					},
+					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+						return nil, nil
+					},
+				},
+				Clock: fakeClock{
+					mockNow: func() time.Time {
+						return time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC)
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.MultipartError{
+				Offset: 0,
+				Size:   42000,
+				Code:   cloud.MultipartErrorCodeCancelled,
+				Err:    context.Canceled,
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -665,7 +748,11 @@ func TestAWSCloud_Send(t *testing.T) {
 			cloud.MultipartUploadLimit(scenario.multipartUploadLimit)
 			cloud.PartSize(scenario.partSize)
 
-			backup, err := scenario.awsCloud.Send(context.Background(), scenario.filename)
+			if scenario.goFunc != nil {
+				go scenario.goFunc()
+			}
+
+			backup, err := scenario.awsCloud.Send(ctx, scenario.filename)
 			if !reflect.DeepEqual(scenario.expected, backup) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backup))
 			}
@@ -680,9 +767,13 @@ func TestAWSCloud_List(t *testing.T) {
 	defer cloud.WaitJobTime(time.Minute)
 	cloud.WaitJobTime(100 * time.Millisecond)
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
 	scenarios := []struct {
 		description   string
 		awsCloud      cloud.AWSCloud
+		goFunc        func()
 		expected      []cloud.Backup
 		expectedError error
 	}{
@@ -1040,11 +1131,97 @@ func TestAWSCloud_List(t *testing.T) {
 				Err:  errors.New("invalid character '{' looking for beginning of object key string"),
 			},
 		},
+		{
+			description: "it should detect when the action is cancelled by the user",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							time.Sleep(200 * time.Millisecond)
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						iventory := struct {
+							VaultARN      string `json:"VaultARN"`
+							InventoryDate string `json:"InventoryDate"`
+							ArchiveList   cloud.AWSInventoryArchiveList
+						}{
+							ArchiveList: cloud.AWSInventoryArchiveList{
+								{
+									ArchiveID:          "AWSID123",
+									ArchiveDescription: "another test backup",
+									CreationDate:       time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+									Size:               4000,
+									SHA256TreeHash:     "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+								},
+								{
+									ArchiveID:          "AWSID122",
+									ArchiveDescription: "great test",
+									CreationDate:       time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
+									Size:               2456,
+									SHA256TreeHash:     "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
+								},
+							},
+						}
+
+						body, err := json.Marshal(iventory)
+						if err != nil {
+							t.Fatalf("error build job output response. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBuffer(body)),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeCancelled,
+				Err:  context.Canceled,
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			backups, err := scenario.awsCloud.List(context.Background())
+			if scenario.goFunc != nil {
+				go scenario.goFunc()
+			}
+
+			backups, err := scenario.awsCloud.List(ctx)
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
@@ -1059,10 +1236,14 @@ func TestAWSCloud_Get(t *testing.T) {
 	defer cloud.WaitJobTime(time.Minute)
 	cloud.WaitJobTime(100 * time.Millisecond)
 
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+
 	scenarios := []struct {
 		description   string
 		id            string
 		awsCloud      cloud.AWSCloud
+		goFunc        func()
 		expected      string
 		expectedError error
 	}{
@@ -1313,11 +1494,70 @@ func TestAWSCloud_Get(t *testing.T) {
 				Err:  errors.New("job corrupted"),
 			},
 		},
+		{
+			description: "it should detect when the task was cancelled by the user",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							time.Sleep(200 * time.Millisecond)
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.Error{
+				ID:   "JOBID123",
+				Code: cloud.ErrorCodeCancelled,
+				Err:  context.Canceled,
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			filename, err := scenario.awsCloud.Get(context.Background(), scenario.id)
+			if scenario.goFunc != nil {
+				go scenario.goFunc()
+			}
+
+			filename, err := scenario.awsCloud.Get(ctx, scenario.id)
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
