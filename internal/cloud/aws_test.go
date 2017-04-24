@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
-	"github.com/rafaeljusto/toglacier/internal/config"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -31,7 +30,7 @@ func TestNewAWSCloud(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		logger        log.Logger
-		config        *config.Config
+		config        cloud.AWSConfig
 		debug         bool
 		expected      *cloud.AWSCloud
 		expectedEnv   map[string]string
@@ -39,15 +38,13 @@ func TestNewAWSCloud(t *testing.T) {
 	}{
 		{
 			description: "it should build a AWS cloud instance correctly",
-			config: func() *config.Config {
-				c := new(config.Config)
-				c.AWS.AccountID.Value = "account"
-				c.AWS.AccessKeyID.Value = "keyid"
-				c.AWS.SecretAccessKey.Value = "secret"
-				c.AWS.Region = "us-east-1"
-				c.AWS.VaultName = "vault"
-				return c
-			}(),
+			config: cloud.AWSConfig{
+				AccountID:       "account",
+				AccessKeyID:     "keyid",
+				SecretAccessKey: "secret",
+				Region:          "us-east-1",
+				VaultName:       "vault",
+			},
 			debug: true,
 			expected: &cloud.AWSCloud{
 				AccountID: "account",

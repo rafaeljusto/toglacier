@@ -97,8 +97,16 @@ func main() {
 			logger.Level = logrus.PanicLevel
 		}
 
+		awsConfig := cloud.AWSConfig{
+			AccountID:       config.Current().AWS.AccountID.Value,
+			AccessKeyID:     config.Current().AWS.AccessKeyID.Value,
+			SecretAccessKey: config.Current().AWS.SecretAccessKey.Value,
+			Region:          config.Current().AWS.Region,
+			VaultName:       config.Current().AWS.VaultName,
+		}
+
 		var awsCloud cloud.Cloud
-		if awsCloud, err = cloud.NewAWSCloud(logger, config.Current(), false); err != nil {
+		if awsCloud, err = cloud.NewAWSCloud(logger, awsConfig, false); err != nil {
 			fmt.Printf("error initializing AWS cloud. details: %s\n", err)
 			return err
 		}

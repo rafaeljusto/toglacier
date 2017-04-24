@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/aws/aws-sdk-go/service/glacier/glacieriface"
 	"github.com/pkg/errors"
-	"github.com/rafaeljusto/toglacier/internal/config"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -62,6 +61,15 @@ func WaitJobTime(value time.Duration) {
 	waitJobTime.Duration = value
 }
 
+// AWSConfig stores all necessary parameters to initialize a AWS session.
+type AWSConfig struct {
+	AccountID       string
+	AccessKeyID     string
+	SecretAccessKey string
+	Region          string
+	VaultName       string
+}
+
 // AWSCloud is the Amazon solution for storing the backups in the cloud. It uses
 // the Amazon Glacier service, as it allows large files for a small price.
 type AWSCloud struct {
@@ -90,14 +98,14 @@ type AWSCloud struct {
 //         // unknown error
 //       }
 //     }
-func NewAWSCloud(logger log.Logger, c *config.Config, debug bool) (*AWSCloud, error) {
+func NewAWSCloud(logger log.Logger, config AWSConfig, debug bool) (*AWSCloud, error) {
 	var err error
 
 	// this environment variables are used by the AWS library, so we need to set
 	// them in plain text
-	os.Setenv("AWS_ACCESS_KEY_ID", c.AWS.AccessKeyID.Value)
-	os.Setenv("AWS_SECRET_ACCESS_KEY", c.AWS.SecretAccessKey.Value)
-	os.Setenv("AWS_REGION", c.AWS.Region)
+	os.Setenv("AWS_ACCESS_KEY_ID", config.AccessKeyID)
+	os.Setenv("AWS_SECRET_ACCESS_KEY", config.SecretAccessKey)
+	os.Setenv("AWS_REGION", config.Region)
 
 	awsSession, err := session.NewSession()
 	if err != nil {
@@ -111,8 +119,8 @@ func NewAWSCloud(logger log.Logger, c *config.Config, debug bool) (*AWSCloud, er
 
 	return &AWSCloud{
 		Logger:    logger,
-		AccountID: c.AWS.AccountID.Value,
-		VaultName: c.AWS.VaultName,
+		AccountID: config.AccountID,
+		VaultName: config.VaultName,
 		Glacier:   awsGlacier,
 		Clock:     realClock{},
 	}, nil
