@@ -287,6 +287,7 @@ func main() {
 	app.Run(os.Args)
 }
 
+// ToGlacier manages backups in the cloud.
 type ToGlacier struct {
 	context context.Context
 	builder archive.Builder
@@ -295,6 +296,7 @@ type ToGlacier struct {
 	storage storage.Storage
 }
 
+// Backup create an archive and send it to the cloud.
 func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	backupReport := report.NewSendBackup()
 
@@ -343,6 +345,8 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	return nil
 }
 
+// ListBackups show the current backups. With the remote flag it is possible to
+// list the backups tracked locally or retrieve the cloud inventory.
 func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	if !remote {
 		backups, err := t.storage.List()
@@ -403,6 +407,7 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	return remoteBackups, nil
 }
 
+// RetrieveBackup recover a specific backup from the cloud.
 func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
 	backupFile, err := t.cloud.Get(t.context, id)
 	if err != nil {
@@ -423,6 +428,7 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
 	return backupFile, nil
 }
 
+// RemoveBackup delete a specific backup from the cloud.
 func (t ToGlacier) RemoveBackup(id string) error {
 	if err := t.cloud.Remove(t.context, id); err != nil {
 		return errors.WithStack(err)
@@ -431,6 +437,8 @@ func (t ToGlacier) RemoveBackup(id string) error {
 	return errors.WithStack(t.storage.Remove(id))
 }
 
+// RemoveOldBackups delete old backups from the cloud. This will optimize the
+// cloud space usage, as too old backups aren't used.
 func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 	removeOldBackupsReport := report.NewRemoveOldBackups()
 	defer func() {
@@ -459,6 +467,8 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 	return nil
 }
 
+// SendReport send information from the actions performed by this tool via
+// e-mail to an administrator.
 func (t ToGlacier) SendReport(emailInfo EmailInfo) error {
 	r, err := report.Build()
 	if err != nil {
@@ -476,6 +486,7 @@ Subject: toglacier report
 	return errors.WithStack(err)
 }
 
+// EmailInfo stores all necessary information to send an e-mail.
 type EmailInfo struct {
 	Sender   EmailSender
 	Server   string
@@ -486,12 +497,16 @@ type EmailInfo struct {
 	To       []string
 }
 
+// EmailSender e-mail API to make it easy to mock the smtp.SendEmail function.
 type EmailSender interface {
 	SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error
 }
 
+// EmailSenderFunc helper function to create a fast implementation of the
+// EmailSender interface.
 type EmailSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
 
+// SendMail sends the e-mail.
 func (r EmailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return r(addr, a, from, to, msg)
 }
