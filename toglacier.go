@@ -23,12 +23,8 @@ import (
 )
 
 func main() {
+	var toGlacier ToGlacier
 	var logger *logrus.Logger
-	var tarBuilder archive.Builder
-	var ofbEnvelop archive.Envelop
-	var awsCloud cloud.Cloud
-	var localStorage storage.Storage
-
 	var logFile *os.File
 	defer logFile.Close()
 
@@ -101,19 +97,26 @@ func main() {
 			logger.Level = logrus.PanicLevel
 		}
 
-		tarBuilder = archive.NewTARBuilder(logger)
-		ofbEnvelop = archive.NewOFBEnvelop(logger)
-
+		var awsCloud cloud.Cloud
 		if awsCloud, err = cloud.NewAWSCloud(logger, config.Current(), false); err != nil {
 			fmt.Printf("error initializing AWS cloud. details: %s\n", err)
 			return err
 		}
 
+		var localStorage storage.Storage
 		switch config.Current().Database.Type {
 		case config.DatabaseTypeAuditFile:
 			localStorage = storage.NewAuditFile(logger, config.Current().Database.File)
 		case config.DatabaseTypeBoltDB:
 			localStorage = storage.NewBoltDB(logger, config.Current().Database.File)
+		}
+
+		toGlacier = ToGlacier{
+			context: ctx,
+			builder: archive.NewTARBuilder(logger),
+			envelop: archive.NewOFBEnvelop(logger),
+			cloud:   awsCloud,
+			storage: localStorage,
 		}
 
 		return nil
@@ -123,7 +126,7 @@ func main() {
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
 			Action: func(c *cli.Context) error {
-				if err := backup(ctx, config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, localStorage); err != nil {
+				if err := toGlacier.Backup(config.Current().Paths, config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
 				}
 				return nil
@@ -134,7 +137,7 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile, err := retrieveBackup(ctx, c.Args().First(), config.Current().BackupSecret.Value, ofbEnvelop, awsCloud); err != nil {
+				if backupFile, err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
 				} else if backupFile != "" {
 					fmt.Printf("Backup recovered at %s\n", backupFile)
@@ -148,7 +151,7 @@ func main() {
 			Usage:     "remove a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if err := removeBackup(ctx, c.Args().First(), awsCloud, localStorage); err != nil {
+				if err := toGlacier.RemoveBackup(c.Args().First()); err != nil {
 					logger.Error(err)
 				}
 				return nil
@@ -165,7 +168,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				if backups, err := listBackups(ctx, c.Bool("remote"), awsCloud, localStorage); err != nil {
+				if backups, err := toGlacier.ListBackups(c.Bool("remote")); err != nil {
 					logger.Error(err)
 
 				} else if len(backups) > 0 {
@@ -184,30 +187,32 @@ func main() {
 			Action: func(c *cli.Context) error {
 				scheduler := gocron.NewScheduler()
 				scheduler.Every(1).Day().At("00:00").Do(func() {
-					if err := backup(ctx, config.Current().Paths, config.Current().BackupSecret.Value, tarBuilder, ofbEnvelop, awsCloud, localStorage); err != nil {
+					if err := toGlacier.Backup(config.Current().Paths, config.Current().BackupSecret.Value); err != nil {
 						logger.Error(err)
 					}
 				})
 				scheduler.Every(1).Weeks().At("01:00").Do(func() {
-					if err := removeOldBackups(ctx, config.Current().KeepBackups, awsCloud, localStorage); err != nil {
+					if err := toGlacier.RemoveOldBackups(config.Current().KeepBackups); err != nil {
 						logger.Error(err)
 					}
 				})
 				scheduler.Every(4).Weeks().At("12:00").Do(func() {
-					if _, err := listBackups(ctx, true, awsCloud, localStorage); err != nil {
+					if _, err := toGlacier.ListBackups(true); err != nil {
 						logger.Error(err)
 					}
 				})
 				scheduler.Every(1).Weeks().At("06:00").Do(func() {
-					err := sendReport(emailSenderFunc(smtp.SendMail),
-						config.Current().Email.Server,
-						config.Current().Email.Port,
-						config.Current().Email.Username,
-						config.Current().Email.Password.Value,
-						config.Current().Email.From,
-						config.Current().Email.To)
+					emailInfo := EmailInfo{
+						Sender:   EmailSenderFunc(smtp.SendMail),
+						Server:   config.Current().Email.Server,
+						Port:     config.Current().Email.Port,
+						Username: config.Current().Email.Username,
+						Password: config.Current().Email.Password.Value,
+						From:     config.Current().Email.From,
+						To:       config.Current().Email.To,
+					}
 
-					if err != nil {
+					if err := toGlacier.SendReport(emailInfo); err != nil {
 						logger.Error(err)
 					}
 				})
@@ -232,17 +237,20 @@ func main() {
 			Action: func(c *cli.Context) error {
 				report.Add(report.NewTest())
 
-				err := sendReport(emailSenderFunc(smtp.SendMail),
-					config.Current().Email.Server,
-					config.Current().Email.Port,
-					config.Current().Email.Username,
-					config.Current().Email.Password.Value,
-					config.Current().Email.From,
-					config.Current().Email.To)
+				emailInfo := EmailInfo{
+					Sender:   EmailSenderFunc(smtp.SendMail),
+					Server:   config.Current().Email.Server,
+					Port:     config.Current().Email.Port,
+					Username: config.Current().Email.Username,
+					Password: config.Current().Email.Password.Value,
+					From:     config.Current().Email.From,
+					To:       config.Current().Email.To,
+				}
 
-				if err != nil {
+				if err := toGlacier.SendReport(emailInfo); err != nil {
 					logger.Error(err)
 				}
+
 				return nil
 			},
 		},
@@ -279,7 +287,15 @@ func main() {
 	app.Run(os.Args)
 }
 
-func backup(ctx context.Context, backupPaths []string, backupSecret string, b archive.Builder, e archive.Envelop, c cloud.Cloud, s storage.Storage) error {
+type ToGlacier struct {
+	context context.Context
+	builder archive.Builder
+	envelop archive.Envelop
+	cloud   cloud.Cloud
+	storage storage.Storage
+}
+
+func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	backupReport := report.NewSendBackup()
 
 	defer func() {
@@ -287,7 +303,7 @@ func backup(ctx context.Context, backupPaths []string, backupSecret string, b ar
 	}()
 
 	timeMark := time.Now()
-	filename, err := b.Build(backupPaths...)
+	filename, err := t.builder.Build(backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
@@ -300,7 +316,7 @@ func backup(ctx context.Context, backupPaths []string, backupSecret string, b ar
 		var encryptedFilename string
 
 		timeMark = time.Now()
-		if encryptedFilename, err = e.Encrypt(filename, backupSecret); err != nil {
+		if encryptedFilename, err = t.envelop.Encrypt(filename, backupSecret); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			return errors.WithStack(err)
 		}
@@ -313,13 +329,13 @@ func backup(ctx context.Context, backupPaths []string, backupSecret string, b ar
 	}
 
 	timeMark = time.Now()
-	if backupReport.Backup, err = c.Send(ctx, filename); err != nil {
+	if backupReport.Backup, err = t.cloud.Send(t.context, filename); err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
 	backupReport.Durations.Send = time.Now().Sub(timeMark)
 
-	if err := s.Save(backupReport.Backup); err != nil {
+	if err := t.storage.Save(backupReport.Backup); err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
@@ -327,9 +343,9 @@ func backup(ctx context.Context, backupPaths []string, backupSecret string, b ar
 	return nil
 }
 
-func listBackups(ctx context.Context, remote bool, c cloud.Cloud, s storage.Storage) ([]cloud.Backup, error) {
+func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	if !remote {
-		backups, err := s.List()
+		backups, err := t.storage.List()
 		return backups, errors.WithStack(err)
 	}
 
@@ -339,7 +355,7 @@ func listBackups(ctx context.Context, remote bool, c cloud.Cloud, s storage.Stor
 	}()
 
 	timeMark := time.Now()
-	remoteBackups, err := c.List(ctx)
+	remoteBackups, err := t.cloud.List(t.context)
 	if err != nil {
 		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		return nil, errors.WithStack(err)
@@ -350,7 +366,7 @@ func listBackups(ctx context.Context, remote bool, c cloud.Cloud, s storage.Stor
 	// remote backups operations can take a while, and a concurrent action could
 	// change the local backups during this time
 
-	backups, err := s.List()
+	backups, err := t.storage.List()
 	if err != nil {
 		listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 		return nil, errors.WithStack(err)
@@ -371,14 +387,14 @@ func listBackups(ctx context.Context, remote bool, c cloud.Cloud, s storage.Stor
 	// maybe the best approach is to do nothing and report the problem.
 
 	for _, backup := range backups {
-		if err := s.Remove(backup.ID); err != nil {
+		if err := t.storage.Remove(backup.ID); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
 	for _, backup := range remoteBackups {
-		if err := s.Save(backup); err != nil {
+		if err := t.storage.Save(backup); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
@@ -387,15 +403,15 @@ func listBackups(ctx context.Context, remote bool, c cloud.Cloud, s storage.Stor
 	return remoteBackups, nil
 }
 
-func retrieveBackup(ctx context.Context, id, backupSecret string, e archive.Envelop, c cloud.Cloud) (string, error) {
-	backupFile, err := c.Get(ctx, id)
+func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
+	backupFile, err := t.cloud.Get(t.context, id)
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	if backupSecret != "" {
 		var filename string
-		if filename, err = e.Decrypt(backupFile, backupSecret); err != nil {
+		if filename, err = t.envelop.Decrypt(backupFile, backupSecret); err != nil {
 			return "", errors.WithStack(err)
 		}
 
@@ -407,22 +423,22 @@ func retrieveBackup(ctx context.Context, id, backupSecret string, e archive.Enve
 	return backupFile, nil
 }
 
-func removeBackup(ctx context.Context, id string, c cloud.Cloud, s storage.Storage) error {
-	if err := c.Remove(ctx, id); err != nil {
+func (t ToGlacier) RemoveBackup(id string) error {
+	if err := t.cloud.Remove(t.context, id); err != nil {
 		return errors.WithStack(err)
 	}
 
-	return errors.WithStack(s.Remove(id))
+	return errors.WithStack(t.storage.Remove(id))
 }
 
-func removeOldBackups(ctx context.Context, keepBackups int, c cloud.Cloud, s storage.Storage) error {
+func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 	removeOldBackupsReport := report.NewRemoveOldBackups()
 	defer func() {
 		report.Add(removeOldBackupsReport)
 	}()
 
 	timeMark := time.Now()
-	backups, err := listBackups(ctx, false, c, s)
+	backups, err := t.ListBackups(false)
 	removeOldBackupsReport.Durations.List = time.Now().Sub(timeMark)
 
 	if err != nil {
@@ -433,7 +449,7 @@ func removeOldBackups(ctx context.Context, keepBackups int, c cloud.Cloud, s sto
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
 		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
-		if err := removeBackup(ctx, backups[i].ID, c, s); err != nil {
+		if err := t.RemoveBackup(backups[i].ID); err != nil {
 			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 			return errors.WithStack(err)
 		}
@@ -443,7 +459,7 @@ func removeOldBackups(ctx context.Context, keepBackups int, c cloud.Cloud, s sto
 	return nil
 }
 
-func sendReport(emailSender emailSender, emailServer string, emailPort int, emailUsername, emailPassword, emailFrom string, emailTo []string) error {
+func (t ToGlacier) SendReport(emailInfo EmailInfo) error {
 	r, err := report.Build()
 	if err != nil {
 		return errors.WithStack(err)
@@ -453,19 +469,29 @@ func sendReport(emailSender emailSender, emailServer string, emailPort int, emai
 To: %s
 Subject: toglacier report
 
-%s`, emailFrom, strings.Join(emailTo, ","), r)
+%s`, emailInfo.From, strings.Join(emailInfo.To, ","), r)
 
-	auth := smtp.PlainAuth("", emailUsername, emailPassword, emailServer)
-	err = emailSender.SendMail(fmt.Sprintf("%s:%d", emailServer, emailPort), auth, emailFrom, emailTo, []byte(body))
+	auth := smtp.PlainAuth("", emailInfo.Username, emailInfo.Password, emailInfo.Server)
+	err = emailInfo.Sender.SendMail(fmt.Sprintf("%s:%d", emailInfo.Server, emailInfo.Port), auth, emailInfo.From, emailInfo.To, []byte(body))
 	return errors.WithStack(err)
 }
 
-type emailSender interface {
+type EmailInfo struct {
+	Sender   EmailSender
+	Server   string
+	Port     int
+	Username string
+	Password string
+	From     string
+	To       []string
+}
+
+type EmailSender interface {
 	SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error
 }
 
-type emailSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
+type EmailSenderFunc func(addr string, a smtp.Auth, from string, to []string, msg []byte) error
 
-func (r emailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+func (r EmailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return r(addr, a, from, to, msg)
 }

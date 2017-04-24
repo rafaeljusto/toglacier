@@ -22,7 +22,7 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
 
-func TestBackup(t *testing.T) {
+func TestToGlacier_Backup(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
@@ -267,8 +267,15 @@ func TestBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := backup(context.Background(), scenario.backupPaths, scenario.backupSecret, scenario.builder, scenario.envelop, scenario.cloud, scenario.storage)
+			toGlacier := ToGlacier{
+				context: context.Background(),
+				builder: scenario.builder,
+				envelop: scenario.envelop,
+				cloud:   scenario.cloud,
+				storage: scenario.storage,
+			}
 
+			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret)
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
@@ -276,7 +283,7 @@ func TestBackup(t *testing.T) {
 	}
 }
 
-func TestListBackups(t *testing.T) {
+func TestToGlacier_ListBackups(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
@@ -515,7 +522,13 @@ func TestListBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			backups, err := listBackups(context.Background(), scenario.remote, scenario.cloud, scenario.storage)
+			toGlacier := ToGlacier{
+				context: context.Background(),
+				cloud:   scenario.cloud,
+				storage: scenario.storage,
+			}
+
+			backups, err := toGlacier.ListBackups(scenario.remote)
 
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
@@ -528,7 +541,7 @@ func TestListBackups(t *testing.T) {
 	}
 }
 
-func TestRetrieveBackup(t *testing.T) {
+func TestToGlacier_RetrieveBackup(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		id            string
@@ -628,7 +641,13 @@ func TestRetrieveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			filename, err := retrieveBackup(context.Background(), scenario.id, scenario.backupSecret, scenario.envelop, scenario.cloud)
+			toGlacier := ToGlacier{
+				context: context.Background(),
+				envelop: scenario.envelop,
+				cloud:   scenario.cloud,
+			}
+
+			filename, err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
 
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)
@@ -641,7 +660,7 @@ func TestRetrieveBackup(t *testing.T) {
 	}
 }
 
-func TestRemoveBackup(t *testing.T) {
+func TestToGlacier_RemoveBackup(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		id            string
@@ -697,16 +716,20 @@ func TestRemoveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := removeBackup(context.Background(), scenario.id, scenario.cloud, scenario.storage)
+			toGlacier := ToGlacier{
+				context: context.Background(),
+				cloud:   scenario.cloud,
+				storage: scenario.storage,
+			}
 
-			if !ErrorEqual(scenario.expectedError, err) {
+			if err := toGlacier.RemoveBackup(scenario.id); !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
 	}
 }
 
-func TestRemoveOldBackups(t *testing.T) {
+func TestToGlacier_RemoveOldBackups(t *testing.T) {
 	now := time.Now()
 
 	scenarios := []struct {
@@ -852,22 +875,26 @@ func TestRemoveOldBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := removeOldBackups(context.Background(), scenario.keepBackups, scenario.cloud, scenario.storage)
+			toGlacier := ToGlacier{
+				context: context.Background(),
+				cloud:   scenario.cloud,
+				storage: scenario.storage,
+			}
 
-			if !ErrorEqual(scenario.expectedError, err) {
+			if err := toGlacier.RemoveOldBackups(scenario.keepBackups); !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
 	}
 }
 
-func TestSendReport(t *testing.T) {
+func TestToGlacier_SendReport(t *testing.T) {
 	date := time.Date(2017, 3, 10, 14, 10, 46, 0, time.UTC)
 
 	scenarios := []struct {
 		description   string
 		reports       []report.Report
-		emailSender   emailSender
+		emailSender   EmailSender
 		emailServer   string
 		emailPort     int
 		emailUsername string
@@ -886,7 +913,7 @@ func TestSendReport(t *testing.T) {
 					return r
 				}(),
 			},
-			emailSender: emailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			emailSender: EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 				if addr != "127.0.0.1:587" {
 					return fmt.Errorf("unexpected “address” %s", addr)
 				}
@@ -961,7 +988,7 @@ Subject: toglacier report
 		},
 		{
 			description: "it should detect an error while sending the e-mail",
-			emailSender: emailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			emailSender: EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 				return errors.New("generic error while sending e-mail")
 			}),
 			emailServer:   "127.0.0.1",
@@ -980,13 +1007,23 @@ Subject: toglacier report
 		report.Clear()
 
 		t.Run(scenario.description, func(t *testing.T) {
+			toGlacier := ToGlacier{}
+
 			for _, r := range scenario.reports {
 				report.Add(r)
 			}
 
-			err := sendReport(scenario.emailSender, scenario.emailServer, scenario.emailPort, scenario.emailUsername, scenario.emailPassword, scenario.emailFrom, scenario.emailTo)
+			emailInfo := EmailInfo{
+				Sender:   scenario.emailSender,
+				Server:   scenario.emailServer,
+				Port:     scenario.emailPort,
+				Username: scenario.emailUsername,
+				Password: scenario.emailPassword,
+				From:     scenario.emailFrom,
+				To:       scenario.emailTo,
+			}
 
-			if !ErrorEqual(scenario.expectedError, err) {
+			if err := toGlacier.SendReport(emailInfo); !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
