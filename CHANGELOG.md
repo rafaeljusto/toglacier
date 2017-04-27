@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - BoltDB storage for tracking backups locally
 - Local backup now has archive size information
 - Graceful shutdown when an OS signal is detected
+- Incremental backups (unmodified files are ignored)
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
