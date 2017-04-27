@@ -313,7 +313,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}()
 
 	timeMark := time.Now()
-	filename, err := t.builder.Build(backupPaths...)
+	filename, _, err := t.builder.Build(archive.Info{}, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
@@ -322,7 +322,6 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	backupReport.Durations.Build = time.Now().Sub(timeMark)
 
 	if backupSecret != "" {
-		var err error
 		var encryptedFilename string
 
 		timeMark = time.Now()
@@ -332,7 +331,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 		}
 		backupReport.Durations.Encrypt = time.Now().Sub(timeMark)
 
-		if err := os.Rename(encryptedFilename, filename); err != nil {
+		if err = os.Rename(encryptedFilename, filename); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			return errors.WithStack(err)
 		}

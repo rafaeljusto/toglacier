@@ -50,14 +50,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil
+					return f.Name(), nil, nil
 				},
 			},
 			cloud: mockCloud{
@@ -92,14 +92,14 @@ func TestToGlacier_Backup(t *testing.T) {
 			}(),
 			backupSecret: "12345678901234567890123456789012",
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil
+					return f.Name(), nil, nil
 				},
 			},
 			envelop: mockEnvelop{
@@ -135,8 +135,8 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{"idontexist12345"}
 			}(),
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
-					return "", errors.New("path doesn't exist")
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+					return "", nil, errors.New("path doesn't exist")
 				},
 			},
 			expectedError: errors.New("path doesn't exist"),
@@ -157,14 +157,14 @@ func TestToGlacier_Backup(t *testing.T) {
 			}(),
 			backupSecret: "123456",
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil
+					return f.Name(), nil, nil
 				},
 			},
 			envelop: mockEnvelop{
@@ -204,14 +204,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil
+					return f.Name(), nil, nil
 				},
 			},
 			cloud: mockCloud{
@@ -236,14 +236,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			builder: mockBuilder{
-				mockBuild: func(backupPaths ...string) (string, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil
+					return f.Name(), nil, nil
 				},
 			},
 			cloud: mockCloud{
@@ -1031,11 +1031,11 @@ Subject: toglacier report
 }
 
 type mockBuilder struct {
-	mockBuild func(backupPaths ...string) (string, error)
+	mockBuild func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
 }
 
-func (m mockBuilder) Build(backupPaths ...string) (string, error) {
-	return m.mockBuild(backupPaths...)
+func (m mockBuilder) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+	return m.mockBuild(lastArchiveInfo, backupPaths...)
 }
 
 type mockEnvelop struct {
