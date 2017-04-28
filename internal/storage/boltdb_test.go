@@ -136,7 +136,7 @@ func TestBoltDB_List(t *testing.T) {
 		description   string
 		logger        log.Logger
 		filename      string
-		expected      []storage.Backup
+		expected      storage.Backups
 		expectedError error
 	}{
 		{
@@ -148,7 +148,7 @@ func TestBoltDB_List(t *testing.T) {
 				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			filename: func() string {
-				backup := storage.Backup{
+				backup1 := storage.Backup{
 					Backup: cloud.Backup{
 						ID: "123456",
 						CreatedAt: func() time.Time {
@@ -164,9 +164,30 @@ func TestBoltDB_List(t *testing.T) {
 					},
 				}
 
-				encoded, err := json.Marshal(backup)
+				encoded1, err := json.Marshal(backup1)
 				if err != nil {
-					t.Fatalf("error encoding backup. details: %s", err)
+					t.Fatalf("error encoding backup 1. details: %s", err)
+				}
+
+				backup2 := storage.Backup{
+					Backup: cloud.Backup{
+						ID: "654321",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
+				}
+
+				encoded2, err := json.Marshal(backup2)
+				if err != nil {
+					t.Fatalf("error encoding backup 2. details: %s", err)
 				}
 
 				f, err := ioutil.TempFile("", "toglacier-test")
@@ -187,7 +208,12 @@ func TestBoltDB_List(t *testing.T) {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err = bucket.Put([]byte(backup.Backup.ID), encoded); err != nil {
+					// we change the insertion order here to see if the sort will work
+					if err = bucket.Put([]byte(backup2.Backup.ID), encoded2); err != nil {
+						t.Fatalf("error putting data in bucket. details: %s", err)
+					}
+
+					if err = bucket.Put([]byte(backup1.Backup.ID), encoded1); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
@@ -200,12 +226,27 @@ func TestBoltDB_List(t *testing.T) {
 
 				return f.Name()
 			}(),
-			expected: []storage.Backup{
+			expected: storage.Backups{
 				{
 					Backup: cloud.Backup{
 						ID: "123456",
 						CreatedAt: func() time.Time {
 							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID: "654321",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
 							if err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}

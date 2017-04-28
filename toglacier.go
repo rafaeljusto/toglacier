@@ -307,13 +307,23 @@ type ToGlacier struct {
 // Backup create an archive and send it to the cloud.
 func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	backupReport := report.NewSendBackup()
-
 	defer func() {
 		report.Add(backupReport)
 	}()
 
+	// retrieve the latest backup so we can analyze the files that changed
+	backups, err := t.storage.List()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	var archiveInfo archive.Info
+	if len(backups) > 0 {
+		archiveInfo = backups[len(backups)-1].Info
+	}
+
 	timeMark := time.Now()
-	filename, archiveInfo, err := t.builder.Build(archive.Info{}, backupPaths...)
+	filename, archiveInfo, err := t.builder.Build(archiveInfo, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)

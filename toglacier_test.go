@@ -74,6 +74,9 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockSave: func(b storage.Backup) error {
 					return nil
 				},
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
 			},
 		},
 		{
@@ -127,6 +130,9 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockSave: func(b storage.Backup) error {
 					return nil
 				},
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
 			},
 		},
 		{
@@ -137,6 +143,11 @@ func TestToGlacier_Backup(t *testing.T) {
 			builder: mockBuilder{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					return "", nil, errors.New("path doesn't exist")
+				},
+			},
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
 				},
 			},
 			expectedError: errors.New("path doesn't exist"),
@@ -186,6 +197,9 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockSave: func(b storage.Backup) error {
 					return nil
 				},
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
 			},
 			expectedError: errors.New("failed to encrypt the archive"),
 		},
@@ -217,6 +231,11 @@ func TestToGlacier_Backup(t *testing.T) {
 			cloud: mockCloud{
 				mockSend: func(filename string) (cloud.Backup, error) {
 					return cloud.Backup{}, errors.New("error sending backup")
+				},
+			},
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
 				},
 			},
 			expectedError: errors.New("error sending backup"),
@@ -259,6 +278,9 @@ func TestToGlacier_Backup(t *testing.T) {
 			storage: mockStorage{
 				mockSave: func(b storage.Backup) error {
 					return errors.New("error saving the backup information")
+				},
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
 				},
 			},
 			expectedError: errors.New("error saving the backup information"),
@@ -317,8 +339,8 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 					return nil
 				},
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123454",
@@ -357,8 +379,8 @@ func TestToGlacier_ListBackups(t *testing.T) {
 		{
 			description: "it should list the local backups correctly",
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123456",
@@ -392,7 +414,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 		{
 			description: "it should detect an error while listing the local backups",
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
+				mockList: func() (storage.Backups, error) {
 					return nil, errors.New("error listing backups")
 				},
 			},
@@ -421,7 +443,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 					return nil
 				},
-				mockList: func() ([]storage.Backup, error) {
+				mockList: func() (storage.Backups, error) {
 					return nil, errors.New("error retrieving backups")
 				},
 				mockRemove: func(id string) error {
@@ -457,8 +479,8 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 					return nil
 				},
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123454",
@@ -502,8 +524,8 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				mockSave: func(b storage.Backup) error {
 					return errors.New("error adding backup")
 				},
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123454",
@@ -765,8 +787,8 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 				},
 			},
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123456",
@@ -805,7 +827,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 			description: "it should detect when there's an error listing the local backups",
 			keepBackups: 2,
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
+				mockList: func() (storage.Backups, error) {
 					return nil, errors.New("local storage corrupted")
 				},
 			},
@@ -820,8 +842,8 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 				},
 			},
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123456",
@@ -869,8 +891,8 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 				},
 			},
 			storage: mockStorage{
-				mockList: func() ([]storage.Backup, error) {
-					return []storage.Backup{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
 						{
 							Backup: cloud.Backup{
 								ID:        "123456",
@@ -1108,7 +1130,7 @@ func (m mockCloud) Remove(ctx context.Context, id string) error {
 
 type mockStorage struct {
 	mockSave   func(storage.Backup) error
-	mockList   func() ([]storage.Backup, error)
+	mockList   func() (storage.Backups, error)
 	mockRemove func(id string) error
 }
 
@@ -1116,7 +1138,7 @@ func (m mockStorage) Save(b storage.Backup) error {
 	return m.mockSave(b)
 }
 
-func (m mockStorage) List() ([]storage.Backup, error) {
+func (m mockStorage) List() (storage.Backups, error) {
 	return m.mockList()
 }
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -66,9 +67,9 @@ func (a *AuditFile) Save(backup Backup) error {
 }
 
 // List all backup information in the storage. As the audit file doesn't store
-// backup extra information, it will be always nil. On error it will return an
-// Error type encapsulated in a traceable error. To retrieve the desired error
-// you can do:
+// backup extra information, it will be always nil. The backups are ordered by
+// creation date. On error it will return an Error type encapsulated in a
+// traceable error. To retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -82,7 +83,7 @@ func (a *AuditFile) Save(backup Backup) error {
 //         // unknown error
 //       }
 //     }
-func (a *AuditFile) List() ([]Backup, error) {
+func (a *AuditFile) List() (Backups, error) {
 	a.logger.Debug("storage: listing backups from audit file storage")
 
 	auditFile, err := os.Open(a.Filename)
@@ -96,7 +97,7 @@ func (a *AuditFile) List() ([]Backup, error) {
 	}
 	defer auditFile.Close()
 
-	var backups []Backup
+	var backups Backups
 
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
@@ -132,6 +133,7 @@ func (a *AuditFile) List() ([]Backup, error) {
 	}
 
 	a.logger.Infof("storage: backups listed successfully from audit file storage")
+	sort.Sort(backups)
 	return backups, nil
 }
 
