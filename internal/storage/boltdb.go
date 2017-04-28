@@ -6,7 +6,6 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
-	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -49,7 +48,7 @@ func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 //         // unknown error
 //       }
 //     }
-func (b *BoltDB) Save(backup cloud.Backup) error {
+func (b *BoltDB) Save(backup Backup) error {
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
@@ -67,7 +66,7 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 			return errors.WithStack(newError(ErrorAccessingBucket, err))
 		}
 
-		if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
+		if err = bucket.Put([]byte(backup.Backup.ID), encoded); err != nil {
 			return errors.WithStack(newError(ErrorCodeSave, err))
 		}
 
@@ -97,14 +96,14 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 //         // unknown error
 //       }
 //     }
-func (b BoltDB) List() ([]cloud.Backup, error) {
+func (b BoltDB) List() ([]Backup, error) {
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return nil, errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer db.Close()
 
-	var backups []cloud.Backup
+	var backups []Backup
 
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(BoltDBBucket)
@@ -114,7 +113,7 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 		}
 
 		err = bucket.ForEach(func(k, v []byte) error {
-			var backup cloud.Backup
+			var backup Backup
 			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}

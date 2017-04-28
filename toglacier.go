@@ -313,7 +313,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}()
 
 	timeMark := time.Now()
-	filename, _, err := t.builder.Build(archive.Info{}, backupPaths...)
+	filename, archiveInfo, err := t.builder.Build(archive.Info{}, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
@@ -344,7 +344,15 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}
 	backupReport.Durations.Send = time.Now().Sub(timeMark)
 
-	if err := t.storage.Save(backupReport.Backup); err != nil {
+	// fill backup id for new and modified files
+	for path, itemInfo := range archiveInfo {
+		if itemInfo.Status == archive.ItemInfoStatusNew || itemInfo.Status == archive.ItemInfoStatusModified {
+			itemInfo.ID = backupReport.Backup.ID
+			archiveInfo[path] = itemInfo
+		}
+	}
+
+	if err := t.storage.Save(storage.Backup{Backup: backupReport.Backup, Info: archiveInfo}); err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
@@ -357,7 +365,15 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	if !remote {
 		backups, err := t.storage.List()
-		return backups, errors.WithStack(err)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		cloudBackups := make([]cloud.Backup, len(backups))
+		for i, backup := range backups {
+			cloudBackups[i] = backup.Backup
+		}
+		return cloudBackups, nil
 	}
 
 	listBackupsReport := report.NewListBackups()
@@ -398,14 +414,15 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	// maybe the best approach is to do nothing and report the problem.
 
 	for _, backup := range backups {
-		if err := t.storage.Remove(backup.ID); err != nil {
+		if err := t.storage.Remove(backup.Backup.ID); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
 	for _, backup := range remoteBackups {
-		if err := t.storage.Save(backup); err != nil {
+		// TODO: save archive information
+		if err := t.storage.Save(storage.Backup{Backup: backup}); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
@@ -416,6 +433,10 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 
 // RetrieveBackup recover a specific backup from the cloud.
 func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
+	// TODO: using the backup extra information we need to retrieve all backups
+	// pieces to build the desired archive. The backup extra information could be
+	// retrieved remotly or locally.
+
 	backupFile, err := t.cloud.Get(t.context, id)
 	if err != nil {
 		return "", errors.WithStack(err)

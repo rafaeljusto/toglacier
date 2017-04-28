@@ -23,7 +23,7 @@ func TestBoltDB_Save(t *testing.T) {
 		description   string
 		logger        log.Logger
 		filename      string
-		backup        cloud.Backup
+		backup        storage.Backup
 		expectedError error
 	}{
 		{
@@ -43,12 +43,14 @@ func TestBoltDB_Save(t *testing.T) {
 
 				return f.Name()
 			}(),
-			backup: cloud.Backup{
-				ID:        "123456",
-				CreatedAt: now,
-				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-				VaultName: "test",
-				Size:      120,
+			backup: storage.Backup{
+				Backup: cloud.Backup{
+					ID:        "123456",
+					CreatedAt: now,
+					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+					VaultName: "test",
+					Size:      120,
+				},
 			},
 		},
 		{
@@ -68,11 +70,13 @@ func TestBoltDB_Save(t *testing.T) {
 
 				return f.Name()
 			}(),
-			backup: cloud.Backup{
-				ID:        "",
-				CreatedAt: now,
-				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-				VaultName: "test",
+			backup: storage.Backup{
+				Backup: cloud.Backup{
+					ID:        "",
+					CreatedAt: now,
+					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+					VaultName: "test",
+				},
 			},
 			expectedError: &storage.Error{
 				Code: storage.ErrorCodeUpdatingDatabase,
@@ -132,7 +136,7 @@ func TestBoltDB_List(t *testing.T) {
 		description   string
 		logger        log.Logger
 		filename      string
-		expected      []cloud.Backup
+		expected      []storage.Backup
 		expectedError error
 	}{
 		{
@@ -144,18 +148,20 @@ func TestBoltDB_List(t *testing.T) {
 				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			filename: func() string {
-				backup := cloud.Backup{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
-					Size:      120,
+				backup := storage.Backup{
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
 				}
 
 				encoded, err := json.Marshal(backup)
@@ -181,7 +187,7 @@ func TestBoltDB_List(t *testing.T) {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
+					if err = bucket.Put([]byte(backup.Backup.ID), encoded); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
@@ -194,19 +200,21 @@ func TestBoltDB_List(t *testing.T) {
 
 				return f.Name()
 			}(),
-			expected: []cloud.Backup{
+			expected: []storage.Backup{
 				{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
-					Size:      120,
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
 				},
 			},
 		},
@@ -351,18 +359,20 @@ func TestBoltDB_Remove(t *testing.T) {
 				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			filename: func() string {
-				backup := cloud.Backup{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
-					Size:      120,
+				backup := storage.Backup{
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
 				}
 
 				encoded, err := json.Marshal(backup)
@@ -388,7 +398,7 @@ func TestBoltDB_Remove(t *testing.T) {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
+					if err = bucket.Put([]byte(backup.Backup.ID), encoded); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 

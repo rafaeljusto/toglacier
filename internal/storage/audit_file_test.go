@@ -26,7 +26,7 @@ func TestAuditFile_Save(t *testing.T) {
 		description   string
 		logger        log.Logger
 		filename      string
-		backup        cloud.Backup
+		backup        storage.Backup
 		expected      string
 		expectedError error
 	}{
@@ -47,12 +47,14 @@ func TestAuditFile_Save(t *testing.T) {
 
 				return f.Name()
 			}(),
-			backup: cloud.Backup{
-				ID:        "123456",
-				CreatedAt: now,
-				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-				VaultName: "test",
-				Size:      120,
+			backup: storage.Backup{
+				Backup: cloud.Backup{
+					ID:        "123456",
+					CreatedAt: now,
+					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+					VaultName: "test",
+					Size:      120,
+				},
 			},
 			expected: fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)),
 		},
@@ -71,11 +73,13 @@ func TestAuditFile_Save(t *testing.T) {
 				}
 				return d
 			}(),
-			backup: cloud.Backup{
-				ID:        "123456",
-				CreatedAt: now,
-				Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-				VaultName: "test",
+			backup: storage.Backup{
+				Backup: cloud.Backup{
+					ID:        "123456",
+					CreatedAt: now,
+					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+					VaultName: "test",
+				},
 			},
 			expectedError: &storage.Error{
 				Code: storage.ErrorCodeOpeningFile,
@@ -116,7 +120,7 @@ func TestAuditFile_List(t *testing.T) {
 		description   string
 		logger        log.Logger
 		filename      string
-		expected      []cloud.Backup
+		expected      []storage.Backup
 		expectedError error
 	}{
 		{
@@ -137,19 +141,21 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expected: []cloud.Backup{
+			expected: []storage.Backup{
 				{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
-					Size:      120,
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+					},
 				},
 			},
 		},
@@ -171,18 +177,20 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 0  \n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expected: []cloud.Backup{
+			expected: []storage.Backup{
 				{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					},
 				},
 			},
 		},
@@ -204,18 +212,20 @@ func TestAuditFile_List(t *testing.T) {
 				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7\n", now.Format(time.RFC3339)))
 				return f.Name()
 			}(),
-			expected: []cloud.Backup{
+			expected: []storage.Backup{
 				{
-					ID: "123456",
-					CreatedAt: func() time.Time {
-						c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
-						if err != nil {
-							t.Fatalf("error parsing current time. details: %s", err)
-						}
-						return c
-					}(),
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					},
 				},
 			},
 		},
