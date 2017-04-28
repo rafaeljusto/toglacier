@@ -69,6 +69,10 @@ func TestTARBuilder_Build(t *testing.T) {
 					t.Fatalf("error creating temporary file. details %s", err)
 				}
 
+				if err := os.Symlink(path.Join(d, "file2"), path.Join(d, "link1")); err != nil {
+					t.Fatalf("error creating temporary link. details %s", err)
+				}
+
 				if err := os.Mkdir(path.Join(d, "dir1"), os.ModePerm); err != nil {
 					t.Fatalf("error creating temporary directory. details %s", err)
 				}
