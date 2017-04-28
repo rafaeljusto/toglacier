@@ -375,7 +375,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
 	}
 
-	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
+	if err = a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -454,7 +454,7 @@ func (a *AWSCloud) Get(ctx context.Context, id string) (string, error) {
 		return "", errors.WithStack(newError(id, ErrorCodeInitJob, err))
 	}
 
-	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
+	if err = a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
 		return "", errors.WithStack(err)
 	}
 
