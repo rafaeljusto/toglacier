@@ -138,17 +138,16 @@ func TestAuditFile_List(t *testing.T) {
 				}
 				defer f.Close()
 
-				// we change the insertion order here to see if the sort will work
-				f.WriteString(fmt.Sprintf("%s test 654321 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Add(time.Second).Format(time.RFC3339)))
 				f.WriteString(fmt.Sprintf("%s test 123456 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Format(time.RFC3339)))
+				f.WriteString(fmt.Sprintf("%s test 654321 ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7 120\n", now.Add(time.Second).Format(time.RFC3339)))
 				return f.Name()
 			}(),
 			expected: storage.Backups{
 				{
 					Backup: cloud.Backup{
-						ID: "123456",
+						ID: "654321",
 						CreatedAt: func() time.Time {
-							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
 							if err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}
@@ -161,9 +160,9 @@ func TestAuditFile_List(t *testing.T) {
 				},
 				{
 					Backup: cloud.Backup{
-						ID: "654321",
+						ID: "123456",
 						CreatedAt: func() time.Time {
-							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
 							if err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}

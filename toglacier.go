@@ -319,7 +319,10 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 
 	var archiveInfo archive.Info
 	if len(backups) > 0 {
-		archiveInfo = backups[len(backups)-1].Info
+		// TODO: should we sort here or let the library to do that?
+
+		// the newest backup is always in the first position
+		archiveInfo = backups[0].Info
 	}
 
 	timeMark := time.Now()

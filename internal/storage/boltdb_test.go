@@ -208,12 +208,11 @@ func TestBoltDB_List(t *testing.T) {
 						t.Fatalf("error creating or opening bucket. details: %s", err)
 					}
 
-					// we change the insertion order here to see if the sort will work
-					if err = bucket.Put([]byte(backup2.Backup.ID), encoded2); err != nil {
+					if err = bucket.Put([]byte(backup1.Backup.ID), encoded1); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
-					if err = bucket.Put([]byte(backup1.Backup.ID), encoded1); err != nil {
+					if err = bucket.Put([]byte(backup2.Backup.ID), encoded2); err != nil {
 						t.Fatalf("error putting data in bucket. details: %s", err)
 					}
 
@@ -229,9 +228,9 @@ func TestBoltDB_List(t *testing.T) {
 			expected: storage.Backups{
 				{
 					Backup: cloud.Backup{
-						ID: "123456",
+						ID: "654321",
 						CreatedAt: func() time.Time {
-							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
 							if err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}
@@ -244,9 +243,9 @@ func TestBoltDB_List(t *testing.T) {
 				},
 				{
 					Backup: cloud.Backup{
-						ID: "654321",
+						ID: "123456",
 						CreatedAt: func() time.Time {
-							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
 							if err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}

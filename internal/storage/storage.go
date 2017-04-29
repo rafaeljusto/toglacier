@@ -20,8 +20,9 @@ type Backups []Backup
 // Len returns the number of backups.
 func (b Backups) Len() int { return len(b) }
 
-// Less compares two positions of the slice and verifies the preference.
-func (b Backups) Less(i, j int) bool { return b[i].Backup.CreatedAt.Before(b[j].Backup.CreatedAt) }
+// Less compares two positions of the slice and verifies the preference. They
+// are ordered from the newest backup to the oldest.
+func (b Backups) Less(i, j int) bool { return b[i].Backup.CreatedAt.After(b[j].Backup.CreatedAt) }
 
 // Swap change the backups position inside the slice.
 func (b Backups) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
