@@ -94,10 +94,10 @@ func TestTARBuilder_Build(t *testing.T) {
 				basePath := `backup-[0-9]+`
 				expectedFiles := []*regexp.Regexp{
 					regexp.MustCompile(`^` + path.Join(basePath, archive.TARInfoFilename) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file2`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir1`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir1`, `file3`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file2`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir1`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir1`, `file3`) + `$`),
 				}
 
 				tr := tar.NewReader(f)
@@ -224,17 +224,17 @@ func TestTARBuilder_Build(t *testing.T) {
 				basePath := `backup-[0-9]+`
 				expectedFiles := []*regexp.Regexp{
 					regexp.MustCompile(`^` + path.Join(basePath, archive.TARInfoFilename) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file1`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file2`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir1`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir1`, `file3`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file1`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file4`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `file5`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir2`) + `/$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `dir2`, `file6`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file1`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file2`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir1`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir1`, `file3`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file1`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file4`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `file5`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir2`) + `/$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`, `dir2`, `file6`) + `$`),
 				}
 
 				tr := tar.NewReader(f)
@@ -332,7 +332,7 @@ func TestTARBuilder_Build(t *testing.T) {
 				basePath := `backup-[0-9]+`
 				expectedFiles := []*regexp.Regexp{
 					regexp.MustCompile(`^` + path.Join(basePath, archive.TARInfoFilename) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, `toglacier-test[0-9]+`, `toglacier-test[0-9]+`) + `$`),
+					regexp.MustCompile(`^` + path.Join(basePath, `tmp`, `toglacier-test[0-9]+`) + `$`),
 				}
 
 				tr := tar.NewReader(f)

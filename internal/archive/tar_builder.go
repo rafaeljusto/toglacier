@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -98,11 +97,6 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string) (Info, error) {
 	archiveInfo := make(Info)
 
-	// as we have multiple backup paths in the same tarball, we need to create a
-	// difference in the tree directory inside it. For that we are using the name
-	// of the backup path
-	pathName := filepath.Base(source)
-
 	walkErr := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return errors.WithStack(newPathError(path, PathErrorCodeInfo, err))
@@ -121,14 +115,9 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 			return nil
 		}
 
-		if path == source && !info.IsDir() {
-			// when we are building an archive of a single file, we cannot remove the
-			// source path
-			header.Name = filepath.Join(baseDir, pathName, filepath.Base(path))
-
-		} else {
-			header.Name = filepath.Join(baseDir, pathName, strings.TrimPrefix(path, source))
-		}
+		// store the full path in the tarball to avoid conflicts when appending
+		// multiple backup paths
+		header.Name = filepath.Join(baseDir, path)
 
 		if info.IsDir() {
 			// tar always use slash as a path separator, even on Windows
