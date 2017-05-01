@@ -225,7 +225,6 @@ func TestTARBuilder_Build(t *testing.T) {
 					regexp.MustCompile(`^` + path.Join(basePath, `file2`) + `$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `dir1`) + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `dir1`, `file3`) + `$`),
-					regexp.MustCompile(`^` + path.Join(basePath, archive.TARInfoFilename) + `$`),
 					regexp.MustCompile(`^` + basePath + `/$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file4`) + `$`),
 					regexp.MustCompile(`^` + path.Join(basePath, `file5`) + `$`),

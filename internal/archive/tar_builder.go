@@ -82,6 +82,10 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 		archiveInfo.Merge(tmpArchiveInfo)
 	}
 
+	if err := t.addInfo(archiveInfo, tarArchive, basePath); err != nil {
+		return "", nil, errors.WithStack(err)
+	}
+
 	if err := tarArchive.Close(); err != nil {
 		return "", nil, errors.WithStack(newError(tarFile.Name(), ErrorCodeTARGeneration, err))
 	}
@@ -148,15 +152,7 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 		return errors.WithStack(t.writeTarball(path, info, header, tarArchive))
 	})
 
-	if walkErr != nil {
-		return nil, errors.WithStack(walkErr)
-	}
-
-	if err := t.addInfo(archiveInfo, tarArchive, baseDir); err != nil {
-		return nil, errors.WithStack(walkErr)
-	}
-
-	return archiveInfo, nil
+	return archiveInfo, errors.WithStack(walkErr)
 }
 
 func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInfo ItemInfo, add bool, err error) {
