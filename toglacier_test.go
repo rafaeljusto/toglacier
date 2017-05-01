@@ -51,13 +51,23 @@ func TestToGlacier_Backup(t *testing.T) {
 			}(),
 			builder: mockBuilder{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+					if len(backupPaths) == 0 {
+						t.Fatalf("no backup path informed")
+					}
+
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
 					}
 					defer f.Close()
 
-					return f.Name(), nil, nil
+					return f.Name(), archive.Info{
+						path.Join(backupPaths[0], "file1"): archive.ItemInfo{
+							ID:     "",
+							Status: archive.ItemInfoStatusModified,
+							Hash:   "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+						},
+					}, nil
 				},
 			},
 			cloud: mockCloud{
@@ -75,9 +85,46 @@ func TestToGlacier_Backup(t *testing.T) {
 					return nil
 				},
 				mockList: func() (storage.Backups, error) {
-					return nil, nil
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "123455",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+								VaultName: "test",
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "123455",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+								},
+							},
+						},
+					}, nil
 				},
 			},
+		},
+		{
+			description: "it should detect when there's a problem listing the current backups",
+			backupPaths: func() []string {
+				d, err := ioutil.TempDir("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "file1"), []byte("file1 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				return []string{d}
+			}(),
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, errors.New("problem loading backups from storage")
+				},
+			},
+			expectedError: errors.New("problem loading backups from storage"),
 		},
 		{
 			description: "it should backup correctly an archive with encryption",
