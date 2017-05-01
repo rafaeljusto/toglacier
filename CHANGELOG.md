@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Archive algorithm refactory to simplify the tar file
 - Internal API now has well defined errors
 - Variable `TOGLACIER_AUDIT` renamed to `TOGLACIER_DB_FILE`
+- Command get now extracts automatically to the current directory
 
 ## [2.0.4] - 2017-04-19
 ### Fixed

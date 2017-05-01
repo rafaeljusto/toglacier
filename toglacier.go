@@ -145,11 +145,11 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile, err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
+				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
-				} else if backupFile != "" {
-					fmt.Printf("Backup recovered at %s\n", backupFile)
 				}
+
+				fmt.Println("Backup recovered successfully")
 				return nil
 			},
 		},
@@ -445,28 +445,52 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 }
 
 // RetrieveBackup recover a specific backup from the cloud.
-func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
+func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	// TODO: using the backup extra information we need to retrieve all backups
 	// pieces to build the desired archive. The backup extra information could be
 	// retrieved remotly or locally.
 
-	backupFile, err := t.cloud.Get(t.context, id)
+	backups, err := t.storage.List()
 	if err != nil {
-		return "", errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 
-	if backupSecret != "" {
-		var filename string
-		if filename, err = t.envelop.Decrypt(backupFile, backupSecret); err != nil {
-			return "", errors.WithStack(err)
-		}
-
-		if err := os.Rename(backupFile, filename); err != nil {
-			return "", errors.WithStack(err)
+	var archiveInfo archive.Info
+	for _, backup := range backups {
+		if backup.Backup.ID == id {
+			archiveInfo = backup.Info
+			break
 		}
 	}
 
-	return backupFile, nil
+	ids := make(map[string][]string)
+	for path, itemInfo := range archiveInfo {
+		ids[itemInfo.ID] = append(ids[itemInfo.ID], path)
+	}
+
+	for partID, paths := range ids {
+		backupFile, err := t.cloud.Get(t.context, partID)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		if backupSecret != "" {
+			var filename string
+			if filename, err = t.envelop.Decrypt(backupFile, backupSecret); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := os.Rename(backupFile, filename); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		if err := t.builder.Extract(backupFile, paths); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	return nil
 }
 
 // RemoveBackup delete a specific backup from the cloud.
@@ -494,6 +518,9 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 		return errors.WithStack(err)
 	}
+
+	// TODO: with the incremental backup we cannot remove backups without checking
+	// the archive info to identify essential backup entries
 
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {

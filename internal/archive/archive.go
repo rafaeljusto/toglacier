@@ -61,6 +61,7 @@ func (a Info) MergeLast(last Info) {
 // Builder creates an archive joining all paths in a file.
 type Builder interface {
 	Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error)
+	Extract(filename string, filter []string) error
 }
 
 // Envelop manages the security of an archive encrypting and decrypting the

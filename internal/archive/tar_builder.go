@@ -5,10 +5,12 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -251,5 +253,72 @@ func (t TARBuilder) writeTarball(path string, info os.FileInfo, header *tar.Head
 	}
 
 	t.logger.Debugf("archive: path “%s” copied to tar (%d bytes)", path, written)
+	return nil
+}
+
+// Extract uncompress all files from the tarball to the current path. You can
+// select the files that are extracted with the filter parameter, if nil all
+// files are extracted.
+func (t TARBuilder) Extract(filename string, filter []string) error {
+	f, err := os.Open(filename)
+	if err != nil {
+		return fmt.Errorf("error opening archive. details: %s", err)
+	}
+	defer f.Close()
+
+	tr := tar.NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return err
+		}
+
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			// we will create the directories only when extracting files from the
+			// tarball, because not all files will be extracted
+
+		case tar.TypeReg:
+			if filter != nil {
+				filename := strings.Join(strings.Split(hdr.Name, string(os.PathSeparator))[1:], string(os.PathSeparator))
+				filename = string(os.PathSeparator) + filename
+
+				found := false
+				for _, item := range filter {
+					if filename == item {
+						found = true
+						break
+					}
+				}
+
+				if !found {
+					continue
+				}
+			}
+
+			dir := filepath.Dir(hdr.Name)
+			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
+				// TODO
+			}
+
+			tarFile, err := os.OpenFile(hdr.Name, os.O_WRONLY, os.FileMode(hdr.Mode))
+			if err != nil {
+				// TODO
+			}
+
+			if _, err := io.Copy(tarFile, tr); err != nil {
+				// TODO
+			}
+			tarFile.Close()
+
+		default:
+			// TODO: Convert this error
+			return fmt.Errorf("%s: unknown type flag: %c", hdr.Name, hdr.Typeflag)
+		}
+
+	}
+
 	return nil
 }

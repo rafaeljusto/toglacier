@@ -730,11 +730,9 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				cloud:   scenario.cloud,
 			}
 
-			filename, err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
+			err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
 
-			if !reflect.DeepEqual(scenario.expected, filename) {
-				t.Errorf("filenames don't match. expected “%s” and got “%s”", scenario.expected, filename)
-			}
+			// TODO: Check extracted file
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -1132,11 +1130,16 @@ Subject: toglacier report
 }
 
 type mockBuilder struct {
-	mockBuild func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
+	mockBuild   func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
+	mockExtract func(filename string, filter []string) error
 }
 
 func (m mockBuilder) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 	return m.mockBuild(lastArchiveInfo, backupPaths...)
+}
+
+func (m mockBuilder) Extract(filename string, filter []string) error {
+	return m.mockExtract(filename, filter)
 }
 
 type mockEnvelop struct {
