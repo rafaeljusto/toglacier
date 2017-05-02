@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -113,7 +112,7 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 
 		// we only accept regular files and directories
 		if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeDir {
-			t.logger.Debugf("archive: path “%s”, with type “%d”, is not going to be added to the tar", path, header.Typeflag)
+			t.logger.Infof("archive: path “%s”, with type “%d”, is not going to be added to the tar", path, header.Typeflag)
 			return nil
 		}
 
@@ -258,66 +257,87 @@ func (t TARBuilder) writeTarball(path string, info os.FileInfo, header *tar.Head
 
 // Extract uncompress all files from the tarball to the current path. You can
 // select the files that are extracted with the filter parameter, if nil all
-// files are extracted.
+// files are extracted. On error it will return an Error type encapsulated in a
+// traceable error. To retrieve the desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *archive.Error:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
 func (t TARBuilder) Extract(filename string, filter []string) error {
+	t.logger.Debugf("archive: extract tar %s", filename)
+
 	f, err := os.Open(filename)
 	if err != nil {
-		return fmt.Errorf("error opening archive. details: %s", err)
+		return errors.WithStack(newError(filename, ErrorCodeOpeningFile, err))
 	}
 	defer f.Close()
 
-	tr := tar.NewReader(f)
+	tarReader := tar.NewReader(f)
+
 	for {
-		hdr, err := tr.Next()
+		header, err := tarReader.Next()
+
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			return errors.WithStack(newError(filename, ErrorCodeReadingTAR, err))
 		}
 
-		switch hdr.Typeflag {
+		switch header.Typeflag {
 		case tar.TypeDir:
 			// we will create the directories only when extracting files from the
 			// tarball, because not all files will be extracted
 
 		case tar.TypeReg:
 			if filter != nil {
-				filename := strings.Join(strings.Split(hdr.Name, string(os.PathSeparator))[1:], string(os.PathSeparator))
-				filename = string(os.PathSeparator) + filename
+				name := strings.Join(strings.Split(header.Name, string(os.PathSeparator))[1:], string(os.PathSeparator))
+				name = string(os.PathSeparator) + name
 
 				found := false
 				for _, item := range filter {
-					if filename == item {
+					if name == item {
 						found = true
 						break
 					}
 				}
 
 				if !found {
+					t.logger.Debugf("archive: ignoring extraction of path “%s”", header.Name)
 					continue
 				}
 			}
 
-			dir := filepath.Dir(hdr.Name)
+			dir := filepath.Dir(header.Name)
 			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
-				// TODO
+				return errors.WithStack(newError(filename, ErrorCodeCreatingDirectories, err))
 			}
 
-			tarFile, err := os.OpenFile(hdr.Name, os.O_WRONLY, os.FileMode(hdr.Mode))
+			tarFile, err := os.OpenFile(header.Name, os.O_WRONLY, os.FileMode(header.Mode))
 			if err != nil {
-				// TODO
+				return errors.WithStack(newError(header.Name, ErrorCodeOpeningFile, err))
 			}
 
-			if _, err := io.Copy(tarFile, tr); err != nil {
-				// TODO
-			}
+			written, err := io.Copy(tarFile, tarReader)
 			tarFile.Close()
 
-		default:
-			// TODO: Convert this error
-			return fmt.Errorf("%s: unknown type flag: %c", hdr.Name, hdr.Typeflag)
-		}
+			if err != nil {
+				return errors.WithStack(newError(tarFile.Name(), ErrorCodeExtractingFile, err))
+			}
 
+			t.logger.Debugf("archive: path “%s” extracted from tar (%d bytes)", tarFile.Name(), written)
+
+		default:
+			t.logger.Infof("archive: path “%s”, with type “%d”, is not going to be extracted from the tar", header.Name, header.Typeflag)
+		}
 	}
 
 	return nil

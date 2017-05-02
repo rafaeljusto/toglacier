@@ -129,6 +129,21 @@ func TestError_Error(t *testing.T) {
 			expected:    "archive: error encoding the archive information in the tarball",
 		},
 		{
+			description: "it should show the correct error message for reading TAR problem",
+			err:         &archive.Error{Code: archive.ErrorCodeReadingTAR},
+			expected:    "archive: error reading tar",
+		},
+		{
+			description: "it should show the correct error message for creating directories problem",
+			err:         &archive.Error{Code: archive.ErrorCodeCreatingDirectories},
+			expected:    "archive: error while creating directories",
+		},
+		{
+			description: "it should show the correct error message for extracting file problem",
+			err:         &archive.Error{Code: archive.ErrorCodeExtractingFile},
+			expected:    "archive: error extracting file",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &archive.Error{Code: archive.ErrorCode("i-dont-exist")},
 			expected:    "archive: unknown error code",

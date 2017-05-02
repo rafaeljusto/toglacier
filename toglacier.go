@@ -464,8 +464,14 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	}
 
 	ids := make(map[string][]string)
-	for path, itemInfo := range archiveInfo {
-		ids[itemInfo.ID] = append(ids[itemInfo.ID], path)
+	if archiveInfo == nil {
+		// when there's no archive information, retrieve only the desired backup ID
+		ids[id] = nil
+
+	} else {
+		for path, itemInfo := range archiveInfo {
+			ids[itemInfo.ID] = append(ids[itemInfo.ID], path)
+		}
 	}
 
 	for partID, paths := range ids {

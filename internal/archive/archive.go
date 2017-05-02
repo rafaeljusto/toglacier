@@ -26,7 +26,7 @@ type ItemInfoStatus string
 type ItemInfo struct {
 	ID     string
 	Status ItemInfoStatus
-	Hash   string
+	Hash   string // TODO: Rename to Checksum?
 }
 
 // Info stores extra information from the archive's items for allowing

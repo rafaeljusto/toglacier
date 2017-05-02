@@ -72,6 +72,15 @@ const (
 
 	// ErrorCodeEncodingInfo failed to add the archive information to the tarball.
 	ErrorCodeEncodingInfo ErrorCode = "encoding-info"
+
+	// ErrorCodeReadingTAR error while iterating over the TAR headers.
+	ErrorCodeReadingTAR ErrorCode = "reading-tar"
+
+	// ErrorCodeCreatingDirectories failed to create directories.
+	ErrorCodeCreatingDirectories ErrorCode = "creating-directories"
+
+	// ErrorCodeExtractingFile problem extracting file from TAR.
+	ErrorCodeExtractingFile ErrorCode = "extracting-file"
 )
 
 // ErrorCode stores the error type that occurred to easy automatize an external
@@ -97,6 +106,9 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeAuthFailed:            "encrypted content authentication failed",
 	ErrorCodeRewindingFile:         "error moving to the beginning of the file",
 	ErrorCodeEncodingInfo:          "error encoding the archive information in the tarball",
+	ErrorCodeReadingTAR:            "error reading tar",
+	ErrorCodeCreatingDirectories:   "error while creating directories",
+	ErrorCodeExtractingFile:        "error extracting file",
 }
 
 // String translate the error code to a human readable text.

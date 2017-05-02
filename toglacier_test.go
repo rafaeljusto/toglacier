@@ -629,16 +629,68 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		description   string
 		id            string
 		backupSecret  string
+		storage       storage.Storage
 		envelop       archive.Envelop
 		cloud         cloud.Cloud
+		builder       archive.Builder
 		expected      string
 		expectedError error
 	}{
 		{
 			description: "it should retrieve a backup correctly",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "AWSID123",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file2": archive.ItemInfo{
+									ID:     "AWSID122",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+							},
+						},
+					}, nil
+				},
+			},
 			cloud: mockCloud{
 				mockGet: func(id string) (filename string, err error) {
-					return "toglacier-archive.tar.gz", nil
+					switch id {
+					case "AWSID123":
+						return "toglacier-archive-1.tar.gz", nil
+					case "AWSID122":
+						return "toglacier-archive-2.tar.gz", nil
+					default:
+						return "", fmt.Errorf("unexpected id “%s”", id)
+					}
+				},
+			},
+			builder: mockBuilder{
+				mockExtract: func(filename string, filter []string) error {
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 1 || filter[0] != "file1" {
+							return fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil
 				},
 			},
 			expected: "toglacier-archive.tar.gz",
@@ -646,6 +698,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		{
 			description:  "it should retrieve an encrypted backup correctly",
 			backupSecret: "1234567890123456",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
+			},
 			envelop: mockEnvelop{
 				mockDecrypt: func(encryptedFilename, secret string) (string, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
@@ -678,10 +735,20 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return n, nil
 				},
 			},
+			builder: mockBuilder{
+				mockExtract: func(filename string, filter []string) error {
+					return nil
+				},
+			},
 			expected: path.Join(os.TempDir(), "toglacier-test-getenc"),
 		},
 		{
 			description: "it should detect when there's an error retrieving a backup",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
+			},
 			cloud: mockCloud{
 				mockGet: func(id string) (filename string, err error) {
 					return "", errors.New("error retrieving the backup")
@@ -692,6 +759,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		{
 			description:  "it should detect an error decrypting the backup",
 			backupSecret: "123456",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, nil
+				},
+			},
 			envelop: mockEnvelop{
 				mockDecrypt: func(encryptedFilename, secret string) (string, error) {
 					return "", errors.New("invalid encrypted content")
@@ -726,13 +798,13 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			toGlacier := ToGlacier{
 				context: context.Background(),
+				storage: scenario.storage,
 				envelop: scenario.envelop,
 				cloud:   scenario.cloud,
+				builder: scenario.builder,
 			}
 
 			err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
-
-			// TODO: Check extracted file
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
