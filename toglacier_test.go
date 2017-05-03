@@ -633,7 +633,6 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		envelop       archive.Envelop
 		cloud         cloud.Cloud
 		builder       archive.Builder
-		expected      string
 		expectedError error
 	}{
 		{
@@ -693,10 +692,10 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return nil
 				},
 			},
-			expected: "toglacier-archive.tar.gz",
 		},
 		{
 			description:  "it should retrieve an encrypted backup correctly",
+			id:           "AWSID123",
 			backupSecret: "1234567890123456",
 			storage: mockStorage{
 				mockList: func() (storage.Backups, error) {
@@ -740,10 +739,20 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return nil
 				},
 			},
-			expected: path.Join(os.TempDir(), "toglacier-test-getenc"),
+		},
+		{
+			description: "it should detect an error listing backups from local storage",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, errors.New("error listing the backups")
+				},
+			},
+			expectedError: errors.New("error listing the backups"),
 		},
 		{
 			description: "it should detect when there's an error retrieving a backup",
+			id:          "AWSID123",
 			storage: mockStorage{
 				mockList: func() (storage.Backups, error) {
 					return nil, nil
@@ -758,6 +767,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 		},
 		{
 			description:  "it should detect an error decrypting the backup",
+			id:           "AWSID123",
 			backupSecret: "123456",
 			storage: mockStorage{
 				mockList: func() (storage.Backups, error) {
@@ -791,6 +801,59 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			expectedError: errors.New("invalid encrypted content"),
+		},
+		{
+			description: "it should detect an error while extracting the backup",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "AWSID123",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file2": archive.ItemInfo{
+									ID:     "AWSID122",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(id string) (filename string, err error) {
+					switch id {
+					case "AWSID123":
+						return "toglacier-archive-1.tar.gz", nil
+					case "AWSID122":
+						return "toglacier-archive-2.tar.gz", nil
+					default:
+						return "", fmt.Errorf("unexpected id “%s”", id)
+					}
+				},
+			},
+			builder: mockBuilder{
+				mockExtract: func(filename string, filter []string) error {
+					switch filename {
+					case "toglacier-archive-2.tar.gz":
+						return errors.New("error extracting backup")
+					}
+					return nil
+				},
+			},
+			expectedError: errors.New("error extracting backup"),
 		},
 	}
 
