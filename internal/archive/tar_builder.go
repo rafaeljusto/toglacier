@@ -317,11 +317,11 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 			}
 
 			dir := filepath.Dir(header.Name)
-			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil {
+			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil { // TODO: file mode?
 				return errors.WithStack(newError(filename, ErrorCodeCreatingDirectories, err))
 			}
 
-			tarFile, err := os.OpenFile(header.Name, os.O_WRONLY, os.FileMode(header.Mode))
+			tarFile, err := os.OpenFile(header.Name, os.O_WRONLY|os.O_CREATE, os.FileMode(header.Mode))
 			if err != nil {
 				return errors.WithStack(newError(header.Name, ErrorCodeOpeningFile, err))
 			}

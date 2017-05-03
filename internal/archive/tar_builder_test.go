@@ -8,10 +8,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/aryann/difflib"
 	"github.com/davecgh/go-spew/spew"
@@ -526,6 +528,123 @@ func TestTARBuilder_Build(t *testing.T) {
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestTARBuilder_Extract(t *testing.T) {
+	writeFile := func(tarArchive *tar.Writer, baseDir, content string) string {
+		file, err := ioutil.TempFile("", "toglacier-test")
+		if err != nil {
+			t.Fatalf("error creating temporary file. details %s", err)
+		}
+		defer file.Close()
+
+		file.WriteString(content)
+
+		info, err := file.Stat()
+		if err != nil {
+			t.Fatalf("error retrieving file information. details %s", err)
+		}
+		file.Seek(0, 0)
+
+		header, err := tar.FileInfoHeader(info, file.Name())
+		if err != nil {
+			t.Fatalf("error creating tar header. details %s", err)
+		}
+		header.Name = filepath.Join(baseDir, file.Name())
+
+		if err = tarArchive.WriteHeader(header); err != nil {
+			t.Fatalf("error writing tar header. details %s", err)
+		}
+
+		if _, err = io.CopyN(tarArchive, file, info.Size()); err != nil && err != io.EOF {
+			t.Fatalf("error writing content to tar. details %s", err)
+		}
+
+		if err := os.Remove(file.Name()); err != nil {
+			t.Fatalf("error removing temporary file. details %s", err)
+		}
+
+		return file.Name()
+	}
+
+	type scenario struct {
+		description   string
+		builder       *archive.TARBuilder
+		filename      string
+		filter        []string
+		expected      func() error
+		expectedError error
+		clean         func()
+	}
+
+	scenarios := []scenario{
+		func() scenario {
+			var scenario scenario
+			scenario.description = "it should extract an archive correctly"
+			scenario.builder = archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
+
+			tarFile, err := ioutil.TempFile("", "toglacier-test")
+			if err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+			defer tarFile.Close()
+
+			tarArchive := tar.NewWriter(tarFile)
+			defer tarArchive.Close()
+
+			baseDir := "backup-" + time.Now().Format("20060102150405")
+			file1 := writeFile(tarArchive, baseDir, "this is test 1")
+			file2 := writeFile(tarArchive, baseDir, "this is test 2")
+
+			scenario.filename = tarFile.Name()
+			scenario.filter = []string{file2}
+			scenario.expected = func() error {
+				if _, err = os.Stat(filepath.Join(baseDir, file1)); !os.IsNotExist(err) {
+					return fmt.Errorf("file “%s” extracted when it shouldn't", file1)
+				}
+
+				content, err := ioutil.ReadFile(filepath.Join(baseDir, file2))
+				if err != nil {
+					return fmt.Errorf("error opening file “%s”. details: %s", file2, err)
+				}
+
+				if string(content) != "this is test 2" {
+					return fmt.Errorf("expected content “this is test 2” and got “%s” in file “%s”. details: %s", string(content), file2, err)
+				}
+
+				return nil
+			}
+			scenario.clean = func() {
+				os.RemoveAll(baseDir)
+			}
+			return scenario
+		}(),
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			err := scenario.builder.Extract(scenario.filename, scenario.filter)
+
+			if scenario.expected != nil {
+				if err := scenario.expected(); err != nil {
+					t.Error(err)
+				}
+			}
+
+			if !archive.ErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
+			}
+
+			if scenario.clean != nil {
+				scenario.clean()
 			}
 		})
 	}
