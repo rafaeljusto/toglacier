@@ -20,6 +20,10 @@ import (
 // necessary information for an incremental archive.
 var TARInfoFilename = "toglacier-info.json"
 
+// extractDirectoryPermission defines the permission mode for the directories
+// created while extracting a tarball.
+const extractDirectoryPermission os.FileMode = 0755
+
 // TARBuilder join all paths into an archive using the TAR computer software
 // utility.
 type TARBuilder struct {
@@ -317,7 +321,7 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 			}
 
 			dir := filepath.Dir(header.Name)
-			if err := os.MkdirAll(dir, os.FileMode(0755)); err != nil { // TODO: file mode?
+			if err := os.MkdirAll(dir, extractDirectoryPermission); err != nil {
 				return errors.WithStack(newError(filename, ErrorCodeCreatingDirectories, err))
 			}
 
