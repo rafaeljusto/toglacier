@@ -534,6 +534,30 @@ func TestTARBuilder_Build(t *testing.T) {
 }
 
 func TestTARBuilder_Extract(t *testing.T) {
+	writeDir := func(tarArchive *tar.Writer, baseDir string) string {
+		dir, err := ioutil.TempDir("", "toglacier-test")
+		if err != nil {
+			t.Fatalf("error creating temporary directory. details %s", err)
+		}
+
+		info, err := os.Stat(dir)
+		if err != nil {
+			t.Fatalf("error retrieving directory information. details %s", err)
+		}
+
+		header, err := tar.FileInfoHeader(info, path.Base(dir))
+		if err != nil {
+			t.Fatalf("error creating tar header. details %s", err)
+		}
+		header.Name = filepath.Join(baseDir, path.Base(dir)) + "/"
+
+		if err = tarArchive.WriteHeader(header); err != nil {
+			t.Fatalf("error writing tar header. details %s", err)
+		}
+
+		return path.Base(dir)
+	}
+
 	writeFile := func(tarArchive *tar.Writer, baseDir, content string) string {
 		file, err := ioutil.TempFile("", "toglacier-test")
 		if err != nil {
@@ -563,11 +587,47 @@ func TestTARBuilder_Extract(t *testing.T) {
 			t.Fatalf("error writing content to tar. details %s", err)
 		}
 
-		if err := os.Remove(file.Name()); err != nil {
-			t.Fatalf("error removing temporary file. details %s", err)
+		return file.Name()
+	}
+
+	writeLink := func(tarArchive *tar.Writer, baseDir, filename string) string {
+		linkname := filepath.Join(os.TempDir(), "toglacier-test"+time.Now().Format("20060102150405.000000000"))
+
+		err := os.Symlink(filename, linkname)
+		if err != nil {
+			t.Fatalf("error creating temporary link. details %s", err)
 		}
 
-		return file.Name()
+		info, err := os.Stat(linkname)
+		if err != nil {
+			t.Fatalf("error retrieving link information. details %s", err)
+		}
+
+		header, err := tar.FileInfoHeader(info, linkname)
+		if err != nil {
+			t.Fatalf("error creating tar header. details %s", err)
+		}
+		header.Name = filepath.Join(baseDir, linkname)
+
+		if err = tarArchive.WriteHeader(header); err != nil {
+			t.Fatalf("error writing tar header. details %s", err)
+		}
+
+		file, err := os.Open(filename)
+		if err != nil {
+			t.Fatalf("error opening temporary file. details %s", err)
+		}
+
+		fileInfo, err := file.Stat()
+		if err != nil {
+			t.Fatalf("error retrieving file information. details %s", err)
+		}
+
+		if _, err = io.CopyN(tarArchive, file, fileInfo.Size()); err != nil && err != io.EOF {
+			t.Fatalf("error writing content to tar. details %s", err)
+		}
+
+		return linkname
 	}
 
 	type scenario struct {
@@ -583,7 +643,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 	scenarios := []scenario{
 		func() scenario {
 			var scenario scenario
-			scenario.description = "it should extract an archive correctly"
+			scenario.description = "it should extract an archive correctly with filters"
 			scenario.builder = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
@@ -600,24 +660,37 @@ func TestTARBuilder_Extract(t *testing.T) {
 			tarArchive := tar.NewWriter(tarFile)
 			defer tarArchive.Close()
 
-			baseDir := "backup-" + time.Now().Format("20060102150405")
-			file1 := writeFile(tarArchive, baseDir, "this is test 1")
-			file2 := writeFile(tarArchive, baseDir, "this is test 2")
+			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
+			dir1 := writeDir(tarArchive, baseDir)
+			file1 := writeFile(tarArchive, filepath.Join(baseDir, dir1), "this is test 1")
+			dir2 := writeDir(tarArchive, baseDir)
+			file2 := writeFile(tarArchive, filepath.Join(baseDir, dir2), "this is test 2")
+			link1 := writeLink(tarArchive, filepath.Join(baseDir, dir2), file2)
 
 			scenario.filename = tarFile.Name()
-			scenario.filter = []string{file2}
+			scenario.filter = []string{filepath.Join("/", dir2, file2)}
 			scenario.expected = func() error {
-				if _, err = os.Stat(filepath.Join(baseDir, file1)); !os.IsNotExist(err) {
-					return fmt.Errorf("file “%s” extracted when it shouldn't", file1)
+				filename1 := filepath.Join(baseDir, dir1, file1)
+
+				if _, err = os.Stat(filename1); !os.IsNotExist(err) {
+					return fmt.Errorf("file “%s” extracted when it shouldn't", filename1)
 				}
 
-				content, err := ioutil.ReadFile(filepath.Join(baseDir, file2))
+				filename2 := filepath.Join(baseDir, dir2, file2)
+
+				content, err := ioutil.ReadFile(filename2)
 				if err != nil {
-					return fmt.Errorf("error opening file “%s”. details: %s", file2, err)
+					return fmt.Errorf("error opening file “%s”. details: %s", filename2, err)
 				}
 
 				if string(content) != "this is test 2" {
-					return fmt.Errorf("expected content “this is test 2” and got “%s” in file “%s”. details: %s", string(content), file2, err)
+					return fmt.Errorf("expected content “this is test 2” and got “%s” in file “%s”. details: %s", string(content), filename2, err)
+				}
+
+				linkname1 := filepath.Join(baseDir, dir1, link1)
+
+				if _, err = os.Stat(linkname1); !os.IsNotExist(err) {
+					return fmt.Errorf("link “%s” extracted when it shouldn't", linkname1)
 				}
 
 				return nil
@@ -625,6 +698,106 @@ func TestTARBuilder_Extract(t *testing.T) {
 			scenario.clean = func() {
 				os.RemoveAll(baseDir)
 			}
+			return scenario
+		}(),
+		func() scenario {
+			var scenario scenario
+			scenario.description = "it should extract an archive correctly without filters"
+			scenario.builder = archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
+
+			tarFile, err := ioutil.TempFile("", "toglacier-test")
+			if err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+			defer tarFile.Close()
+
+			tarArchive := tar.NewWriter(tarFile)
+			defer tarArchive.Close()
+
+			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
+			file1 := writeFile(tarArchive, baseDir, "this is test 1")
+			file2 := writeFile(tarArchive, baseDir, "this is test 2")
+
+			scenario.filename = tarFile.Name()
+			scenario.expected = func() error {
+				filename1 := filepath.Join(baseDir, file1)
+
+				content, err := ioutil.ReadFile(filename1)
+				if err != nil {
+					return fmt.Errorf("error opening file “%s”. details: %s", filename1, err)
+				}
+
+				if string(content) != "this is test 1" {
+					return fmt.Errorf("expected content “this is test 1” and got “%s” in file “%s”. details: %s", string(content), filename1, err)
+				}
+
+				filename2 := filepath.Join(baseDir, file2)
+
+				content, err = ioutil.ReadFile(filename2)
+				if err != nil {
+					return fmt.Errorf("error opening file “%s”. details: %s", filename2, err)
+				}
+
+				if string(content) != "this is test 2" {
+					return fmt.Errorf("expected content “this is test 2” and got “%s” in file “%s”. details: %s", string(content), filename2, err)
+				}
+
+				return nil
+			}
+			scenario.clean = func() {
+				os.RemoveAll(baseDir)
+			}
+			return scenario
+		}(),
+		{
+			description: "it should detect when the file doesn't exist",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			filename: path.Join(os.TempDir(), "toglacier-idontexist.tar.gz"),
+			expectedError: &archive.Error{
+				Filename: path.Join(os.TempDir(), "toglacier-idontexist.tar.gz"),
+				Code:     archive.ErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: path.Join(os.TempDir(), "toglacier-idontexist.tar.gz"),
+					Err:  errors.New("no such file or directory"),
+				},
+			},
+		},
+		func() scenario {
+			var scenario scenario
+			scenario.description = "it should detect when the file isn't a TAR"
+			scenario.builder = archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
+
+			file, err := ioutil.TempFile("", "toglacier-test")
+			if err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+			defer file.Close()
+
+			file.WriteString("I'm not a TAR")
+
+			scenario.filename = file.Name()
+			scenario.expectedError = &archive.Error{
+				Filename: file.Name(),
+				Code:     archive.ErrorCodeReadingTAR,
+				Err:      io.ErrUnexpectedEOF,
+			}
+
 			return scenario
 		}(),
 	}
