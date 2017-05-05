@@ -146,16 +146,70 @@ func TestTARBuilder_Build(t *testing.T) {
 						Status: archive.ItemInfoStatusModified,
 						Hash:   "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
 					},
-					path.Join(backupPaths[0], "file3"): {
-						ID:     "reference3",
-						Status: archive.ItemInfoStatusDeleted,
-						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
-					},
 					path.Join(backupPaths[0], "dir1", "file3"): {
 						Status: archive.ItemInfoStatusNew,
 						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
 					},
 				})
+			},
+		},
+		{
+			description: "it should ignore the build when all files are unmodified",
+			builder: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			lastArchiveInfo: func(backupPaths []string) archive.Info {
+				return archive.Info{
+					path.Join(backupPaths[0], "file1"): {
+						ID:     "reference1",
+						Status: archive.ItemInfoStatusNew,
+						Hash:   "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+					},
+					path.Join(backupPaths[0], "file2"): {
+						ID:     "reference2",
+						Status: archive.ItemInfoStatusNew,
+						Hash:   "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
+					},
+					path.Join(backupPaths[0], "dir1", "file3"): {
+						ID:     "reference3",
+						Status: archive.ItemInfoStatusNew,
+						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
+					},
+				}
+			},
+			backupPaths: func() []string {
+				d, err := ioutil.TempDir("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "file1"), []byte("file1 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "file2"), []byte("file2 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				if err := os.Mkdir(path.Join(d, "dir1"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+
+				if err := ioutil.WriteFile(path.Join(d, "dir1", "file3"), []byte("file3 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
+				return []string{d}
+			}(),
+			expected: func(filename string) error {
+				if filename != "" {
+					return fmt.Errorf("unexpected tar file “%s” when all files where unchanged", filename)
+				}
+
+				return nil
 			},
 		},
 		{

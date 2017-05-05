@@ -48,7 +48,7 @@ func (a Info) Merge(info Info) {
 // where deleted.
 func (a Info) MergeLast(last Info) {
 	for lastFilename, lastItemInfo := range last {
-		if _, ok := a[lastFilename]; !ok {
+		if _, ok := a[lastFilename]; !ok && lastItemInfo.Status != ItemInfoStatusDeleted {
 			a[lastFilename] = ItemInfo{
 				ID:     lastItemInfo.ID,
 				Status: ItemInfoStatusDeleted,

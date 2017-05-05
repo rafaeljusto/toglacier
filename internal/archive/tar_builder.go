@@ -40,7 +40,8 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 // Build builds a tarball containing all the desired files that you want to
 // backup. A control file is added to the tarball root so we can control
 // incremental archives (send only what was modified). On success it will return
-// an open file, so the caller is responsible for closing it. On error it will
+// an open file, so the caller is responsible for closing it. If no file was
+// written to the tarball, an empty filename is returned. On error it will
 // return an Error or PathError type encapsulated in a traceable error. To
 // retrieve the desired error you can do:
 //
@@ -71,6 +72,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 	basePath := "backup-" + time.Now().Format("20060102150405")
 
 	archiveInfo := make(Info)
+	hasFiles := false
 	for _, path := range backupPaths {
 		if path == "" {
 			t.logger.Info("archive: empty backup path ignored")
@@ -79,28 +81,45 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 
 		t.logger.Debugf("archive: analyzing backup path “%s”", path)
 
-		tmpArchiveInfo, err := t.build(lastArchiveInfo, tarArchive, basePath, path)
+		tmpArchiveInfo, tmpHasFiles, err := t.build(lastArchiveInfo, tarArchive, basePath, path)
 		if err != nil {
 			return "", nil, errors.WithStack(err)
 		}
 		archiveInfo.Merge(tmpArchiveInfo)
+
+		if tmpHasFiles {
+			hasFiles = true
+		}
 	}
 
-	if err := t.addInfo(archiveInfo, tarArchive, basePath); err != nil {
-		return "", nil, errors.WithStack(err)
+	// if there're no files in the tar there's no reason to create this backup
+	if hasFiles {
+		archiveInfo.MergeLast(lastArchiveInfo)
+		if err := t.addInfo(archiveInfo, tarArchive, basePath); err != nil {
+			return "", nil, errors.WithStack(err)
+		}
 	}
 
 	if err := tarArchive.Close(); err != nil {
 		return "", nil, errors.WithStack(newError(tarFile.Name(), ErrorCodeTARGeneration, err))
 	}
 
-	archiveInfo.MergeLast(lastArchiveInfo)
+	if !hasFiles {
+		// force fd close to remove the empty tarball.
+		tarFile.Close()
+		os.Remove(tarFile.Name())
+
+		t.logger.Info("archive: tar file not created because no files were added")
+		return "", nil, nil
+	}
+
 	t.logger.Infof("archive: tar file “%s” created successfully", tarFile.Name())
 	return tarFile.Name(), archiveInfo, nil
 }
 
-func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string) (Info, error) {
-	archiveInfo := make(Info)
+func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string) (archiveInfo Info, hasFiles bool, err error) {
+	var directories []*tar.Header
+	archiveInfo = make(Info)
 
 	walkErr := filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -128,12 +147,8 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 			// tar always use slash as a path separator, even on Windows
 			header.Name += "/"
 
-			t.logger.Debugf("archive: writing tar header for directory “%s”", header.Name)
-
-			if err = tarArchive.WriteHeader(header); err != nil {
-				return errors.WithStack(newPathError(path, PathErrorCodeWritingTARHeader, err))
-			}
-
+			// forward directory creation to when a file is written
+			directories = append(directories, header)
 			return nil
 		}
 
@@ -144,14 +159,33 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 		archiveInfo[path] = itemInfo
 
 		if !add {
+			// TODO: if the file is ignored, we should check the directories slice to
+			// remove unnecessary entries
 			t.logger.Debugf("archive: path “%s” ignored", path)
 			return nil
 		}
 
+		hasFiles = true
+
+		// only write directory (FIFO order) when we are sure that a file will be
+		// written to the tarball. Otherwise we could have a tarball with empty
+		// directories
+		for _, directory := range directories {
+			t.logger.Debugf("archive: writing tar header for directory “%s”", directory.Name)
+
+			if err = tarArchive.WriteHeader(directory); err != nil {
+				return errors.WithStack(newPathError(path, PathErrorCodeWritingTARHeader, err))
+			}
+		}
+
+		// after the directories are created, we can clear the slice for the next
+		// round
+		directories = nil
+
 		return errors.WithStack(t.writeTarball(path, info, header, tarArchive))
 	})
 
-	return archiveInfo, errors.WithStack(walkErr)
+	return archiveInfo, hasFiles, errors.WithStack(walkErr)
 }
 
 func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInfo ItemInfo, add bool, err error) {
