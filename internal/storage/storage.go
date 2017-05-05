@@ -8,7 +8,7 @@ import (
 // Backup stores the cloud location of the backup and some extra information
 // about the files of the backup.
 type Backup struct {
-	Backup cloud.Backup
+	Backup cloud.Backup // TODO: rename this attribute?
 	Info   archive.Info
 }
 
