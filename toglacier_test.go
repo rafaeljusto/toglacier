@@ -360,7 +360,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 		remote        bool
 		cloud         cloud.Cloud
 		storage       storage.Storage
-		expected      []cloud.Backup
+		expected      storage.Backups
 		expectedError error
 	}{
 		{
@@ -414,12 +414,14 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					return nil
 				},
 			},
-			expected: []cloud.Backup{
+			expected: storage.Backups{
 				{
-					ID:        "123456",
-					CreatedAt: now,
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
+					Backup: cloud.Backup{
+						ID:        "123456",
+						CreatedAt: now,
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					},
 				},
 			},
 		},
@@ -439,12 +441,14 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					}, nil
 				},
 			},
-			expected: []cloud.Backup{
+			expected: storage.Backups{
 				{
-					ID:        "123456",
-					CreatedAt: now,
-					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
-					VaultName: "test",
+					Backup: cloud.Backup{
+						ID:        "123456",
+						CreatedAt: now,
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+					},
 				},
 			},
 		},
@@ -1014,7 +1018,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 			expectedError: errors.New("local storage corrupted"),
 		},
 		{
-			description: "it should detect when there's an error removing an old backup from the cloud",
+			description: "it should detect when there is an error removing an old backup from the cloud",
 			keepBackups: 2,
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
@@ -1060,7 +1064,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 			expectedError: errors.New("backup not found"),
 		},
 		{
-			description: "it should detect when there's an error removing an old backup from the local storage",
+			description: "it should detect when there is an error removing an old backup from the local storage",
 			keepBackups: 2,
 			cloud: mockCloud{
 				mockRemove: func(id string) error {

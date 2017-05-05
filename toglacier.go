@@ -7,6 +7,7 @@ import (
 	"net/smtp"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -183,7 +184,7 @@ func main() {
 					fmt.Println("Date             | Vault Name       | Archive ID")
 					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
 					for _, backup := range backups {
-						fmt.Printf("%-16s | %-16s | %-138s\n", backup.CreatedAt.Format("2006-01-02 15:04"), backup.VaultName, backup.ID)
+						fmt.Printf("%-16s | %-16s | %-138s\n", backup.Backup.CreatedAt.Format("2006-01-02 15:04"), backup.Backup.VaultName, backup.Backup.ID)
 					}
 				}
 				return nil
@@ -312,15 +313,13 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}()
 
 	// retrieve the latest backup so we can analyze the files that changed
-	backups, err := t.storage.List()
+	backups, err := t.ListBackups(false)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
 	var archiveInfo archive.Info
 	if len(backups) > 0 {
-		// TODO: should we sort here or let the library to do that?
-
 		// the newest backup is always in the first position
 		archiveInfo = backups[0].Info
 	}
@@ -331,6 +330,14 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
+
+	if filename == "" {
+		// if the filename is empty, the tarball wasn't created because no files
+		// were added, so we just ignore the upload
+		backupReport.Durations.Build = time.Now().Sub(timeMark)
+		return nil
+	}
+
 	defer os.Remove(filename)
 	backupReport.Durations.Build = time.Now().Sub(timeMark)
 
@@ -375,18 +382,15 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 
 // ListBackups show the current backups. With the remote flag it is possible to
 // list the backups tracked locally or retrieve the cloud inventory.
-func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
+func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 	if !remote {
 		backups, err := t.storage.List()
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 
-		cloudBackups := make([]cloud.Backup, len(backups))
-		for i, backup := range backups {
-			cloudBackups[i] = backup.Backup
-		}
-		return cloudBackups, nil
+		// TODO: should we sort here or let the library to do that?
+		return backups, nil
 	}
 
 	listBackupsReport := report.NewListBackups()
@@ -433,23 +437,38 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 		}
 	}
 
-	for _, backup := range remoteBackups {
-		// TODO: save archive information
-		if err := t.storage.Save(storage.Backup{Backup: backup}); err != nil {
+	syncBackups := make(storage.Backups, len(remoteBackups))
+	for i, remoteBackup := range remoteBackups {
+		// we should keep the archive information to be able to build incremental
+		// backups again. Another alternative is build the archive information from
+		// the uploaded backup, but it is really slow. Anyway, when retrieving the
+		// backup, if there's no archive information, we will try to extract it from
+		// the backup
+		var archiveInfo archive.Info
+		for _, backup := range backups {
+			if backup.Backup.ID == remoteBackup.ID {
+				archiveInfo = backup.Info
+				break
+			}
+		}
+
+		syncBackups[i] = storage.Backup{
+			Backup: remoteBackup,
+			Info:   archiveInfo,
+		}
+
+		if err := t.storage.Save(syncBackups[i]); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
-	return remoteBackups, nil
+	sort.Sort(syncBackups)
+	return syncBackups, nil
 }
 
 // RetrieveBackup recover a specific backup from the cloud.
 func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
-	// TODO: using the backup extra information we need to retrieve all backups
-	// pieces to build the desired archive. The backup extra information could be
-	// retrieved remotly or locally.
-
 	backups, err := t.storage.List()
 	if err != nil {
 		return errors.WithStack(err)
@@ -467,6 +486,10 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	if archiveInfo == nil {
 		// when there's no archive information, retrieve only the desired backup ID
 		ids[id] = nil
+
+		// TODO: we could retrieve the archive information saved in the desired
+		// backup to detect all other backup parts that we need. This is important
+		// when all the local storage got corrupted due to a disaster.
 
 	} else {
 		for path, itemInfo := range archiveInfo {
@@ -525,13 +548,27 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		return errors.WithStack(err)
 	}
 
-	// TODO: with the incremental backup we cannot remove backups without checking
-	// the archive info to identify essential backup entries
+	// with the incremental backup we cannot remove backups without checking the
+	// archive info to identify partial backup entries
+	var preserveBackups []string
+	for i := 0; i < keepBackups && i < len(backups); i++ {
+		for _, itemInfo := range backups[i].Info {
+			if itemInfo.Status != archive.ItemInfoStatusDeleted {
+				preserveBackups = append(preserveBackups, itemInfo.ID)
+			}
+		}
+	}
+	sort.Strings(preserveBackups)
 
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
-		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
-		if err := t.RemoveBackup(backups[i].ID); err != nil {
+		// check if the backup isn't referenced by a active backup
+		if sort.SearchStrings(preserveBackups, backups[i].Backup.ID) < len(preserveBackups) {
+			continue
+		}
+
+		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i].Backup)
+		if err := t.RemoveBackup(backups[i].Backup.ID); err != nil {
 			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 			return errors.WithStack(err)
 		}
