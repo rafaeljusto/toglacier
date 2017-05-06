@@ -337,8 +337,20 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 
 		case tar.TypeReg:
 			if filter != nil {
-				name := strings.Join(strings.Split(header.Name, string(os.PathSeparator))[1:], string(os.PathSeparator))
-				name = string(os.PathSeparator) + name
+				// for comparing the tarball file with the filter, we need to retrieve
+				// the original file path, removing the backup directory in the
+				// begginig. Tarball path before:
+				//
+				//     backup-20170506120000/dir1/dir2/file
+				//
+				// and after the magic:
+				//
+				//     /dir1/dir2/file
+				name := header.Name
+				if nameParts := strings.Split(header.Name, string(os.PathSeparator)); len(nameParts) > 1 {
+					name = strings.Join(nameParts[1:], string(os.PathSeparator))
+					name = string(os.PathSeparator) + name
+				}
 
 				found := false
 				for _, item := range filter {
