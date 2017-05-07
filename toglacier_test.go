@@ -670,15 +670,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			cloud: mockCloud{
-				mockGet: func(id string) (filename string, err error) {
-					switch id {
-					case "AWSID123":
-						return "toglacier-archive-1.tar.gz", nil
-					case "AWSID122":
-						return "toglacier-archive-2.tar.gz", nil
-					default:
-						return "", fmt.Errorf("unexpected id “%s”", id)
-					}
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					return map[string]string{
+						"AWSID123": "toglacier-archive-1.tar.gz",
+						"AWSID122": "toglacier-archive-2.tar.gz",
+					}, nil
 				},
 			},
 			builder: mockBuilder{
@@ -718,7 +714,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			cloud: mockCloud{
-				mockGet: func(id string) (filename string, err error) {
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, errors.New("no ids given")
+					}
+
 					n := path.Join(os.TempDir(), "toglacier-test-getenc")
 					if _, err := os.Stat(n); os.IsNotExist(err) {
 						f, err := os.Create(n)
@@ -735,7 +735,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 						f.Write(content)
 					}
 
-					return n, nil
+					return map[string]string{ids[0]: n}, nil
 				},
 			},
 			builder: mockBuilder{
@@ -763,8 +763,8 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			cloud: mockCloud{
-				mockGet: func(id string) (filename string, err error) {
-					return "", errors.New("error retrieving the backup")
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					return nil, errors.New("error retrieving the backup")
 				},
 			},
 			expectedError: errors.New("error retrieving the backup"),
@@ -784,7 +784,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			cloud: mockCloud{
-				mockGet: func(id string) (filename string, err error) {
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, errors.New("no ids given")
+					}
+
 					n := path.Join(os.TempDir(), "toglacier-test-getenc")
 					if _, err := os.Stat(n); os.IsNotExist(err) {
 						f, err := os.Create(n)
@@ -801,7 +805,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 						f.Write(content)
 					}
 
-					return n, nil
+					return map[string]string{ids[0]: n}, nil
 				},
 			},
 			expectedError: errors.New("invalid encrypted content"),
@@ -837,15 +841,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			cloud: mockCloud{
-				mockGet: func(id string) (filename string, err error) {
-					switch id {
-					case "AWSID123":
-						return "toglacier-archive-1.tar.gz", nil
-					case "AWSID122":
-						return "toglacier-archive-2.tar.gz", nil
-					default:
-						return "", fmt.Errorf("unexpected id “%s”", id)
-					}
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					return map[string]string{
+						"AWSID123": "toglacier-archive-1.tar.gz",
+						"AWSID122": "toglacier-archive-2.tar.gz",
+					}, nil
 				},
 			},
 			builder: mockBuilder{
@@ -1297,7 +1297,7 @@ func (m mockEnvelop) Decrypt(encryptedFilename, secret string) (string, error) {
 type mockCloud struct {
 	mockSend   func(filename string) (cloud.Backup, error)
 	mockList   func() ([]cloud.Backup, error)
-	mockGet    func(id string) (filename string, err error)
+	mockGet    func(id ...string) (filenames map[string]string, err error)
 	mockRemove func(id string) error
 }
 
@@ -1309,8 +1309,8 @@ func (m mockCloud) List(ctx context.Context) ([]cloud.Backup, error) {
 	return m.mockList()
 }
 
-func (m mockCloud) Get(ctx context.Context, id string) (filename string, err error) {
-	return m.mockGet(id)
+func (m mockCloud) Get(ctx context.Context, id ...string) (filenames map[string]string, err error) {
+	return m.mockGet(id...)
 }
 
 func (m mockCloud) Remove(ctx context.Context, id string) error {

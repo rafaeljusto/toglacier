@@ -15,10 +15,10 @@ type Cloud interface {
 	// operation can be cancelled anytime using the context.
 	List(ctx context.Context) ([]Backup, error)
 
-	// Get retrieves a specific backup and stores it locally in a file. The
-	// filename where the backup was saved is returned. The operation can be
-	// cancelled anytime using the context.
-	Get(ctx context.Context, id string) (filename string, err error)
+	// Get retrieves the backups with the given ids and stores them locally in
+	// files. The ids and corresponding filenames where the backups were saved are
+	// returned. The operation can be cancelled anytime using the context.
+	Get(ctx context.Context, ids ...string) (filenames map[string]string, err error)
 
 	// Remove erase a specific backup from the cloud. The operation can be
 	// cancelled anytime using the context.

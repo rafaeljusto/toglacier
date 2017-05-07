@@ -84,19 +84,9 @@ func TestError_Error(t *testing.T) {
 			expected:    "cloud: error retrieving the complete job data",
 		},
 		{
-			description: "it should show the correct error message for retrieving job status problem",
-			err:         &cloud.Error{Code: cloud.ErrorCodeRetrievingJob},
-			expected:    "cloud: error retrieving the job status",
-		},
-		{
 			description: "it should show the correct error message for job failed problem",
 			err:         &cloud.Error{Code: cloud.ErrorCodeJobFailed},
 			expected:    "cloud: job failed to complete in the cloud",
-		},
-		{
-			description: "it should show the correct error message for job not found problem",
-			err:         &cloud.Error{Code: cloud.ErrorCodeJobNotFound},
-			expected:    "cloud: job not found",
 		},
 		{
 			description: "it should show the correct error message for decoding data problem",
@@ -117,11 +107,6 @@ func TestError_Error(t *testing.T) {
 			description: "it should show the correct error message for removing archive problem",
 			err:         &cloud.Error{Code: cloud.ErrorCodeRemovingArchive},
 			expected:    "cloud: error removing backup",
-		},
-		{
-			description: "it should show the correct error message for cancelled action",
-			err:         &cloud.Error{Code: cloud.ErrorCodeCancelled},
-			expected:    "cloud: action cancelled by the user",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
@@ -414,6 +399,165 @@ func TestMultipartErrorEqual(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			if equal := cloud.MultipartErrorEqual(scenario.err1, scenario.err2); equal != scenario.expected {
+				t.Errorf("results don't match. expected “%t” and got “%t”", scenario.expected, equal)
+			}
+		})
+	}
+}
+
+func TestJobsError_Error(t *testing.T) {
+	scenarios := []struct {
+		description string
+		err         *cloud.JobsError
+		expected    string
+	}{
+		{
+			description: "it should show the message with jobs and low level error",
+			err: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			expected: "cloud: jobs [AWSID123], error retrieving the job status. details: low level error",
+		},
+		{
+			description: "it should show the message only with the jobs",
+			err: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+			},
+			expected: "cloud: jobs [AWSID123], error retrieving the job status",
+		},
+		{
+			description: "it should show the message only with the low level error",
+			err: &cloud.JobsError{
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			expected: "cloud: error retrieving the job status. details: low level error",
+		},
+		{
+			description: "it should show the correct error message for retrieving job status problem",
+			err:         &cloud.JobsError{Code: cloud.JobsErrorCodeRetrievingJob},
+			expected:    "cloud: error retrieving the job status",
+		},
+		{
+			description: "it should show the correct error message for job not found problem",
+			err:         &cloud.JobsError{Code: cloud.JobsErrorCodeJobNotFound},
+			expected:    "cloud: job not found",
+		},
+		{
+			description: "it should show the correct error message for cancelled action",
+			err:         &cloud.JobsError{Code: cloud.JobsErrorCodeCancelled},
+			expected:    "cloud: action cancelled by the user",
+		},
+		{
+			description: "it should detect when the code doesn't exist",
+			err:         &cloud.JobsError{Code: cloud.JobsErrorCode("i-dont-exist")},
+			expected:    "cloud: unknown error code",
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			if msg := scenario.err.Error(); msg != scenario.expected {
+				t.Errorf("errors don't match. expected “%s” and got “%s”", scenario.expected, msg)
+			}
+		})
+	}
+}
+
+func TestJobsErrorEqual(t *testing.T) {
+	scenarios := []struct {
+		description string
+		err1        error
+		err2        error
+		expected    bool
+	}{
+		{
+			description: "it should detect equal JobsError instances",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			err2: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			expected: true,
+		},
+		{
+			description: "it should detect when the job is different",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			err2: &cloud.JobsError{
+				Jobs: []string{"AWSID124"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			expected: false,
+		},
+		{
+			description: "it should detect when the code is different",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error"),
+			},
+			err2: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeJobNotFound,
+				Err:  errors.New("low level error"),
+			},
+			expected: false,
+		},
+		{
+			description: "it should detect when the low level error is different",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error 1"),
+			},
+			err2: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error 2"),
+			},
+			expected: false,
+		},
+		{
+			description: "it should detect when both errors are undefined",
+			expected:    true,
+		},
+		{
+			description: "it should detect when only one error is undefined",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error 1"),
+			},
+			expected: false,
+		},
+		{
+			description: "it should detect when one the error isn't JobsError type",
+			err1: &cloud.JobsError{
+				Jobs: []string{"AWSID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
+				Err:  errors.New("low level error 1"),
+			},
+			err2:     errors.New("low level error"),
+			expected: false,
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			if equal := cloud.JobsErrorEqual(scenario.err1, scenario.err2); equal != scenario.expected {
 				t.Errorf("results don't match. expected “%t” and got “%t”", scenario.expected, equal)
 			}
 		})

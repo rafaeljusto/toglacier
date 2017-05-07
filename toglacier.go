@@ -30,7 +30,7 @@ func main() {
 	defer logFile.Close()
 
 	// ctx is used to abort long transactions, such as big files uploads or
-	// iventories
+	// inventories
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	var cancelFunc func()
@@ -482,10 +482,13 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 		}
 	}
 
-	ids := make(map[string][]string)
+	var ids []string
+	idPaths := make(map[string][]string)
+
 	if archiveInfo == nil {
 		// when there's no archive information, retrieve only the desired backup ID
-		ids[id] = nil
+		ids = append(ids, id)
+		idPaths[id] = nil
 
 		// TODO: we could retrieve the archive information saved in the desired
 		// backup to detect all other backup parts that we need. This is important
@@ -493,28 +496,30 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 
 	} else {
 		for path, itemInfo := range archiveInfo {
-			ids[itemInfo.ID] = append(ids[itemInfo.ID], path)
+			ids = append(ids, itemInfo.ID)
+			idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
 		}
 	}
 
-	for partID, paths := range ids {
-		backupFile, err := t.cloud.Get(t.context, partID)
-		if err != nil {
-			return errors.WithStack(err)
-		}
+	filenames, err := t.cloud.Get(t.context, ids...)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
+	for id, filename := range filenames {
 		if backupSecret != "" {
-			var filename string
-			if filename, err = t.envelop.Decrypt(backupFile, backupSecret); err != nil {
+			var decryptedFilename string
+
+			if decryptedFilename, err = t.envelop.Decrypt(filename, backupSecret); err != nil {
 				return errors.WithStack(err)
 			}
 
-			if err := os.Rename(backupFile, filename); err != nil {
+			if err := os.Rename(filename, decryptedFilename); err != nil {
 				return errors.WithStack(err)
 			}
 		}
 
-		if err := t.builder.Extract(backupFile, paths); err != nil {
+		if err := t.builder.Extract(filename, idPaths[id]); err != nil {
 			return errors.WithStack(err)
 		}
 	}
