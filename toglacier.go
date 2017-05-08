@@ -496,8 +496,10 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 
 	} else {
 		for path, itemInfo := range archiveInfo {
-			ids = append(ids, itemInfo.ID)
-			idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
+			if itemInfo.Status != archive.ItemInfoStatusDeleted {
+				ids = append(ids, itemInfo.ID)
+				idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
+			}
 		}
 	}
 
