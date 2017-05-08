@@ -521,9 +521,11 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 			}
 		}
 
-		if err := t.builder.Extract(filename, idPaths[id]); err != nil {
+		if _, err := t.builder.Extract(filename, idPaths[id]); err != nil {
 			return errors.WithStack(err)
 		}
+
+		// TODO: Update archive info in the local storage
 	}
 
 	return nil

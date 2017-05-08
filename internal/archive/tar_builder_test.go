@@ -2,6 +2,7 @@ package archive_test
 
 import (
 	"archive/tar"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -612,7 +613,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		return path.Base(dir)
 	}
 
-	writeFile := func(tarArchive *tar.Writer, baseDir, content string) string {
+	writeFile := func(tarArchive *tar.Writer, baseDir, name, content string) string {
 		file, err := ioutil.TempFile("", "toglacier-test")
 		if err != nil {
 			t.Fatalf("error creating temporary file. details %s", err)
@@ -631,7 +632,12 @@ func TestTARBuilder_Extract(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error creating tar header. details %s", err)
 		}
-		header.Name = filepath.Join(baseDir, file.Name())
+
+		if name != "" {
+			header.Name = filepath.Join(baseDir, name)
+		} else {
+			header.Name = filepath.Join(baseDir, file.Name())
+		}
 
 		if err = tarArchive.WriteHeader(header); err != nil {
 			t.Fatalf("error writing tar header. details %s", err)
@@ -685,13 +691,14 @@ func TestTARBuilder_Extract(t *testing.T) {
 	}
 
 	type scenario struct {
-		description   string
-		builder       *archive.TARBuilder
-		filename      string
-		filter        []string
-		expected      func() error
-		expectedError error
-		clean         func()
+		description         string
+		builder             *archive.TARBuilder
+		filename            string
+		filter              []string
+		expected            func() error
+		expectedArchiveInfo archive.Info
+		expectedError       error
+		clean               func()
 	}
 
 	scenarios := []scenario{
@@ -716,10 +723,28 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
 			dir1 := writeDir(tarArchive, baseDir)
-			file1 := writeFile(tarArchive, filepath.Join(baseDir, dir1), "this is test 1")
+			file1 := writeFile(tarArchive, filepath.Join(baseDir, dir1), "", "this is test 1")
 			dir2 := writeDir(tarArchive, baseDir)
-			file2 := writeFile(tarArchive, filepath.Join(baseDir, dir2), "this is test 2")
+			file2 := writeFile(tarArchive, filepath.Join(baseDir, dir2), "", "this is test 2")
 			link1 := writeLink(tarArchive, filepath.Join(baseDir, dir2), file2)
+
+			archiveInfo := archive.Info{
+				file1: archive.ItemInfo{
+					ID:     "AWS123456",
+					Status: archive.ItemInfoStatusModified,
+					Hash:   "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
+				},
+				file2: archive.ItemInfo{
+					Status: archive.ItemInfoStatusNew,
+					Hash:   "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
+				},
+			}
+
+			archiveInfoData, err := json.Marshal(archiveInfo)
+			if err != nil {
+				t.Fatalf("error encoding archive info. details %s", err)
+			}
+			writeFile(tarArchive, baseDir, archive.TARInfoFilename, string(archiveInfoData))
 
 			scenario.filename = tarFile.Name()
 			scenario.filter = []string{filepath.Join("/", dir2, file2)}
@@ -749,6 +774,17 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 				return nil
 			}
+			scenario.expectedArchiveInfo = archive.Info{
+				file1: archive.ItemInfo{
+					ID:     "AWS123456",
+					Status: archive.ItemInfoStatusModified,
+					Hash:   "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
+				},
+				file2: archive.ItemInfo{
+					Status: archive.ItemInfoStatusNew,
+					Hash:   "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
+				},
+			}
 			scenario.clean = func() {
 				os.RemoveAll(baseDir)
 			}
@@ -774,8 +810,8 @@ func TestTARBuilder_Extract(t *testing.T) {
 			defer tarArchive.Close()
 
 			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
-			file1 := writeFile(tarArchive, baseDir, "this is test 1")
-			file2 := writeFile(tarArchive, baseDir, "this is test 2")
+			file1 := writeFile(tarArchive, baseDir, "", "this is test 1")
+			file2 := writeFile(tarArchive, baseDir, "", "this is test 2")
 
 			scenario.filename = tarFile.Name()
 			scenario.expected = func() error {
@@ -854,16 +890,53 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 			return scenario
 		}(),
+		func() scenario {
+			var scenario scenario
+			scenario.description = "it should detect a corrupted archive info"
+			scenario.builder = archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			})
+
+			tarFile, err := ioutil.TempFile("", "toglacier-test")
+			if err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+			defer tarFile.Close()
+
+			tarArchive := tar.NewWriter(tarFile)
+			defer tarArchive.Close()
+
+			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
+			writeFile(tarArchive, baseDir, archive.TARInfoFilename, "{{{{")
+
+			scenario.filename = tarFile.Name()
+			scenario.expectedError = &archive.Error{
+				Filename: tarFile.Name(),
+				Code:     archive.ErrorCodeDecodingInfo,
+				Err:      errors.New(`invalid character '{' looking for beginning of object key string`), // json.SyntaxError message is a private attribute
+			}
+			scenario.clean = func() {
+				os.RemoveAll(baseDir)
+			}
+			return scenario
+		}(),
 	}
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			err := scenario.builder.Extract(scenario.filename, scenario.filter)
+			archiveInfo, err := scenario.builder.Extract(scenario.filename, scenario.filter)
 
 			if scenario.expected != nil {
 				if err := scenario.expected(); err != nil {
 					t.Error(err)
 				}
+			}
+
+			if !reflect.DeepEqual(scenario.expectedArchiveInfo, archiveInfo) {
+				t.Errorf("archive info don't match.\n%v", Diff(scenario.expectedArchiveInfo, archiveInfo))
 			}
 
 			if !archive.ErrorEqual(scenario.expectedError, err) {

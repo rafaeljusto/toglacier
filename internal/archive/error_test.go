@@ -129,6 +129,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "archive: error encoding the archive information in the tarball",
 		},
 		{
+			description: "it should show the correct error message for decoding info problem",
+			err:         &archive.Error{Code: archive.ErrorCodeDecodingInfo},
+			expected:    "archive: error decoding the archive information from the tarball",
+		},
+		{
 			description: "it should show the correct error message for reading TAR problem",
 			err:         &archive.Error{Code: archive.ErrorCodeReadingTAR},
 			expected:    "archive: error reading tar",

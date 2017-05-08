@@ -678,18 +678,18 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			builder: mockBuilder{
-				mockExtract: func(filename string, filter []string) error {
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					switch filename {
 					case "toglacier-archive-1.tar.gz":
 						if len(filter) != 1 || filter[0] != "file1" {
-							return fmt.Errorf("unexpected filter “%v”", filter)
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
 					case "toglacier-archive-2.tar.gz":
 						if len(filter) != 1 || filter[0] != "file2" {
-							return fmt.Errorf("unexpected filter “%v”", filter)
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
 					}
-					return nil
+					return nil, nil
 				},
 			},
 		},
@@ -739,8 +739,8 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			builder: mockBuilder{
-				mockExtract: func(filename string, filter []string) error {
-					return nil
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					return nil, nil
 				},
 			},
 		},
@@ -849,12 +849,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			builder: mockBuilder{
-				mockExtract: func(filename string, filter []string) error {
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					switch filename {
 					case "toglacier-archive-2.tar.gz":
-						return errors.New("error extracting backup")
+						return nil, errors.New("error extracting backup")
 					}
-					return nil
+					return nil, nil
 				},
 			},
 			expectedError: errors.New("error extracting backup"),
@@ -1270,14 +1270,14 @@ Subject: toglacier report
 
 type mockBuilder struct {
 	mockBuild   func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
-	mockExtract func(filename string, filter []string) error
+	mockExtract func(filename string, filter []string) (archive.Info, error)
 }
 
 func (m mockBuilder) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 	return m.mockBuild(lastArchiveInfo, backupPaths...)
 }
 
-func (m mockBuilder) Extract(filename string, filter []string) error {
+func (m mockBuilder) Extract(filename string, filter []string) (archive.Info, error) {
 	return m.mockExtract(filename, filter)
 }
 

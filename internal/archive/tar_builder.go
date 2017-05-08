@@ -310,16 +310,17 @@ func (t TARBuilder) writeTarball(path string, info os.FileInfo, header *tar.Head
 //         // unknown error
 //       }
 //     }
-func (t TARBuilder) Extract(filename string, filter []string) error {
+func (t TARBuilder) Extract(filename string, filter []string) (Info, error) {
 	t.logger.Debugf("archive: extract tar %s", filename)
 
 	f, err := os.Open(filename)
 	if err != nil {
-		return errors.WithStack(newError(filename, ErrorCodeOpeningFile, err))
+		return nil, errors.WithStack(newError(filename, ErrorCodeOpeningFile, err))
 	}
 	defer f.Close()
 
 	tarReader := tar.NewReader(f)
+	var info Info
 
 	for {
 		header, err := tarReader.Next()
@@ -327,7 +328,7 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return errors.WithStack(newError(filename, ErrorCodeReadingTAR, err))
+			return nil, errors.WithStack(newError(filename, ErrorCodeReadingTAR, err))
 		}
 
 		switch header.Typeflag {
@@ -336,22 +337,35 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 			// tarball, because not all files will be extracted
 
 		case tar.TypeReg:
-			if filter != nil {
-				// for comparing the tarball file with the filter, we need to retrieve
-				// the original file path, removing the backup directory in the
-				// begginig. Tarball path before:
-				//
-				//     backup-20170506120000/dir1/dir2/file
-				//
-				// and after the magic:
-				//
-				//     /dir1/dir2/file
-				name := header.Name
-				if nameParts := strings.Split(header.Name, string(os.PathSeparator)); len(nameParts) > 1 {
-					name = strings.Join(nameParts[1:], string(os.PathSeparator))
+			// for comparing the tarball file with the filter, we need to retrieve
+			// the original file path, removing the backup directory in the
+			// beginning. Tarball path before:
+			//
+			//     backup-20170506120000/dir1/dir2/file
+			//
+			// and after the magic:
+			//
+			//     /dir1/dir2/file
+			name := header.Name
+			if nameParts := strings.Split(header.Name, string(os.PathSeparator)); len(nameParts) > 1 {
+				name = strings.Join(nameParts[1:], string(os.PathSeparator))
+
+				// if there's more than one directory level we need to add the root,
+				// otherwise is just a simple filename
+				if strings.Count(name, string(os.PathSeparator)) > 0 {
 					name = string(os.PathSeparator) + name
 				}
+			}
 
+			if name == TARInfoFilename {
+				decoder := json.NewDecoder(tarReader)
+				if err := decoder.Decode(&info); err != nil {
+					return nil, errors.WithStack(newError(filename, ErrorCodeDecodingInfo, err))
+				}
+				continue
+			}
+
+			if filter != nil {
 				found := false
 				for _, item := range filter {
 					if name == item {
@@ -368,19 +382,19 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 
 			dir := filepath.Dir(header.Name)
 			if err := os.MkdirAll(dir, extractDirectoryPermission); err != nil {
-				return errors.WithStack(newError(filename, ErrorCodeCreatingDirectories, err))
+				return nil, errors.WithStack(newError(filename, ErrorCodeCreatingDirectories, err))
 			}
 
 			tarFile, err := os.OpenFile(header.Name, os.O_WRONLY|os.O_CREATE, os.FileMode(header.Mode))
 			if err != nil {
-				return errors.WithStack(newError(header.Name, ErrorCodeOpeningFile, err))
+				return nil, errors.WithStack(newError(header.Name, ErrorCodeOpeningFile, err))
 			}
 
 			written, err := io.Copy(tarFile, tarReader)
 			tarFile.Close()
 
 			if err != nil {
-				return errors.WithStack(newError(tarFile.Name(), ErrorCodeExtractingFile, err))
+				return nil, errors.WithStack(newError(tarFile.Name(), ErrorCodeExtractingFile, err))
 			}
 
 			t.logger.Debugf("archive: path “%s” extracted from tar (%d bytes)", tarFile.Name(), written)
@@ -390,5 +404,5 @@ func (t TARBuilder) Extract(filename string, filter []string) error {
 		}
 	}
 
-	return nil
+	return info, nil
 }
