@@ -716,7 +716,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			cloud: mockCloud{
 				mockGet: func(ids ...string) (filenames map[string]string, err error) {
 					if len(ids) == 0 {
-						return nil, errors.New("no ids given")
+						return nil, nil
 					}
 
 					n := path.Join(os.TempDir(), "toglacier-test-getenc")

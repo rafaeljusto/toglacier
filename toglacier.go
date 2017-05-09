@@ -483,24 +483,36 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	}
 
 	var ids []string
+	var ignoreMainBackup bool
 	idPaths := make(map[string][]string)
 
 	if archiveInfo == nil {
-		// when there's no archive information, retrieve only the desired backup ID
-		ids = append(ids, id)
-		idPaths[id] = nil
-
-		// TODO: we could retrieve the archive information saved in the desired
-		// backup to detect all other backup parts that we need. This is important
-		// when all the local storage got corrupted due to a disaster.
-
-	} else {
-		for path, itemInfo := range archiveInfo {
-			if itemInfo.Status != archive.ItemInfoStatusDeleted {
-				ids = append(ids, itemInfo.ID)
-				idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
-			}
+		// when there's no archive information, retrieve only the desired backup ID.
+		// We will extract the archive information saved in the backup to detect all
+		// other backup parts that we need. This is important when the local storage
+		// got corrupted due to a disaster
+		filenames, err := t.cloud.Get(t.context, id)
+		if err != nil {
+			return errors.WithStack(err)
 		}
+
+		// there's only one backup downloaded at this point
+		if archiveInfo, err = t.decryptAndExtract(backupSecret, filenames[id], nil); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// as we already downloaded the main backup, we should avoid downloading it
+		// again when retrieving the backup parts
+		ignoreMainBackup = true
+	}
+
+	for path, itemInfo := range archiveInfo {
+		if (ignoreMainBackup && itemInfo.ID == id) || itemInfo.Status == archive.ItemInfoStatusDeleted {
+			continue
+		}
+
+		ids = append(ids, itemInfo.ID)
+		idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
 	}
 
 	filenames, err := t.cloud.Get(t.context, ids...)
@@ -509,26 +521,38 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	}
 
 	for id, filename := range filenames {
-		if backupSecret != "" {
-			var decryptedFilename string
-
-			if decryptedFilename, err = t.envelop.Decrypt(filename, backupSecret); err != nil {
-				return errors.WithStack(err)
-			}
-
-			if err := os.Rename(filename, decryptedFilename); err != nil {
-				return errors.WithStack(err)
-			}
-		}
-
-		if _, err := t.builder.Extract(filename, idPaths[id]); err != nil {
+		// there's only one backup downloaded at this point
+		if archiveInfo, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
 			return errors.WithStack(err)
 		}
-
-		// TODO: Update archive info in the local storage
 	}
 
 	return nil
+}
+
+func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []string) (archive.Info, error) {
+	var err error
+
+	if backupSecret != "" {
+		var decryptedFilename string
+
+		if decryptedFilename, err = t.envelop.Decrypt(filename, backupSecret); err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if err := os.Rename(filename, decryptedFilename); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
+	archiveInfo, err := t.builder.Extract(filename, filter)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// TODO: Update archive info in the local storage
+
+	return archiveInfo, nil
 }
 
 // RemoveBackup delete a specific backup from the cloud.
