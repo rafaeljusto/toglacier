@@ -200,6 +200,46 @@ func TestToGlacier_Backup(t *testing.T) {
 			expectedError: errors.New("path doesn't exist"),
 		},
 		{
+			description: "it should detect when there is nothing in the tarball",
+			backupPaths: func() []string {
+				d, err := ioutil.TempDir("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary directory. details %s", err)
+				}
+				return []string{d}
+			}(),
+			builder: mockBuilder{
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+					if len(backupPaths) == 0 {
+						t.Fatalf("no backup path informed")
+					}
+
+					return "", nil, nil
+				},
+			},
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "123455",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+								VaultName: "test",
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "123455",
+									Status: archive.ItemInfoStatusNew,
+									Hash:   "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+								},
+							},
+						},
+					}, nil
+				},
+			},
+		},
+		{
 			description: "it should detect an error while encrypting the package",
 			backupPaths: func() []string {
 				d, err := ioutil.TempDir("", "toglacier-test")
@@ -404,10 +444,25 @@ func TestToGlacier_ListBackups(t *testing.T) {
 								VaultName: "test",
 							},
 						},
+						{
+							Backup: cloud.Backup{
+								ID:        "123456",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "75fcc5623af832086719316b41dcf744893514d8a5fefb376c6426d7911f215f",
+								VaultName: "test",
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "AWS1234",
+									Status: archive.ItemInfoStatusModified,
+									Hash:   "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
+								},
+							},
+						},
 					}, nil
 				},
 				mockRemove: func(id string) error {
-					if id != "123454" && id != "123455" {
+					if id != "123454" && id != "123455" && id != "123456" {
 						return fmt.Errorf("removing unexpected id %s", id)
 					}
 
@@ -421,6 +476,13 @@ func TestToGlacier_ListBackups(t *testing.T) {
 						CreatedAt: now,
 						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 						VaultName: "test",
+					},
+					Info: archive.Info{
+						"file1": archive.ItemInfo{
+							ID:     "AWS1234",
+							Status: archive.ItemInfoStatusModified,
+							Hash:   "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
+						},
 					},
 				},
 			},
@@ -745,6 +807,136 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			},
 		},
 		{
+			description: "it should retrieve a backup correctly with no archive information and all other backup parts",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, nil
+					}
+
+					switch ids[0] {
+					case "AWSID123":
+						return map[string]string{
+							"AWSID123": "toglacier-archive-1.tar.gz",
+						}, nil
+					case "AWSID122":
+						return map[string]string{
+							"AWSID122": "toglacier-archive-2.tar.gz",
+						}, nil
+					}
+
+					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
+				},
+			},
+			builder: mockBuilder{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 0 {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								Status: archive.ItemInfoStatusNew,
+								ID:     "AWSID123",
+								Hash:   "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+							},
+							"file2": archive.ItemInfo{
+								Status: archive.ItemInfoStatusModified,
+								ID:     "AWSID122",
+								Hash:   "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil, nil
+				},
+			},
+		},
+		{
+			description: "it should detect an error while retrieving a backup part",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, nil
+					}
+
+					switch ids[0] {
+					case "AWSID123":
+						return map[string]string{
+							"AWSID123": "toglacier-archive-1.tar.gz",
+						}, nil
+					case "AWSID122":
+						return nil, errors.New("failed to download backup")
+					}
+
+					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
+				},
+			},
+			builder: mockBuilder{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 0 {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								Status: archive.ItemInfoStatusNew,
+								ID:     "AWSID123",
+								Hash:   "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+							},
+							"file2": archive.ItemInfo{
+								Status: archive.ItemInfoStatusModified,
+								ID:     "AWSID122",
+								Hash:   "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+					}
+					return nil, nil
+				},
+			},
+			expectedError: errors.New("failed to download backup"),
+		},
+		{
 			description: "it should detect an error listing backups from local storage",
 			id:          "AWSID123",
 			storage: mockStorage{
@@ -980,6 +1172,13 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 								Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 								VaultName: "test",
 							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:     "123459",
+									Status: archive.ItemInfoStatusUnmodified,
+									Hash:   "4c6733f2d51c5cde947835279ce9f031bcacaa2265988ef1353078810695fb20",
+								},
+							},
 						},
 						{
 							Backup: cloud.Backup{
@@ -994,6 +1193,14 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 								ID:        "123458",
 								CreatedAt: now.Add(time.Minute),
 								Checksum:  "5f9c426fb1e150c1c09dda260bb962c7602b595df7586a1f3899735b839b138f",
+								VaultName: "test",
+							},
+						},
+						{
+							Backup: cloud.Backup{
+								ID:        "123459",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "9a16f6eaebe1a7a3c9e456c5a37063d712de11d839040e5963cf864feb16e114",
 								VaultName: "test",
 							},
 						},
