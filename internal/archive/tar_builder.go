@@ -189,7 +189,7 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 }
 
 func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInfo ItemInfo, add bool, err error) {
-	encodedHash, err := t.fileHash(path)
+	encodedChecksum, err := t.fileChecksum(path)
 	if err != nil {
 		return itemInfo, true, errors.WithStack(err)
 	}
@@ -200,10 +200,10 @@ func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInf
 	if !ok {
 		add = true
 		itemInfo.Status = ItemInfoStatusNew
-		itemInfo.Hash = encodedHash
+		itemInfo.Checksum = encodedChecksum
 		t.logger.Debugf("archive: path “%s” is new since the last archive", path)
 
-	} else if encodedHash == itemInfo.Hash {
+	} else if encodedChecksum == itemInfo.Checksum {
 		add = false // don't need to add an unmodified file to the tarball
 		itemInfo.Status = ItemInfoStatusUnmodified
 		t.logger.Debugf("archive: path “%s” unmodified since the last archive", path)
@@ -212,14 +212,14 @@ func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInf
 		add = true
 		itemInfo.ID = ""
 		itemInfo.Status = ItemInfoStatusModified
-		itemInfo.Hash = encodedHash
+		itemInfo.Checksum = encodedChecksum
 		t.logger.Debugf("archive: path “%s” was modified since the last archive", path)
 	}
 
 	return
 }
 
-func (t TARBuilder) fileHash(filename string) (string, error) {
+func (t TARBuilder) fileChecksum(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return "", errors.WithStack(newPathError(filename, PathErrorCodeOpeningFile, err))
@@ -233,9 +233,9 @@ func (t TARBuilder) fileHash(filename string) (string, error) {
 		return "", errors.WithStack(newPathError(filename, PathErrorCodeSHA256, err))
 	}
 
-	encodedHash := base64.StdEncoding.EncodeToString(hash.Sum(nil))
-	t.logger.Debugf("archive: path “%s” hash calculated over %d bytes: %s", filename, written, encodedHash)
-	return encodedHash, nil
+	encodedChecksum := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+	t.logger.Debugf("archive: path “%s” hash calculated over %d bytes: %s", filename, written, encodedChecksum)
+	return encodedChecksum, nil
 }
 
 func (t TARBuilder) addInfo(archiveInfo Info, tarArchive *tar.Writer, baseDir string) error {

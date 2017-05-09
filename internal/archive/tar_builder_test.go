@@ -42,19 +42,19 @@ func TestTARBuilder_Build(t *testing.T) {
 			lastArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info{
 					path.Join(backupPaths[0], "file1"): {
-						ID:     "reference1",
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
 					},
 					path.Join(backupPaths[0], "file2"): {
-						ID:     "reference2",
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "abcdefghijklmnopqrstuvxz1234567890ABCDEFGHI=",
+						ID:       "reference2",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "abcdefghijklmnopqrstuvxz1234567890ABCDEFGHI=",
 					},
 					path.Join(backupPaths[0], "file3"): {
-						ID:     "reference3",
-						Status: archive.ItemInfoStatusDeleted,
-						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
+						ID:       "reference3",
+						Status:   archive.ItemInfoStatusDeleted,
+						Checksum: "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
 					},
 				}
 			},
@@ -139,17 +139,17 @@ func TestTARBuilder_Build(t *testing.T) {
 			expectedArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info(map[string]archive.ItemInfo{
 					path.Join(backupPaths[0], "file1"): {
-						ID:     "reference1",
-						Status: archive.ItemInfoStatusUnmodified,
-						Hash:   "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusUnmodified,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
 					},
 					path.Join(backupPaths[0], "file2"): {
-						Status: archive.ItemInfoStatusModified,
-						Hash:   "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
+						Status:   archive.ItemInfoStatusModified,
+						Checksum: "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
 					},
 					path.Join(backupPaths[0], "dir1", "file3"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
 					},
 				})
 			},
@@ -165,19 +165,19 @@ func TestTARBuilder_Build(t *testing.T) {
 			lastArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info{
 					path.Join(backupPaths[0], "file1"): {
-						ID:     "reference1",
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
 					},
 					path.Join(backupPaths[0], "file2"): {
-						ID:     "reference2",
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
+						ID:       "reference2",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
 					},
 					path.Join(backupPaths[0], "dir1", "file3"): {
-						ID:     "reference3",
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
+						ID:       "reference3",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
 					},
 				}
 			},
@@ -330,32 +330,32 @@ func TestTARBuilder_Build(t *testing.T) {
 			expectedArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info(map[string]archive.ItemInfo{
 					path.Join(backupPaths[0], "file1"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
 					},
 					path.Join(backupPaths[0], "file2"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "xZzITM+6yGsa9masWjGdi+yAA0DlqCzTf/1795fy5Pk=",
 					},
 					path.Join(backupPaths[0], "dir1", "file3"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "sFwN7pdLHnHZHCmTuhFWYvYTYz9g8XzISkAR1+UOS5c=",
 					},
 					path.Join(backupPaths[1], "file1"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "jtq4nMeFuT6h3DIgwFQ4sEQUlA/E9YVFlWkY5B6pxNw=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "jtq4nMeFuT6h3DIgwFQ4sEQUlA/E9YVFlWkY5B6pxNw=",
 					},
 					path.Join(backupPaths[1], "file4"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "Rk2kHsOWFY5FFhsZrR5ykkCwc9WoZCWk/hEKbGhcCac=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "Rk2kHsOWFY5FFhsZrR5ykkCwc9WoZCWk/hEKbGhcCac=",
 					},
 					path.Join(backupPaths[1], "file5"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "VR88iTpGdm/q+zl26Ko0GPkgZOtZy0R0/zdoFK6Y3Uw=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "VR88iTpGdm/q+zl26Ko0GPkgZOtZy0R0/zdoFK6Y3Uw=",
 					},
 					path.Join(backupPaths[1], "dir2", "file6"): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "Js5UlbJQRd2Ve3Nmoo7wfctK38eFEcHhlOUdApQKwnQ=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "Js5UlbJQRd2Ve3Nmoo7wfctK38eFEcHhlOUdApQKwnQ=",
 					},
 				})
 			},
@@ -428,8 +428,8 @@ func TestTARBuilder_Build(t *testing.T) {
 			expectedArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info(map[string]archive.ItemInfo{
 					path.Join(backupPaths[0]): {
-						Status: archive.ItemInfoStatusNew,
-						Hash:   "ih/0rvVdKZfnQdoKwTj5gbNVE+Re3o7D+woelvakOiE=",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "ih/0rvVdKZfnQdoKwTj5gbNVE+Re3o7D+woelvakOiE=",
 					},
 				})
 			},
@@ -730,13 +730,13 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 			archiveInfo := archive.Info{
 				file1: archive.ItemInfo{
-					ID:     "AWS123456",
-					Status: archive.ItemInfoStatusModified,
-					Hash:   "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
+					ID:       "AWS123456",
+					Status:   archive.ItemInfoStatusModified,
+					Checksum: "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
 				},
 				file2: archive.ItemInfo{
-					Status: archive.ItemInfoStatusNew,
-					Hash:   "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
+					Status:   archive.ItemInfoStatusNew,
+					Checksum: "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
 				},
 			}
 
@@ -776,13 +776,13 @@ func TestTARBuilder_Extract(t *testing.T) {
 			}
 			scenario.expectedArchiveInfo = archive.Info{
 				file1: archive.ItemInfo{
-					ID:     "AWS123456",
-					Status: archive.ItemInfoStatusModified,
-					Hash:   "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
+					ID:       "AWS123456",
+					Status:   archive.ItemInfoStatusModified,
+					Checksum: "34dd713af2cf182e27310b36bf26254d5c75335f76a8f9ca4e0d0428c2bbf709",
 				},
 				file2: archive.ItemInfo{
-					Status: archive.ItemInfoStatusNew,
-					Hash:   "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
+					Status:   archive.ItemInfoStatusNew,
+					Checksum: "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
 				},
 			}
 			scenario.clean = func() {

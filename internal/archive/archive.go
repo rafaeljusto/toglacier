@@ -24,9 +24,9 @@ type ItemInfoStatus string
 // ItemInfo stores all the necessary information to track the archive's item
 // state.
 type ItemInfo struct {
-	ID     string
-	Status ItemInfoStatus
-	Hash   string // TODO: Rename to Checksum?
+	ID       string
+	Status   ItemInfoStatus
+	Checksum string
 }
 
 // Info stores extra information from the archive's items for allowing
@@ -50,9 +50,9 @@ func (a Info) MergeLast(last Info) {
 	for lastFilename, lastItemInfo := range last {
 		if _, ok := a[lastFilename]; !ok && lastItemInfo.Status != ItemInfoStatusDeleted {
 			a[lastFilename] = ItemInfo{
-				ID:     lastItemInfo.ID,
-				Status: ItemInfoStatusDeleted,
-				Hash:   lastItemInfo.Hash,
+				ID:       lastItemInfo.ID,
+				Status:   ItemInfoStatusDeleted,
+				Checksum: lastItemInfo.Checksum,
 			}
 		}
 	}

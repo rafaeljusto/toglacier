@@ -63,9 +63,9 @@ func TestToGlacier_Backup(t *testing.T) {
 
 					return f.Name(), archive.Info{
 						path.Join(backupPaths[0], "file1"): archive.ItemInfo{
-							ID:     "",
-							Status: archive.ItemInfoStatusModified,
-							Hash:   "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+							ID:       "",
+							Status:   archive.ItemInfoStatusModified,
+							Checksum: "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
 						},
 					}, nil
 				},
@@ -95,9 +95,9 @@ func TestToGlacier_Backup(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "123455",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+									ID:       "123455",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
 								},
 							},
 						},
@@ -229,9 +229,9 @@ func TestToGlacier_Backup(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "123455",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+									ID:       "123455",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
 								},
 							},
 						},
@@ -453,9 +453,9 @@ func TestToGlacier_ListBackups(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "AWS1234",
-									Status: archive.ItemInfoStatusModified,
-									Hash:   "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
+									ID:       "AWS1234",
+									Status:   archive.ItemInfoStatusModified,
+									Checksum: "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
 								},
 							},
 						},
@@ -479,9 +479,9 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					},
 					Info: archive.Info{
 						"file1": archive.ItemInfo{
-							ID:     "AWS1234",
-							Status: archive.ItemInfoStatusModified,
-							Hash:   "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
+							ID:       "AWS1234",
+							Status:   archive.ItemInfoStatusModified,
+							Checksum: "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
 						},
 					},
 				},
@@ -717,14 +717,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "AWSID123",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 								"file2": archive.ItemInfo{
-									ID:     "AWSID122",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+									ID:       "AWSID122",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 							},
 						},
@@ -854,14 +854,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 
 						return archive.Info{
 							"file1": archive.ItemInfo{
-								Status: archive.ItemInfoStatusNew,
-								ID:     "AWSID123",
-								Hash:   "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID123",
+								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
 							},
 							"file2": archive.ItemInfo{
-								Status: archive.ItemInfoStatusModified,
-								ID:     "AWSID122",
-								Hash:   "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+								Status:   archive.ItemInfoStatusModified,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
 							},
 						}, nil
 
@@ -920,14 +920,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 
 						return archive.Info{
 							"file1": archive.ItemInfo{
-								Status: archive.ItemInfoStatusNew,
-								ID:     "AWSID123",
-								Hash:   "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID123",
+								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
 							},
 							"file2": archive.ItemInfo{
-								Status: archive.ItemInfoStatusModified,
-								ID:     "AWSID122",
-								Hash:   "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+								Status:   archive.ItemInfoStatusModified,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
 							},
 						}, nil
 					}
@@ -1018,14 +1018,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "AWSID123",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 								"file2": archive.ItemInfo{
-									ID:     "AWSID122",
-									Status: archive.ItemInfoStatusNew,
-									Hash:   "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+									ID:       "AWSID122",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 							},
 						},
@@ -1174,9 +1174,9 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:     "123459",
-									Status: archive.ItemInfoStatusUnmodified,
-									Hash:   "4c6733f2d51c5cde947835279ce9f031bcacaa2265988ef1353078810695fb20",
+									ID:       "123459",
+									Status:   archive.ItemInfoStatusUnmodified,
+									Checksum: "4c6733f2d51c5cde947835279ce9f031bcacaa2265988ef1353078810695fb20",
 								},
 							},
 						},
