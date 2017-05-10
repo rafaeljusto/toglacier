@@ -430,15 +430,43 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 	// TODO: if the change is greater than 20% something is really wrong, and
 	// maybe the best approach is to do nothing and report the problem.
 
+	var kept []string
 	for _, backup := range backups {
+		// http://docs.aws.amazon.com/amazonglacier/latest/dev/vault-inventory.html#vault-inventory-about
+		//
+		// Amazon Glacier updates a vault inventory approximately once a day,
+		// starting on the day you first upload an archive to the vault. If there
+		// have been no archive additions or deletions to the vault since the last
+		// inventory, the inventory date is not updated. When you initiate a job for
+		// a vault inventory, Amazon Glacier returns the last inventory it
+		// generated, which is a point-in-time snapshot and not real-time data. Note
+		// that after Amazon Glacier creates the first inventory for the vault, it
+		// typically takes half a day and up to a day before that inventory is
+		// available for retrieval.
+		if backup.Backup.CreatedAt.After(time.Now().Add(-24 * time.Hour)) {
+			// recent backups could not be in the inventory yet
+			kept = append(kept, backup.Backup.ID)
+			continue
+		}
+
 		if err := t.storage.Remove(backup.Backup.ID); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
+	sort.Strings(kept)
+
 	syncBackups := make(storage.Backups, len(remoteBackups))
 	for i, remoteBackup := range remoteBackups {
+		// check if a recent backup appeared in the inventory
+		if j := sort.SearchStrings(kept, remoteBackup.ID); j < len(kept) {
+			if err := t.storage.Remove(kept[j]); err != nil {
+				listBackupsReport.Errors = append(listBackupsReport.Errors, err)
+				return nil, errors.WithStack(err)
+			}
+		}
+
 		// we should keep the archive information to be able to build incremental
 		// backups again. Another alternative is build the archive information from
 		// the uploaded backup, but it is really slow. Anyway, when retrieving the

@@ -439,7 +439,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 						{
 							Backup: cloud.Backup{
 								ID:        "123455",
-								CreatedAt: now.Add(-time.Minute),
+								CreatedAt: now.Add(-30 * time.Hour),
 								Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
 								VaultName: "test",
 							},
@@ -597,7 +597,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 						{
 							Backup: cloud.Backup{
 								ID:        "123454",
-								CreatedAt: now.Add(-time.Second),
+								CreatedAt: now.Add(-30 * time.Hour),
 								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
 								VaultName: "test",
 							},
@@ -605,8 +605,49 @@ func TestToGlacier_ListBackups(t *testing.T) {
 						{
 							Backup: cloud.Backup{
 								ID:        "123455",
-								CreatedAt: now.Add(-time.Minute),
+								CreatedAt: now.Add(-40 * time.Hour),
 								Checksum:  "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+								VaultName: "test",
+							},
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					return errors.New("error removing backup")
+				},
+			},
+			expectedError: errors.New("error removing backup"),
+		},
+		{
+			description: "it should detect an error while removing local recent backups due to synch",
+			remote:      true,
+			cloud: mockCloud{
+				mockList: func() ([]cloud.Backup, error) {
+					return []cloud.Backup{
+						{
+							ID:        "123456",
+							CreatedAt: now,
+							Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+							VaultName: "test",
+						},
+					}, nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "123456" {
+						return fmt.Errorf("adding unexpected id %s", b.Backup.ID)
+					}
+
+					return nil
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "123456",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
 								VaultName: "test",
 							},
 						},
