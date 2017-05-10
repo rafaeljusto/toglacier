@@ -58,6 +58,15 @@ func (a Info) MergeLast(last Info) {
 	}
 }
 
+// Statistics count the number of paths on each archive status.
+func (a Info) Statistics() map[ItemInfoStatus]int {
+	statistic := make(map[ItemInfoStatus]int)
+	for _, itemInfo := range a {
+		statistic[itemInfo.Status]++
+	}
+	return statistic
+}
+
 // Builder creates an archive joining all paths in a file.
 type Builder interface {
 	Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error)

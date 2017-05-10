@@ -221,6 +221,20 @@ func TestTARBuilder_Build(t *testing.T) {
 				mockInfo:   func(args ...interface{}) {},
 				mockInfof:  func(format string, args ...interface{}) {},
 			}),
+			lastArchiveInfo: func(backupPaths []string) archive.Info {
+				return archive.Info{
+					path.Join(backupPaths[0], "old-file1"): {
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusNew,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+					},
+					path.Join(backupPaths[0], "old-file2"): {
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusDeleted,
+						Checksum: "ffa0a67cec9c5ca1d0b18e7bba59430d450378ced0cd24185a5afc8094783d5a",
+					},
+				}
+			},
 			backupPaths: func() []string {
 				d1, err := ioutil.TempDir("", "toglacier-test")
 				if err != nil {
@@ -329,6 +343,11 @@ func TestTARBuilder_Build(t *testing.T) {
 			},
 			expectedArchiveInfo: func(backupPaths []string) archive.Info {
 				return archive.Info(map[string]archive.ItemInfo{
+					path.Join(backupPaths[0], "old-file1"): {
+						ID:       "reference1",
+						Status:   archive.ItemInfoStatusDeleted,
+						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",
+					},
 					path.Join(backupPaths[0], "file1"): {
 						Status:   archive.ItemInfoStatusNew,
 						Checksum: "+pJSD0LPX/FSn3AwOnGKsCXJSMN3o9JPyWzVv4RYqpU=",

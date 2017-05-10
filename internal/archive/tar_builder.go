@@ -98,6 +98,14 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 		if err := t.addInfo(archiveInfo, tarArchive, basePath); err != nil {
 			return "", nil, errors.WithStack(err)
 		}
+
+		statistic := archiveInfo.Statistics()
+		t.logger.Infof("%d new files; %d modified files; %d unmodified files; %d deleted files",
+			statistic[ItemInfoStatusNew],
+			statistic[ItemInfoStatusModified],
+			statistic[ItemInfoStatusUnmodified],
+			statistic[ItemInfoStatusDeleted],
+		)
 	}
 
 	if err := tarArchive.Close(); err != nil {
