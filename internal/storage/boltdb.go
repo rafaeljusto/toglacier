@@ -50,16 +50,20 @@ func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 //       }
 //     }
 func (b *BoltDB) Save(backup Backup) error {
+	b.logger.Debugf("storage: saving backup “%s” in boltdb storage", backup.Backup.ID)
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer db.Close()
 
-	encoded, err := json.Marshal(b)
+	encoded, err := json.Marshal(backup)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeEncodingBackup, err))
 	}
+
+	b.logger.Debugf("storage: saving backup json format: “%s”", string(encoded))
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		var bucket *bolt.Bucket
@@ -78,6 +82,7 @@ func (b *BoltDB) Save(backup Backup) error {
 		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backup “%s” saved successfully in boltdb storage", backup.Backup.ID)
 	return nil
 }
 
@@ -98,6 +103,8 @@ func (b *BoltDB) Save(backup Backup) error {
 //       }
 //     }
 func (b BoltDB) List() (Backups, error) {
+	b.logger.Debug("storage: listing backups from boltdb storage")
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return nil, errors.WithStack(newError(ErrorCodeOpeningFile, err))
@@ -133,6 +140,7 @@ func (b BoltDB) List() (Backups, error) {
 		return nil, errors.WithStack(newError(ErrorCodeListingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backups listed successfully from boltdb storage")
 	sort.Sort(backups)
 	return backups, nil
 }
@@ -154,6 +162,8 @@ func (b BoltDB) List() (Backups, error) {
 //       }
 //     }
 func (b BoltDB) Remove(id string) error {
+	b.logger.Debugf("storage: removing backup “%s” from boltdb storage", id)
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
@@ -177,5 +187,6 @@ func (b BoltDB) Remove(id string) error {
 		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backup “%s” removed successfully from boltdb storage", id)
 	return nil
 }
