@@ -100,7 +100,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 		}
 
 		statistic := archiveInfo.Statistics()
-		t.logger.Infof("%d new files; %d modified files; %d unmodified files; %d deleted files",
+		t.logger.Infof("archive: %d new files; %d modified files; %d unmodified files; %d deleted files",
 			statistic[ItemInfoStatusNew],
 			statistic[ItemInfoStatusModified],
 			statistic[ItemInfoStatusUnmodified],
