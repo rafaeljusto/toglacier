@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
+	"github.com/rafaeljusto/toglacier/internal/log"
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
@@ -400,6 +401,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 		remote        bool
 		cloud         cloud.Cloud
 		storage       storage.Storage
+		logger        log.Logger
 		expected      storage.Backups
 		expectedError error
 	}{
@@ -459,6 +461,14 @@ func TestToGlacier_ListBackups(t *testing.T) {
 								},
 							},
 						},
+						{
+							Backup: cloud.Backup{
+								ID:        "123457",
+								CreatedAt: now.Add(-23 * time.Hour),
+								Checksum:  "e1f6e5d1d7c964e46503bcf1812910c005634236ea087d9cadb1abdef3ae9a61",
+								VaultName: "test",
+							},
+						},
 					}, nil
 				},
 				mockRemove: func(id string) error {
@@ -468,6 +478,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 					return nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expected: storage.Backups{
 				{
@@ -483,6 +499,14 @@ func TestToGlacier_ListBackups(t *testing.T) {
 							Status:   archive.ItemInfoStatusModified,
 							Checksum: "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
 						},
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID:        "123457",
+						CreatedAt: now.Add(-23 * time.Hour),
+						Checksum:  "e1f6e5d1d7c964e46503bcf1812910c005634236ea087d9cadb1abdef3ae9a61",
+						VaultName: "test",
 					},
 				},
 			},
@@ -503,6 +527,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					}, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			expected: storage.Backups{
 				{
 					Backup: cloud.Backup{
@@ -522,6 +552,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					return nil, errors.New("error listing backups")
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("error listing backups"),
 		},
 		{
@@ -530,6 +566,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				mockList: func() (storage.Backups, error) {
 					return nil, errors.New("error listing backups")
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error listing backups"),
 		},
@@ -566,6 +608,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 					return nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error retrieving backups"),
 		},
@@ -616,6 +664,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					return errors.New("error removing backup")
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("error removing backup"),
 		},
 		{
@@ -656,6 +710,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				mockRemove: func(id string) error {
 					return errors.New("error removing backup")
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error removing backup"),
 		},
@@ -706,6 +766,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					return nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("error adding backup"),
 		},
 	}
@@ -716,6 +782,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				context: context.Background(),
 				cloud:   scenario.cloud,
 				storage: scenario.storage,
+				logger:  scenario.logger,
 			}
 
 			backups, err := toGlacier.ListBackups(scenario.remote)
@@ -1591,23 +1658,23 @@ func (r mockReport) Build() (string, error) {
 	return r.mockBuild()
 }
 
-type mockLog struct {
+type mockLogger struct {
 	mockDebug  func(args ...interface{})
 	mockDebugf func(format string, args ...interface{})
 	mockInfo   func(args ...interface{})
 	mockInfof  func(format string, args ...interface{})
 }
 
-func (m mockLog) Debug(args ...interface{}) {
+func (m mockLogger) Debug(args ...interface{}) {
 	m.mockDebug(args...)
 }
-func (m mockLog) Debugf(format string, args ...interface{}) {
+func (m mockLogger) Debugf(format string, args ...interface{}) {
 	m.mockDebugf(format, args...)
 }
-func (m mockLog) Info(args ...interface{}) {
+func (m mockLogger) Info(args ...interface{}) {
 	m.mockInfo(args...)
 }
-func (m mockLog) Infof(format string, args ...interface{}) {
+func (m mockLogger) Infof(format string, args ...interface{}) {
 	m.mockInfof(format, args...)
 }
 

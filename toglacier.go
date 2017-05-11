@@ -18,6 +18,7 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/log"
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
@@ -126,6 +127,7 @@ func main() {
 			envelop: archive.NewOFBEnvelop(logger),
 			cloud:   awsCloud,
 			storage: localStorage,
+			logger:  logger,
 		}
 
 		return nil
@@ -303,6 +305,7 @@ type ToGlacier struct {
 	envelop archive.Envelop
 	cloud   cloud.Cloud
 	storage storage.Storage
+	logger  log.Logger
 }
 
 // Backup create an archive and send it to the cloud.
@@ -383,16 +386,20 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 // ListBackups show the current backups. With the remote flag it is possible to
 // list the backups tracked locally or retrieve the cloud inventory.
 func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
-	if !remote {
-		backups, err := t.storage.List()
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		// TODO: should we sort here or let the library to do that?
-		return backups, nil
+	if remote {
+		return t.listRemoteBackups()
 	}
 
+	backups, err := t.storage.List()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// TODO: should we sort here or let the library to do that?
+	return backups, nil
+}
+
+func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 	listBackupsReport := report.NewListBackups()
 	defer func() {
 		report.Add(listBackupsReport)
@@ -446,6 +453,7 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 		if backup.Backup.CreatedAt.After(time.Now().Add(-24 * time.Hour)) {
 			// recent backups could not be in the inventory yet
 			kept = append(kept, backup.Backup.ID)
+			t.logger.Debugf("toglacier: backup id “%s” kept because is to recent", backup.Backup.ID)
 			continue
 		}
 
@@ -457,7 +465,7 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 
 	sort.Strings(kept)
 
-	syncBackups := make(storage.Backups, len(remoteBackups))
+	syncBackups := make(storage.Backups, 0, len(remoteBackups))
 	for i, remoteBackup := range remoteBackups {
 		// check if a recent backup appeared in the inventory
 		if j := sort.SearchStrings(kept, remoteBackup.ID); j < len(kept) {
@@ -465,6 +473,9 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 				listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 				return nil, errors.WithStack(err)
 			}
+
+			t.logger.Debugf("toglacier: backup id “%s” removed because it was found remotely", kept[j])
+			kept = append(kept[:j], kept[j+1:]...)
 		}
 
 		// we should keep the archive information to be able to build incremental
@@ -480,14 +491,25 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 			}
 		}
 
-		syncBackups[i] = storage.Backup{
+		syncBackups = append(syncBackups, storage.Backup{
 			Backup: remoteBackup,
 			Info:   archiveInfo,
-		}
+		})
 
 		if err := t.storage.Save(syncBackups[i]); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
+		}
+	}
+
+	// add backups that were kept
+	for _, id := range kept {
+		index := sort.Search(len(backups), func(i int) bool {
+			return backups[i].Backup.ID == id
+		})
+
+		if index < len(backups) {
+			syncBackups = append(syncBackups, backups[index])
 		}
 	}
 
