@@ -7,6 +7,7 @@ import (
 	"net/smtp"
 	"os"
 	"os/signal"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
+	"github.com/rafaeljusto/toglacier/internal/log"
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 	"github.com/urfave/cli"
@@ -29,7 +31,7 @@ func main() {
 	defer logFile.Close()
 
 	// ctx is used to abort long transactions, such as big files uploads or
-	// iventories
+	// inventories
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 	var cancelFunc func()
@@ -125,6 +127,7 @@ func main() {
 			envelop: archive.NewOFBEnvelop(logger),
 			cloud:   awsCloud,
 			storage: localStorage,
+			logger:  logger,
 		}
 
 		return nil
@@ -145,10 +148,10 @@ func main() {
 			Usage:     "retrieve a specific backup from AWS Glacier",
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
-				if backupFile, err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
+				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
-				} else if backupFile != "" {
-					fmt.Printf("Backup recovered at %s\n", backupFile)
+				} else {
+					fmt.Println("Backup recovered successfully")
 				}
 				return nil
 			},
@@ -183,7 +186,7 @@ func main() {
 					fmt.Println("Date             | Vault Name       | Archive ID")
 					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
 					for _, backup := range backups {
-						fmt.Printf("%-16s | %-16s | %-138s\n", backup.CreatedAt.Format("2006-01-02 15:04"), backup.VaultName, backup.ID)
+						fmt.Printf("%-16s | %-16s | %-138s\n", backup.Backup.CreatedAt.Format("2006-01-02 15:04"), backup.Backup.VaultName, backup.Backup.ID)
 					}
 				}
 				return nil
@@ -302,27 +305,46 @@ type ToGlacier struct {
 	envelop archive.Envelop
 	cloud   cloud.Cloud
 	storage storage.Storage
+	logger  log.Logger
 }
 
 // Backup create an archive and send it to the cloud.
 func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	backupReport := report.NewSendBackup()
-
 	defer func() {
 		report.Add(backupReport)
 	}()
 
+	// retrieve the latest backup so we can analyze the files that changed
+	backups, err := t.ListBackups(false)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	var archiveInfo archive.Info
+	if len(backups) > 0 {
+		// the newest backup is always in the first position
+		archiveInfo = backups[0].Info
+	}
+
 	timeMark := time.Now()
-	filename, err := t.builder.Build(backupPaths...)
+	filename, archiveInfo, err := t.builder.Build(archiveInfo, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
+
+	if filename == "" {
+		// if the filename is empty, the tarball wasn't created because no files
+		// were added, so we just ignore the upload
+		backupReport.Durations.Build = time.Now().Sub(timeMark)
+		return nil
+	}
+
 	defer os.Remove(filename)
 	backupReport.Durations.Build = time.Now().Sub(timeMark)
 
 	if backupSecret != "" {
-		var err error
 		var encryptedFilename string
 
 		timeMark = time.Now()
@@ -332,7 +354,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 		}
 		backupReport.Durations.Encrypt = time.Now().Sub(timeMark)
 
-		if err := os.Rename(encryptedFilename, filename); err != nil {
+		if err = os.Rename(encryptedFilename, filename); err != nil {
 			backupReport.Errors = append(backupReport.Errors, err)
 			return errors.WithStack(err)
 		}
@@ -345,7 +367,15 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}
 	backupReport.Durations.Send = time.Now().Sub(timeMark)
 
-	if err := t.storage.Save(backupReport.Backup); err != nil {
+	// fill backup id for new and modified files
+	for path, itemInfo := range archiveInfo {
+		if itemInfo.Status == archive.ItemInfoStatusNew || itemInfo.Status == archive.ItemInfoStatusModified {
+			itemInfo.ID = backupReport.Backup.ID
+			archiveInfo[path] = itemInfo
+		}
+	}
+
+	if err := t.storage.Save(storage.Backup{Backup: backupReport.Backup, Info: archiveInfo}); err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
 	}
@@ -355,12 +385,21 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 
 // ListBackups show the current backups. With the remote flag it is possible to
 // list the backups tracked locally or retrieve the cloud inventory.
-func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
-	if !remote {
-		backups, err := t.storage.List()
-		return backups, errors.WithStack(err)
+func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
+	if remote {
+		return t.listRemoteBackups()
 	}
 
+	backups, err := t.storage.List()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// TODO: should we sort here or let the library to do that?
+	return backups, nil
+}
+
+func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 	listBackupsReport := report.NewListBackups()
 	defer func() {
 		report.Add(listBackupsReport)
@@ -398,42 +437,176 @@ func (t ToGlacier) ListBackups(remote bool) ([]cloud.Backup, error) {
 	// TODO: if the change is greater than 20% something is really wrong, and
 	// maybe the best approach is to do nothing and report the problem.
 
+	var kept []string
 	for _, backup := range backups {
-		if err := t.storage.Remove(backup.ID); err != nil {
+		// http://docs.aws.amazon.com/amazonglacier/latest/dev/vault-inventory.html#vault-inventory-about
+		//
+		// Amazon Glacier updates a vault inventory approximately once a day,
+		// starting on the day you first upload an archive to the vault. If there
+		// have been no archive additions or deletions to the vault since the last
+		// inventory, the inventory date is not updated. When you initiate a job for
+		// a vault inventory, Amazon Glacier returns the last inventory it
+		// generated, which is a point-in-time snapshot and not real-time data. Note
+		// that after Amazon Glacier creates the first inventory for the vault, it
+		// typically takes half a day and up to a day before that inventory is
+		// available for retrieval.
+		if backup.Backup.CreatedAt.After(time.Now().Add(-24 * time.Hour)) {
+			// recent backups could not be in the inventory yet
+			kept = append(kept, backup.Backup.ID)
+			t.logger.Debugf("toglacier: backup id “%s” kept because is to recent", backup.Backup.ID)
+			continue
+		}
+
+		if err := t.storage.Remove(backup.Backup.ID); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
-	for _, backup := range remoteBackups {
-		if err := t.storage.Save(backup); err != nil {
+	sort.Strings(kept)
+
+	syncBackups := make(storage.Backups, 0, len(remoteBackups))
+	for i, remoteBackup := range remoteBackups {
+		// check if a recent backup appeared in the inventory
+		if j := sort.SearchStrings(kept, remoteBackup.ID); j < len(kept) && kept[j] == remoteBackup.ID {
+			if err := t.storage.Remove(kept[j]); err != nil {
+				listBackupsReport.Errors = append(listBackupsReport.Errors, err)
+				return nil, errors.WithStack(err)
+			}
+
+			t.logger.Debugf("toglacier: backup id “%s” removed because it was found remotely", kept[j])
+			kept = append(kept[:j], kept[j+1:]...)
+		}
+
+		// we should keep the archive information to be able to build incremental
+		// backups again. Another alternative is build the archive information from
+		// the uploaded backup, but it is really slow. Anyway, when retrieving the
+		// backup, if there's no archive information, we will try to extract it from
+		// the backup
+		var archiveInfo archive.Info
+		for _, backup := range backups {
+			if backup.Backup.ID == remoteBackup.ID {
+				archiveInfo = backup.Info
+				break
+			}
+		}
+
+		syncBackups = append(syncBackups, storage.Backup{
+			Backup: remoteBackup,
+			Info:   archiveInfo,
+		})
+
+		if err := t.storage.Save(syncBackups[i]); err != nil {
 			listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 			return nil, errors.WithStack(err)
 		}
 	}
 
-	return remoteBackups, nil
+	// add backups that were kept
+	for _, id := range kept {
+		index := sort.Search(len(backups), func(i int) bool {
+			return backups[i].Backup.ID == id
+		})
+
+		if index < len(backups) && backups[index].Backup.ID == id {
+			syncBackups = append(syncBackups, backups[index])
+		}
+	}
+
+	sort.Sort(syncBackups)
+	return syncBackups, nil
 }
 
 // RetrieveBackup recover a specific backup from the cloud.
-func (t ToGlacier) RetrieveBackup(id, backupSecret string) (string, error) {
-	backupFile, err := t.cloud.Get(t.context, id)
+func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
+	backups, err := t.storage.List()
 	if err != nil {
-		return "", errors.WithStack(err)
+		return errors.WithStack(err)
 	}
+
+	var archiveInfo archive.Info
+	for _, backup := range backups {
+		if backup.Backup.ID == id {
+			archiveInfo = backup.Info
+			break
+		}
+	}
+
+	var ignoreMainBackup bool
+
+	if archiveInfo == nil {
+		// when there's no archive information, retrieve only the desired backup ID.
+		// We will extract the archive information saved in the backup to detect all
+		// other backup parts that we need. This is important when the local storage
+		// got corrupted due to a disaster
+		filenames, err := t.cloud.Get(t.context, id)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		// there's only one backup downloaded at this point
+		if archiveInfo, err = t.decryptAndExtract(backupSecret, filenames[id], nil); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// as we already downloaded the main backup, we should avoid downloading it
+		// again when retrieving the backup parts
+		ignoreMainBackup = true
+	}
+
+	idPaths := make(map[string][]string)
+	for path, itemInfo := range archiveInfo {
+		// if we already downloaded the main backup we don't need to download it
+		// again, and we should also avoid downloading backups parts just to
+		// retrieve removed files
+		if (!ignoreMainBackup || itemInfo.ID != id) && itemInfo.Status != archive.ItemInfoStatusDeleted {
+			idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
+		}
+	}
+
+	var ids []string
+	for id := range idPaths {
+		ids = append(ids, id)
+	}
+
+	filenames, err := t.cloud.Get(t.context, ids...)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	for id, filename := range filenames {
+		// there's only one backup downloaded at this point
+		if archiveInfo, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	return nil
+}
+
+func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []string) (archive.Info, error) {
+	var err error
 
 	if backupSecret != "" {
-		var filename string
-		if filename, err = t.envelop.Decrypt(backupFile, backupSecret); err != nil {
-			return "", errors.WithStack(err)
+		var decryptedFilename string
+
+		if decryptedFilename, err = t.envelop.Decrypt(filename, backupSecret); err != nil {
+			return nil, errors.WithStack(err)
 		}
 
-		if err := os.Rename(backupFile, filename); err != nil {
-			return "", errors.WithStack(err)
+		if err := os.Rename(decryptedFilename, filename); err != nil {
+			return nil, errors.WithStack(err)
 		}
 	}
 
-	return backupFile, nil
+	archiveInfo, err := t.builder.Extract(filename, filter)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// TODO: Update archive info in the local storage
+
+	return archiveInfo, nil
 }
 
 // RemoveBackup delete a specific backup from the cloud.
@@ -462,10 +635,27 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		return errors.WithStack(err)
 	}
 
+	// with the incremental backup we cannot remove backups without checking the
+	// archive info to identify partial backup entries
+	var preserveBackups []string
+	for i := 0; i < keepBackups && i < len(backups); i++ {
+		for _, itemInfo := range backups[i].Info {
+			if itemInfo.Status != archive.ItemInfoStatusDeleted {
+				preserveBackups = append(preserveBackups, itemInfo.ID)
+			}
+		}
+	}
+	sort.Strings(preserveBackups)
+
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
-		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i])
-		if err := t.RemoveBackup(backups[i].ID); err != nil {
+		// check if the backup isn't referenced by a active backup
+		if j := sort.SearchStrings(preserveBackups, backups[i].Backup.ID); j < len(preserveBackups) && preserveBackups[j] == backups[i].Backup.ID {
+			continue
+		}
+
+		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i].Backup)
+		if err := t.RemoveBackup(backups[i].Backup.ID); err != nil {
 			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 			return errors.WithStack(err)
 		}

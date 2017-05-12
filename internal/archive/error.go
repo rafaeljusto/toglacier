@@ -69,6 +69,22 @@ const (
 	// ErrorCodeRewindingFile error while moving back to the beginning of the
 	// file.
 	ErrorCodeRewindingFile ErrorCode = "rewinding-file"
+
+	// ErrorCodeEncodingInfo failed to add the archive information to the tarball.
+	ErrorCodeEncodingInfo ErrorCode = "encoding-info"
+
+	// ErrorCodeDecodingInfo failed to extract the archive information from the
+	// tarball.
+	ErrorCodeDecodingInfo ErrorCode = "decoding-info"
+
+	// ErrorCodeReadingTAR error while iterating over the TAR headers.
+	ErrorCodeReadingTAR ErrorCode = "reading-tar"
+
+	// ErrorCodeCreatingDirectories failed to create directories.
+	ErrorCodeCreatingDirectories ErrorCode = "creating-directories"
+
+	// ErrorCodeExtractingFile problem extracting file from TAR.
+	ErrorCodeExtractingFile ErrorCode = "extracting-file"
 )
 
 // ErrorCode stores the error type that occurred to easy automatize an external
@@ -93,6 +109,11 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeDecryptingFile:        "error decrypting file",
 	ErrorCodeAuthFailed:            "encrypted content authentication failed",
 	ErrorCodeRewindingFile:         "error moving to the beginning of the file",
+	ErrorCodeEncodingInfo:          "error encoding the archive information in the tarball",
+	ErrorCodeDecodingInfo:          "error decoding the archive information from the tarball",
+	ErrorCodeReadingTAR:            "error reading tar",
+	ErrorCodeCreatingDirectories:   "error while creating directories",
+	ErrorCodeExtractingFile:        "error extracting file",
 }
 
 // String translate the error code to a human readable text.
@@ -185,6 +206,13 @@ const (
 	// PathErrorCodeWritingFile error while writing the file content to the TAR
 	// file.
 	PathErrorCodeWritingFile PathErrorCode = "writing-file"
+
+	// PathErrorCodeSHA256 error calculating SHA256 hash from the file.
+	PathErrorCodeSHA256 PathErrorCode = "sha-256"
+
+	// PathErrorCodeRewindingFile error while moving back to the beginning of the
+	// file.
+	PathErrorCodeRewindingFile PathErrorCode = "rewinding-file"
 )
 
 // PathErrorCode stores the error type that occurred to easy automatize an
@@ -204,6 +232,10 @@ func (p PathErrorCode) String() string {
 		return "error opening file"
 	case PathErrorCodeWritingFile:
 		return "error writing content in tar"
+	case PathErrorCodeSHA256:
+		return "error calculating hash SHA256 from file"
+	case PathErrorCodeRewindingFile:
+		return "error moving to the beginning of the file"
 	}
 
 	return "unknown error code"

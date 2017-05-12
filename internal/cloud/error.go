@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/pkg/errors"
 )
@@ -42,15 +43,8 @@ const (
 	// from the cloud.
 	ErrorCodeJobComplete ErrorCode = "job-complete"
 
-	// ErrorCodeRetrievingJob error while trying to get a task status in the
-	// cloud.
-	ErrorCodeRetrievingJob ErrorCode = "retrieving-job"
-
 	// ErrorCodeJobFailed offline task in the cloud failed to complete.
 	ErrorCodeJobFailed ErrorCode = "job-failed"
-
-	// ErrorCodeJobNotFound offline task missing from the cloud.
-	ErrorCodeJobNotFound ErrorCode = "job-not-found"
 
 	// ErrorCodeDecodingData problem decoding the data returned from the cloud.
 	ErrorCodeDecodingData ErrorCode = "decoding-data"
@@ -65,9 +59,6 @@ const (
 
 	// ErrorCodeRemovingArchive error while removing the archive from the cloud.
 	ErrorCodeRemovingArchive ErrorCode = "removing-archive"
-
-	// ErrorCodeCancelled action cancelled by the user.
-	ErrorCodeCancelled ErrorCode = "cancelled"
 )
 
 // ErrorCode stores the error type that occurred while performing any operation
@@ -84,14 +75,11 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeCompleteMultipart:   "error completing multipart upload",
 	ErrorCodeInitJob:             "error initiating the job",
 	ErrorCodeJobComplete:         "error retrieving the complete job data",
-	ErrorCodeRetrievingJob:       "error retrieving the job status",
 	ErrorCodeJobFailed:           "job failed to complete in the cloud",
-	ErrorCodeJobNotFound:         "job not found",
 	ErrorCodeDecodingData:        "error decoding the iventory",
 	ErrorCodeCreatingArchive:     "error creating backup file",
 	ErrorCodeCopyingData:         "error copying data to the backup file",
 	ErrorCodeRemovingArchive:     "error removing backup",
-	ErrorCodeCancelled:           "action cancelled by the user",
 }
 
 // String translate the error code to a human readable text.
@@ -250,6 +238,101 @@ func MultipartErrorEqual(first, second error) bool {
 	}
 
 	if err1.Offset != err2.Offset || err1.Size != err2.Size || err1.Code != err2.Code {
+		return false
+	}
+
+	errCause1 := errors.Cause(err1.Err)
+	errCause2 := errors.Cause(err2.Err)
+
+	if errCause1 == nil || errCause2 == nil {
+		return errCause1 == errCause2
+	}
+
+	return errCause1.Error() == errCause2.Error()
+}
+
+const (
+	// JobsErrorCodeRetrievingJob error while trying to get a task status in the
+	// cloud.
+	JobsErrorCodeRetrievingJob JobsErrorCode = "retrieving-job"
+
+	// JobsErrorCodeJobNotFound offline task missing from the cloud.
+	JobsErrorCodeJobNotFound JobsErrorCode = "job-not-found"
+
+	// JobsErrorCodeCancelled action cancelled by the user.
+	JobsErrorCodeCancelled JobsErrorCode = "cancelled"
+)
+
+// JobsErrorCode stores the error type that occurred while performing any operation
+// with the cloud.
+type JobsErrorCode string
+
+var jobsErrorCodeString = map[JobsErrorCode]string{
+	JobsErrorCodeRetrievingJob: "error retrieving the job status",
+	JobsErrorCodeJobNotFound:   "job not found",
+	JobsErrorCodeCancelled:     "action cancelled by the user",
+}
+
+// String translate the error code to a human readable text.
+func (e JobsErrorCode) String() string {
+	if msg, ok := jobsErrorCodeString[e]; ok {
+		return msg
+	}
+
+	return "unknown error code"
+}
+
+// JobsError stores error details that occurs when monitoring asynchronous jobs
+// in the cloud.
+type JobsError struct {
+	Jobs []string
+	Code JobsErrorCode
+	Err  error
+}
+
+func newJobsError(jobs []string, code JobsErrorCode, err error) *JobsError {
+	return &JobsError{
+		Jobs: jobs,
+		Code: code,
+		Err:  errors.WithStack(err),
+	}
+}
+
+// Error returns the error in a human readable format.
+func (c JobsError) Error() string {
+	return c.String()
+}
+
+// String translate the error to a human readable text.
+func (c JobsError) String() string {
+	var jobs string
+	if c.Jobs != nil {
+		jobs = fmt.Sprintf("jobs %v, ", c.Jobs)
+	}
+
+	var err string
+	if c.Err != nil {
+		err = fmt.Sprintf(". details: %s", c.Err)
+	}
+
+	return fmt.Sprintf("cloud: %s%s%s", jobs, c.Code, err)
+}
+
+// JobsErrorEqual compares two JobsError objects. This is useful to compare down
+// to the low level errors.
+func JobsErrorEqual(first, second error) bool {
+	if first == nil || second == nil {
+		return first == second
+	}
+
+	err1, ok1 := errors.Cause(first).(*JobsError)
+	err2, ok2 := errors.Cause(second).(*JobsError)
+
+	if !ok1 || !ok2 {
+		return false
+	}
+
+	if !reflect.DeepEqual(err1.Jobs, err2.Jobs) || err1.Code != err2.Code {
 		return false
 	}
 

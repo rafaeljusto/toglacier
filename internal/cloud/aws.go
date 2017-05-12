@@ -343,8 +343,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 }
 
 // List retrieves all the uploaded backups information in the cloud. If an error
-// occurs it will be an Error type encapsulated in a traceable error. To
-// retrieve the desired error you can do:
+// occurs it will be an Error or JobsError type encapsulated in a traceable
+// error. To retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -353,6 +353,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 //     if causeErr, ok := err.(causer); ok {
 //       switch specificErr := causeErr.Cause().(type) {
 //       case *cloud.Error:
+//         // handle specifically
+//       case *cloud.JobsError:
 //         // handle specifically
 //       default:
 //         // unknown error
@@ -375,7 +377,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
 	}
 
-	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
+	if err = a.waitJobs(ctx, *initiateJobOutput.JobId); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -392,21 +394,21 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 	defer jobOutputOutput.Body.Close()
 
 	// http://docs.aws.amazon.com/amazonglacier/latest/dev/api-job-output-get.html#api-job-output-get-responses-elements
-	iventory := struct {
+	inventory := struct {
 		VaultARN      string `json:"VaultARN"`
 		InventoryDate string `json:"InventoryDate"`
 		ArchiveList   AWSInventoryArchiveList
 	}{}
 
 	jsonDecoder := json.NewDecoder(jobOutputOutput.Body)
-	if err := jsonDecoder.Decode(&iventory); err != nil {
+	if err := jsonDecoder.Decode(&inventory); err != nil {
 		return nil, errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeDecodingData, err))
 	}
 
-	sort.Sort(iventory.ArchiveList)
+	sort.Sort(inventory.ArchiveList)
 
 	var backups []Backup
-	for _, archive := range iventory.ArchiveList {
+	for _, archive := range inventory.ArchiveList {
 		backups = append(backups, Backup{
 			ID:        archive.ArchiveID,
 			CreatedAt: archive.CreationDate,
@@ -422,8 +424,8 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 
 // Get retrieves a specific backup file and stores it locally in a file. The
 // filename storing the location of the file is returned.  If an error occurs it
-// will be an Error type encapsulated in a traceable error. To retrieve the
-// desired error you can do:
+// will be an Error or JobsError type encapsulated in a traceable error. To
+// retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -433,55 +435,74 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 //       switch specificErr := causeErr.Cause().(type) {
 //       case *cloud.Error:
 //         // handle specifically
+//       case *cloud.JobsError:
+//         // handle specifically
 //       default:
 //         // unknown error
 //       }
 //     }
-func (a *AWSCloud) Get(ctx context.Context, id string) (string, error) {
-	a.Logger.Debugf("cloud: retrieving archive “%s” from the aws cloud", id)
+func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, error) {
+	a.Logger.Debugf("cloud: retrieving archives “%v” from the aws cloud", ids)
 
-	initiateJobInput := glacier.InitiateJobInput{
-		AccountId: aws.String(a.AccountID),
-		JobParameters: &glacier.JobParameters{
-			ArchiveId: aws.String(id),
-			Type:      aws.String("archive-retrieval"),
-		},
-		VaultName: aws.String(a.VaultName),
+	jobIDs := make(map[string]string)
+
+	for _, id := range ids {
+		initiateJobInput := glacier.InitiateJobInput{
+			AccountId: aws.String(a.AccountID),
+			JobParameters: &glacier.JobParameters{
+				ArchiveId: aws.String(id),
+				Type:      aws.String("archive-retrieval"),
+			},
+			VaultName: aws.String(a.VaultName),
+		}
+
+		initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
+		if err != nil {
+			return nil, errors.WithStack(newError(id, ErrorCodeInitJob, err))
+		}
+
+		jobIDs[id] = *initiateJobOutput.JobId
 	}
 
-	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
-	if err != nil {
-		return "", errors.WithStack(newError(id, ErrorCodeInitJob, err))
+	jobs := make([]string, 0, len(jobIDs))
+	for _, job := range jobIDs {
+		jobs = append(jobs, job)
 	}
 
-	if err := a.waitJob(ctx, *initiateJobOutput.JobId); err != nil {
-		return "", errors.WithStack(err)
+	if err := a.waitJobs(ctx, jobs...); err != nil {
+		return nil, errors.WithStack(err)
 	}
 
-	jobOutputInput := glacier.GetJobOutputInput{
-		AccountId: aws.String(a.AccountID),
-		JobId:     initiateJobOutput.JobId,
-		VaultName: aws.String(a.VaultName),
+	filenames := make(map[string]string)
+
+	for id, jobID := range jobIDs {
+		jobOutputInput := glacier.GetJobOutputInput{
+			AccountId: aws.String(a.AccountID),
+			JobId:     aws.String(jobID),
+			VaultName: aws.String(a.VaultName),
+		}
+
+		jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
+		if err != nil {
+			return nil, errors.WithStack(newError(jobID, ErrorCodeJobComplete, err))
+		}
+		defer jobOutputOutput.Body.Close()
+
+		backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
+		if err != nil {
+			return nil, errors.WithStack(newError(id, ErrorCodeCreatingArchive, err))
+		}
+		defer backup.Close()
+
+		if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
+			return nil, errors.WithStack(newError(id, ErrorCodeCopyingData, err))
+		}
+
+		a.Logger.Infof("cloud: backup “%s” retrieved successfully from the aws cloud and saved in temporary file “%s”", id, backup.Name())
+		filenames[id] = backup.Name()
 	}
 
-	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
-	if err != nil {
-		return "", errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err))
-	}
-	defer jobOutputOutput.Body.Close()
-
-	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
-	if err != nil {
-		return "", errors.WithStack(newError(id, ErrorCodeCreatingArchive, err))
-	}
-	defer backup.Close()
-
-	if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
-		return "", errors.WithStack(newError(id, ErrorCodeCopyingData, err))
-	}
-
-	a.Logger.Infof("cloud: backup “%s” retrieved successfully from the aws cloud and saved in temporary file “%s”", id, backup.Name())
-	return backup.Name(), nil
+	return filenames, nil
 }
 
 // Remove erase a specific backup from the cloud. If an error occurs it will be
@@ -517,8 +538,9 @@ func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 	return nil
 }
 
-func (a *AWSCloud) waitJob(ctx context.Context, jobID string) error {
-	a.Logger.Debugf("cloud: waiting for job %s", jobID)
+func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
+	sort.Strings(jobs)
+	a.Logger.Debugf("cloud: waiting for jobs %v", jobs)
 
 	waitJobTime.RLock()
 	sleep := waitJobTime.Duration
@@ -532,44 +554,65 @@ func (a *AWSCloud) waitJob(ctx context.Context, jobID string) error {
 
 		listJobsOutput, err := a.Glacier.ListJobs(&listJobsInput)
 		if err != nil {
-			return errors.WithStack(newError(jobID, ErrorCodeRetrievingJob, err))
+			return errors.WithStack(newJobsError(jobs, JobsErrorCodeRetrievingJob, err))
 		}
 
-		jobFound := false
+		jobsRemaining := make([]string, len(jobs))
+		copy(jobsRemaining, jobs)
+
+		a.Logger.Debugf("cloud: received jobs list response, will look for jobs %v", jobs)
+
 		for _, jobDescription := range listJobsOutput.JobList {
-			if *jobDescription.JobId != jobID {
+			a.Logger.Debugf("cloud: job %s returned from cloud", *jobDescription.JobId)
+
+			var i int
+			if i = sort.SearchStrings(jobs, *jobDescription.JobId); i >= len(jobs) || jobs[i] != *jobDescription.JobId {
+				a.Logger.Debugf("cloud: job %s was not expected", *jobDescription.JobId)
 				continue
 			}
 
-			jobFound = true
+			// check-out job in result list
+			if j := sort.SearchStrings(jobsRemaining, *jobDescription.JobId); j < len(jobsRemaining) && jobsRemaining[j] == *jobDescription.JobId {
+				jobsRemaining = append(jobsRemaining[:j], jobsRemaining[j+1:]...)
+				a.Logger.Debugf("cloud: remaining jobs to look for %v", jobsRemaining)
+			}
 
 			if !*jobDescription.Completed {
-				break
+				a.Logger.Debugf("cloud: job %s not completed yet", *jobDescription.JobId)
+				continue
 			}
 
 			if *jobDescription.StatusCode == "Succeeded" {
-				return nil
-			} else if *jobDescription.StatusCode == "Failed" {
-				return errors.WithStack(newError(jobID, ErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
-			}
+				// remove the job that already succeeded
+				jobs = append(jobs[:i], jobs[i+1:]...)
+				a.Logger.Debugf("cloud: job %s succeeded, still need to proccess jobs %v", *jobDescription.JobId, jobs)
 
+			} else if *jobDescription.StatusCode == "Failed" {
+				return errors.WithStack(newError(*jobDescription.JobId, ErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
+			}
+		}
+
+		if len(jobsRemaining) > 0 {
+			return errors.WithStack(newJobsError(jobsRemaining, JobsErrorCodeJobNotFound, nil))
+		}
+
+		if len(jobs) == 0 {
+			a.Logger.Debug("cloud: all jobs processed")
 			break
 		}
 
-		if !jobFound {
-			return errors.WithStack(newError(jobID, ErrorCodeJobNotFound, nil))
-		}
-
-		a.Logger.Debugf("cloud: job %s not done, waiting %s for next check", jobID, sleep.String())
+		a.Logger.Debugf("cloud: jobs %v not done, waiting %s for next check", jobs, sleep.String())
 
 		select {
 		case <-time.After(sleep):
 			continue
 		case <-ctx.Done():
-			a.Logger.Debugf("cloud: job %s cancelled by user", jobID)
-			return errors.WithStack(newError(jobID, ErrorCodeCancelled, ctx.Err()))
+			a.Logger.Debugf("cloud: jobs %v cancelled by user", jobs)
+			return errors.WithStack(newJobsError(jobs, JobsErrorCodeCancelled, ctx.Err()))
 		}
 	}
+
+	return nil
 }
 
 // AWSInventoryArchiveList stores the archive information retrieved from AWS

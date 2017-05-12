@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -32,8 +32,9 @@ func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 //
 //     [datetime] [vaultName] [archiveID] [checksum] [size]
 //
-// On error it will return an Error type encapsulated in a traceable error. To
-// retrieve the desired error you can do:
+// The audit file doesn't store backup extra information. On error it will
+// return an Error type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -47,8 +48,8 @@ func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 //         // unknown error
 //       }
 //     }
-func (a *AuditFile) Save(backup cloud.Backup) error {
-	a.logger.Debugf("storage: saving backup “%s” in audit file storage", backup.ID)
+func (a *AuditFile) Save(backup Backup) error {
+	a.logger.Debugf("storage: saving backup “%s” in audit file storage", backup.Backup.ID)
 
 	auditFile, err := os.OpenFile(a.Filename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
@@ -56,18 +57,19 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s %d\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size)
+	audit := fmt.Sprintf("%s %s %s %s %d\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		return errors.WithStack(newError(ErrorCodeWritingFile, err))
 	}
 
-	a.logger.Infof("storage: backup “%s” saved successfully in audit file storage", backup.ID)
+	a.logger.Infof("storage: backup “%s” saved successfully in audit file storage", backup.Backup.ID)
 	return nil
 }
 
-// List all backup information in the storage. On error it will return an
-// Error type encapsulated in a traceable error. To retrieve the desired error
-// you can do:
+// List all backup information in the storage. As the audit file doesn't store
+// backup extra information, it will be always nil. The backups are ordered by
+// creation date. On error it will return an Error type encapsulated in a
+// traceable error. To retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -81,7 +83,7 @@ func (a *AuditFile) Save(backup cloud.Backup) error {
 //         // unknown error
 //       }
 //     }
-func (a *AuditFile) List() ([]cloud.Backup, error) {
+func (a *AuditFile) List() (Backups, error) {
 	a.logger.Debug("storage: listing backups from audit file storage")
 
 	auditFile, err := os.Open(a.Filename)
@@ -95,7 +97,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	}
 	defer auditFile.Close()
 
-	var backups []cloud.Backup
+	var backups Backups
 
 	scanner := bufio.NewScanner(auditFile)
 	for scanner.Scan() {
@@ -106,18 +108,18 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 			return nil, errors.WithStack(newError(ErrorCodeFormat, err))
 		}
 
-		var backup cloud.Backup
+		var backup Backup
 
-		if backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
+		if backup.Backup.CreatedAt, err = time.Parse(time.RFC3339, lineParts[0]); err != nil {
 			return nil, errors.WithStack(newError(ErrorCodeDateFormat, err))
 		}
 
-		backup.VaultName = lineParts[1]
-		backup.ID = lineParts[2]
-		backup.Checksum = lineParts[3]
+		backup.Backup.VaultName = lineParts[1]
+		backup.Backup.ID = lineParts[2]
+		backup.Backup.Checksum = lineParts[3]
 
 		if len(lineParts) >= 5 {
-			backup.Size, err = strconv.ParseInt(lineParts[4], 10, 64)
+			backup.Backup.Size, err = strconv.ParseInt(lineParts[4], 10, 64)
 			if err != nil {
 				return nil, errors.WithStack(newError(ErrorCodeSizeFormat, err))
 			}
@@ -131,6 +133,7 @@ func (a *AuditFile) List() ([]cloud.Backup, error) {
 	}
 
 	a.logger.Infof("storage: backups listed successfully from audit file storage")
+	sort.Sort(backups)
 	return backups, nil
 }
 
@@ -172,11 +175,11 @@ func (a *AuditFile) Remove(id string) error {
 	defer auditFile.Close()
 
 	for _, backup := range backups {
-		if backup.ID == id {
+		if backup.Backup.ID == id {
 			continue
 		}
 
-		audit := fmt.Sprintf("%s %s %s %s %d\n", backup.CreatedAt.Format(time.RFC3339), backup.VaultName, backup.ID, backup.Checksum, backup.Size)
+		audit := fmt.Sprintf("%s %s %s %s %d\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size)
 		if _, err = auditFile.WriteString(audit); err != nil {
 			// TODO: recover backup file
 			return errors.WithStack(newError(ErrorCodeWritingFile, err))

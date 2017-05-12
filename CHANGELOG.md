@@ -14,15 +14,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - BoltDB storage for tracking backups locally
 - Local backup now has archive size information
 - Graceful shutdown when an OS signal is detected
+- Incremental backups (unmodified files are ignored)
 
 ### Fixed
 - Add sample configuration file to deb and txz packages
 - Debian script for cross compilation environments
+- Don't remove local backup with less than 24 hours
 
 ### Changed
 - Archive algorithm refactory to simplify the tar file
 - Internal API now has well defined errors
 - Variable `TOGLACIER_AUDIT` renamed to `TOGLACIER_DB_FILE`
+- Command get now extracts automatically to the current directory
 
 ## [2.0.4] - 2017-04-19
 ### Fixed

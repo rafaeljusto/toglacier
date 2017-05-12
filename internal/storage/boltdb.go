@@ -3,10 +3,10 @@ package storage
 import (
 	"encoding/json"
 	"os"
+	"sort"
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
-	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -49,17 +49,21 @@ func NewBoltDB(logger log.Logger, filename string) *BoltDB {
 //         // unknown error
 //       }
 //     }
-func (b *BoltDB) Save(backup cloud.Backup) error {
+func (b *BoltDB) Save(backup Backup) error {
+	b.logger.Debugf("storage: saving backup “%s” in boltdb storage", backup.Backup.ID)
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer db.Close()
 
-	encoded, err := json.Marshal(b)
+	encoded, err := json.Marshal(backup)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeEncodingBackup, err))
 	}
+
+	b.logger.Debugf("storage: saving backup json format: “%s”", string(encoded))
 
 	err = db.Update(func(tx *bolt.Tx) error {
 		var bucket *bolt.Bucket
@@ -67,7 +71,7 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 			return errors.WithStack(newError(ErrorAccessingBucket, err))
 		}
 
-		if err = bucket.Put([]byte(backup.ID), encoded); err != nil {
+		if err = bucket.Put([]byte(backup.Backup.ID), encoded); err != nil {
 			return errors.WithStack(newError(ErrorCodeSave, err))
 		}
 
@@ -78,12 +82,13 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backup “%s” saved successfully in boltdb storage", backup.Backup.ID)
 	return nil
 }
 
-// List all backup information in the storage. On error it will return an
-// Error type encapsulated in a traceable error. To retrieve the desired error
-// you can do:
+// List all backup information in the storage. The backups are ordered by
+// creation date. On error it will return an Error type encapsulated in a
+// traceable error. To retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -97,14 +102,16 @@ func (b *BoltDB) Save(backup cloud.Backup) error {
 //         // unknown error
 //       }
 //     }
-func (b BoltDB) List() ([]cloud.Backup, error) {
+func (b BoltDB) List() (Backups, error) {
+	b.logger.Debug("storage: listing backups from boltdb storage")
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return nil, errors.WithStack(newError(ErrorCodeOpeningFile, err))
 	}
 	defer db.Close()
 
-	var backups []cloud.Backup
+	var backups Backups
 
 	err = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(BoltDBBucket)
@@ -114,7 +121,7 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 		}
 
 		err = bucket.ForEach(func(k, v []byte) error {
-			var backup cloud.Backup
+			var backup Backup
 			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}
@@ -133,6 +140,8 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 		return nil, errors.WithStack(newError(ErrorCodeListingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backups listed successfully from boltdb storage")
+	sort.Sort(backups)
 	return backups, nil
 }
 
@@ -153,6 +162,8 @@ func (b BoltDB) List() ([]cloud.Backup, error) {
 //       }
 //     }
 func (b BoltDB) Remove(id string) error {
+	b.logger.Debugf("storage: removing backup “%s” from boltdb storage", id)
+
 	db, err := bolt.Open(b.Filename, BoltDBFileMode, nil)
 	if err != nil {
 		return errors.WithStack(newError(ErrorCodeOpeningFile, err))
@@ -176,5 +187,6 @@ func (b BoltDB) Remove(id string) error {
 		return errors.WithStack(newError(ErrorCodeUpdatingDatabase, err))
 	}
 
+	b.logger.Infof("storage: backup “%s” removed successfully from boltdb storage", id)
 	return nil
 }

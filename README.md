@@ -16,11 +16,10 @@ Have you ever thought that your server could have some backup in the cloud to
 mitigate some crazy [ransomware](https://en.wikipedia.org/wiki/Ransomware)
 infection? Great! Here is a peace of software to help you do that, sending your
 data periodically to [Amazon Glacier](https://aws.amazon.com/glacier/). It uses
-the [AWS SDK](https://aws.amazon.com/sdk-for-go/) behind the scenes, so this
-program is really only a dummy layer to make your life easier, all honors go to
-the [Amazon developers](https://github.com/orgs/aws/people).
+the [AWS SDK](https://aws.amazon.com/sdk-for-go/) behind the scenes, all honors
+go to the [Amazon developers](https://github.com/orgs/aws/people).
 
-The program will first add all files to a
+The program will first add all modified files (compared with the last sync) to a
 [tarball](https://en.wikipedia.org/wiki/Tar_(computing)) and then, if a secret
 was defined, it will encrypt the archive. After that it will decide to send it
 in one shot or use a multipart strategy for larger files. For now we will follow
@@ -31,6 +30,14 @@ maximum archive size is 40GB (but we can increase this).
 Old backups will also be removed automatically, to avoid keeping many files in
 AWS Glacier service, and consequently saving you some money. Periodically, the
 tool will request the remote backups in AWS to synchronize the local storage.
+
+Some cool features that you will find in this tool:
+
+  * Backup the desired directories periodically;
+  * Upload only modified files (small backups parts);
+  * Encrypt backups before sending to the cloud;
+  * Automatically download and rebuild backup parts;
+  * Periodic reports sent by e-mail.
 
 ## Install
 

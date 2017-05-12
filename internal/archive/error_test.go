@@ -124,6 +124,31 @@ func TestError_Error(t *testing.T) {
 			expected:    "archive: error moving to the beginning of the file",
 		},
 		{
+			description: "it should show the correct error message for encoding info problem",
+			err:         &archive.Error{Code: archive.ErrorCodeEncodingInfo},
+			expected:    "archive: error encoding the archive information in the tarball",
+		},
+		{
+			description: "it should show the correct error message for decoding info problem",
+			err:         &archive.Error{Code: archive.ErrorCodeDecodingInfo},
+			expected:    "archive: error decoding the archive information from the tarball",
+		},
+		{
+			description: "it should show the correct error message for reading TAR problem",
+			err:         &archive.Error{Code: archive.ErrorCodeReadingTAR},
+			expected:    "archive: error reading tar",
+		},
+		{
+			description: "it should show the correct error message for creating directories problem",
+			err:         &archive.Error{Code: archive.ErrorCodeCreatingDirectories},
+			expected:    "archive: error while creating directories",
+		},
+		{
+			description: "it should show the correct error message for extracting file problem",
+			err:         &archive.Error{Code: archive.ErrorCodeExtractingFile},
+			expected:    "archive: error extracting file",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &archive.Error{Code: archive.ErrorCode("i-dont-exist")},
 			expected:    "archive: unknown error code",
@@ -291,6 +316,16 @@ func TestPathError_Error(t *testing.T) {
 			description: "it should show the correct error message for writing file problem",
 			err:         &archive.PathError{Code: archive.PathErrorCodeWritingFile},
 			expected:    "archive: error writing content in tar",
+		},
+		{
+			description: "it should show the correct error message for calculating hash SHA256 problem",
+			err:         &archive.PathError{Code: archive.PathErrorCodeSHA256},
+			expected:    "archive: error calculating hash SHA256 from file",
+		},
+		{
+			description: "it should show the correct error message for rewinding file problem",
+			err:         &archive.PathError{Code: archive.PathErrorCodeRewindingFile},
+			expected:    "archive: error moving to the beginning of the file",
 		},
 		{
 			description: "it should detect when the code doesn't exist",

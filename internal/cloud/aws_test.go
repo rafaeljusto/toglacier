@@ -803,7 +803,7 @@ func TestAWSCloud_List(t *testing.T) {
 						}, nil
 					},
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						iventory := struct {
+						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
 							ArchiveList   cloud.AWSInventoryArchiveList
@@ -826,7 +826,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}
 
-						body, err := json.Marshal(iventory)
+						body, err := json.Marshal(inventory)
 						if err != nil {
 							t.Fatalf("error build job output response. details: %s", err)
 						}
@@ -877,7 +877,7 @@ func TestAWSCloud_List(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when there's an error listing the existing jobs",
+			description: "it should detect when there is an error listing the existing jobs",
 			awsCloud: cloud.AWSCloud{
 				Logger: mockLogger{
 					mockDebug:  func(args ...interface{}) {},
@@ -898,9 +898,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeRetrievingJob,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
 			},
 		},
@@ -971,9 +971,9 @@ func TestAWSCloud_List(t *testing.T) {
 					},
 				},
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeJobNotFound,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeJobNotFound,
 			},
 		},
 		{
@@ -1009,7 +1009,7 @@ func TestAWSCloud_List(t *testing.T) {
 						}
 					}(),
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						iventory := struct {
+						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
 							ArchiveList   cloud.AWSInventoryArchiveList
@@ -1025,7 +1025,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}
 
-						body, err := json.Marshal(iventory)
+						body, err := json.Marshal(inventory)
 						if err != nil {
 							t.Fatalf("error build job output response. details: %s", err)
 						}
@@ -1165,7 +1165,7 @@ func TestAWSCloud_List(t *testing.T) {
 						}
 					}(),
 					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						iventory := struct {
+						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
 							ArchiveList   cloud.AWSInventoryArchiveList
@@ -1188,7 +1188,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}
 
-						body, err := json.Marshal(iventory)
+						body, err := json.Marshal(inventory)
 						if err != nil {
 							t.Fatalf("error build job output response. details: %s", err)
 						}
@@ -1204,9 +1204,9 @@ func TestAWSCloud_List(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeCancelled,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
 				Err:  context.Canceled,
 			},
 		},
@@ -1222,7 +1222,7 @@ func TestAWSCloud_List(t *testing.T) {
 			if !reflect.DeepEqual(scenario.expected, backups) {
 				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, backups))
 			}
-			if !cloud.ErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.JobsErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
@@ -1241,7 +1241,7 @@ func TestAWSCloud_Get(t *testing.T) {
 		id            string
 		awsCloud      cloud.AWSCloud
 		goFunc        func()
-		expected      string
+		expected      map[string]string
 		expectedError error
 	}{
 		{
@@ -1280,7 +1280,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
+			expected: map[string]string{
+				"AWSID123": path.Join(os.TempDir(), "backup-AWSID123.tar"),
+			},
 		},
 		{
 			description: "it should detect an error while initiating the job",
@@ -1329,9 +1331,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeRetrievingJob,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeRetrievingJob,
 				Err:  errors.New("another crazy error"),
 			},
 		},
@@ -1404,9 +1406,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeJobNotFound,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeJobNotFound,
 			},
 		},
 		{
@@ -1449,7 +1451,9 @@ func TestAWSCloud_Get(t *testing.T) {
 					},
 				},
 			},
-			expected: path.Join(os.TempDir(), "backup-AWSID123.tar"),
+			expected: map[string]string{
+				"AWSID123": path.Join(os.TempDir(), "backup-AWSID123.tar"),
+			},
 		},
 		{
 			description: "it should detect an error while retrieving the job data",
@@ -1540,9 +1544,9 @@ func TestAWSCloud_Get(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 				cancel()
 			},
-			expectedError: &cloud.Error{
-				ID:   "JOBID123",
-				Code: cloud.ErrorCodeCancelled,
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
 				Err:  context.Canceled,
 			},
 		},
@@ -1558,7 +1562,7 @@ func TestAWSCloud_Get(t *testing.T) {
 			if !reflect.DeepEqual(scenario.expected, filename) {
 				t.Errorf("filenames don't match.\n%s", Diff(scenario.expected, filename))
 			}
-			if !cloud.ErrorEqual(scenario.expectedError, err) {
+			if !cloud.ErrorEqual(scenario.expectedError, err) && !cloud.JobsErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
