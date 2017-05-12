@@ -594,7 +594,7 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 			return nil, errors.WithStack(err)
 		}
 
-		if err := os.Rename(filename, decryptedFilename); err != nil {
+		if err := os.Rename(decryptedFilename, filename); err != nil {
 			return nil, errors.WithStack(err)
 		}
 	}
