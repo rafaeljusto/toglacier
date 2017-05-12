@@ -557,38 +557,47 @@ func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 			return errors.WithStack(newJobsError(jobs, JobsErrorCodeRetrievingJob, err))
 		}
 
-		jobsFound := make([]string, len(jobs))
-		copy(jobsFound, jobs)
+		jobsRemaining := make([]string, len(jobs))
+		copy(jobsRemaining, jobs)
+
+		a.Logger.Debugf("cloud: received jobs list response, will look for jobs %v", jobs)
 
 		for _, jobDescription := range listJobsOutput.JobList {
+			a.Logger.Debugf("cloud: job %s returned from cloud", *jobDescription.JobId)
+
 			var i int
-			if i = sort.SearchStrings(jobs, *jobDescription.JobId); i == len(jobs) {
+			if i = sort.SearchStrings(jobs, *jobDescription.JobId); i >= len(jobs) || jobs[i] != *jobDescription.JobId {
+				a.Logger.Debugf("cloud: job %s was not expected", *jobDescription.JobId)
 				continue
 			}
 
 			// check-out job in result list
-			if j := sort.SearchStrings(jobsFound, *jobDescription.JobId); j < len(jobsFound) {
-				jobsFound = append(jobsFound[:j], jobsFound[j+1:]...)
+			if j := sort.SearchStrings(jobsRemaining, *jobDescription.JobId); j < len(jobsRemaining) && jobsRemaining[j] == *jobDescription.JobId {
+				jobsRemaining = append(jobsRemaining[:j], jobsRemaining[j+1:]...)
+				a.Logger.Debugf("cloud: remaining jobs to look for %v", jobsRemaining)
 			}
 
 			if !*jobDescription.Completed {
+				a.Logger.Debugf("cloud: job %s not completed yet", *jobDescription.JobId)
 				continue
 			}
 
 			if *jobDescription.StatusCode == "Succeeded" {
 				// remove the job that already succeeded
 				jobs = append(jobs[:i], jobs[i+1:]...)
+				a.Logger.Debugf("cloud: job %s succeeded, still need to proccess jobs %v", *jobDescription.JobId, jobs)
 
 			} else if *jobDescription.StatusCode == "Failed" {
 				return errors.WithStack(newError(*jobDescription.JobId, ErrorCodeJobFailed, errors.New(*jobDescription.StatusMessage)))
 			}
 		}
 
-		if len(jobsFound) > 0 {
-			return errors.WithStack(newJobsError(jobsFound, JobsErrorCodeJobNotFound, nil))
+		if len(jobsRemaining) > 0 {
+			return errors.WithStack(newJobsError(jobsRemaining, JobsErrorCodeJobNotFound, nil))
 		}
 
 		if len(jobs) == 0 {
+			a.Logger.Debug("cloud: all jobs processed")
 			break
 		}
 

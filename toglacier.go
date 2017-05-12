@@ -468,7 +468,7 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 	syncBackups := make(storage.Backups, 0, len(remoteBackups))
 	for i, remoteBackup := range remoteBackups {
 		// check if a recent backup appeared in the inventory
-		if j := sort.SearchStrings(kept, remoteBackup.ID); j < len(kept) {
+		if j := sort.SearchStrings(kept, remoteBackup.ID); j < len(kept) && kept[j] == remoteBackup.ID {
 			if err := t.storage.Remove(kept[j]); err != nil {
 				listBackupsReport.Errors = append(listBackupsReport.Errors, err)
 				return nil, errors.WithStack(err)
@@ -508,7 +508,7 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 			return backups[i].Backup.ID == id
 		})
 
-		if index < len(backups) {
+		if index < len(backups) && backups[index].Backup.ID == id {
 			syncBackups = append(syncBackups, backups[index])
 		}
 	}
@@ -650,7 +650,7 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 	timeMark = time.Now()
 	for i := keepBackups; i < len(backups); i++ {
 		// check if the backup isn't referenced by a active backup
-		if sort.SearchStrings(preserveBackups, backups[i].Backup.ID) < len(preserveBackups) {
+		if j := sort.SearchStrings(preserveBackups, backups[i].Backup.ID); j < len(preserveBackups) && preserveBackups[j] == backups[i].Backup.ID {
 			continue
 		}
 
