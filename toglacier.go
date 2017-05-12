@@ -150,9 +150,9 @@ func main() {
 			Action: func(c *cli.Context) error {
 				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
+				} else {
+					fmt.Println("Backup recovered successfully")
 				}
-
-				fmt.Println("Backup recovered successfully")
 				return nil
 			},
 		},
@@ -532,9 +532,7 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 		}
 	}
 
-	var ids []string
 	var ignoreMainBackup bool
-	idPaths := make(map[string][]string)
 
 	if archiveInfo == nil {
 		// when there's no archive information, retrieve only the desired backup ID.
@@ -556,13 +554,19 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 		ignoreMainBackup = true
 	}
 
+	idPaths := make(map[string][]string)
 	for path, itemInfo := range archiveInfo {
-		if (ignoreMainBackup && itemInfo.ID == id) || itemInfo.Status == archive.ItemInfoStatusDeleted {
-			continue
+		// if we already downloaded the main backup we don't need to download it
+		// again, and we should also avoid downloading backups parts just to
+		// retrieve removed files
+		if (!ignoreMainBackup || itemInfo.ID != id) && itemInfo.Status != archive.ItemInfoStatusDeleted {
+			idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
 		}
+	}
 
-		ids = append(ids, itemInfo.ID)
-		idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
+	var ids []string
+	for id := range idPaths {
+		ids = append(ids, id)
 	}
 
 	filenames, err := t.cloud.Get(t.context, ids...)

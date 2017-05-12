@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -834,6 +835,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 									Status:   archive.ItemInfoStatusNew,
 									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
+								"file3": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+								},
 							},
 						},
 					}, nil
@@ -841,6 +847,10 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			},
 			cloud: mockCloud{
 				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) != 2 {
+						return nil, fmt.Errorf("unexpected number of ids: %v", ids)
+					}
+
 					return map[string]string{
 						"AWSID123": "toglacier-archive-1.tar.gz",
 						"AWSID122": "toglacier-archive-2.tar.gz",
@@ -849,9 +859,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			},
 			builder: mockBuilder{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					sort.Strings(filter)
+
 					switch filename {
 					case "toglacier-archive-1.tar.gz":
-						if len(filter) != 1 || filter[0] != "file1" {
+						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
 					case "toglacier-archive-2.tar.gz":
