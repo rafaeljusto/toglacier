@@ -47,7 +47,7 @@ compiler](https://golang.org/dl/), set the
 your `$PATH` and run the following command:
 
 ```
-go get -u github.com/rafaeljusto/toglacier
+go get -u github.com/rafaeljusto/toglacier/...
 ```
 
 If you are thinking that is a good idea to encrypt some sensitive parameters and
