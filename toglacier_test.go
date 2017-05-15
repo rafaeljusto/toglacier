@@ -1,4 +1,4 @@
-package main
+package toglacier_test
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"github.com/aryann/difflib"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
+	"github.com/rafaeljusto/toglacier"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
@@ -378,12 +379,12 @@ func TestToGlacier_Backup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{
-				context: context.Background(),
-				builder: scenario.builder,
-				envelop: scenario.envelop,
-				cloud:   scenario.cloud,
-				storage: scenario.storage,
+			toGlacier := toglacier.ToGlacier{
+				Context: context.Background(),
+				Builder: scenario.builder,
+				Envelop: scenario.envelop,
+				Cloud:   scenario.cloud,
+				Storage: scenario.storage,
 			}
 
 			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret)
@@ -779,11 +780,11 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{
-				context: context.Background(),
-				cloud:   scenario.cloud,
-				storage: scenario.storage,
-				logger:  scenario.logger,
+			toGlacier := toglacier.ToGlacier{
+				Context: context.Background(),
+				Cloud:   scenario.cloud,
+				Storage: scenario.storage,
+				Logger:  scenario.logger,
 			}
 
 			backups, err := toGlacier.ListBackups(scenario.remote)
@@ -1175,12 +1176,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{
-				context: context.Background(),
-				storage: scenario.storage,
-				envelop: scenario.envelop,
-				cloud:   scenario.cloud,
-				builder: scenario.builder,
+			toGlacier := toglacier.ToGlacier{
+				Context: context.Background(),
+				Storage: scenario.storage,
+				Envelop: scenario.envelop,
+				Cloud:   scenario.cloud,
+				Builder: scenario.builder,
 			}
 
 			err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
@@ -1248,10 +1249,10 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{
-				context: context.Background(),
-				cloud:   scenario.cloud,
-				storage: scenario.storage,
+			toGlacier := toglacier.ToGlacier{
+				Context: context.Background(),
+				Cloud:   scenario.cloud,
+				Storage: scenario.storage,
 			}
 
 			if err := toGlacier.RemoveBackup(scenario.id); !ErrorEqual(scenario.expectedError, err) {
@@ -1440,10 +1441,10 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{
-				context: context.Background(),
-				cloud:   scenario.cloud,
-				storage: scenario.storage,
+			toGlacier := toglacier.ToGlacier{
+				Context: context.Background(),
+				Cloud:   scenario.cloud,
+				Storage: scenario.storage,
 			}
 
 			if err := toGlacier.RemoveOldBackups(scenario.keepBackups); !ErrorEqual(scenario.expectedError, err) {
@@ -1459,7 +1460,7 @@ func TestToGlacier_SendReport(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		reports       []report.Report
-		emailSender   EmailSender
+		emailSender   toglacier.EmailSender
 		emailServer   string
 		emailPort     int
 		emailUsername string
@@ -1478,7 +1479,7 @@ func TestToGlacier_SendReport(t *testing.T) {
 					return r
 				}(),
 			},
-			emailSender: EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			emailSender: toglacier.EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 				if addr != "127.0.0.1:587" {
 					return fmt.Errorf("unexpected “address” %s", addr)
 				}
@@ -1553,7 +1554,7 @@ Subject: toglacier report
 		},
 		{
 			description: "it should detect an error while sending the e-mail",
-			emailSender: EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
+			emailSender: toglacier.EmailSenderFunc(func(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 				return errors.New("generic error while sending e-mail")
 			}),
 			emailServer:   "127.0.0.1",
@@ -1572,13 +1573,13 @@ Subject: toglacier report
 		report.Clear()
 
 		t.Run(scenario.description, func(t *testing.T) {
-			toGlacier := ToGlacier{}
+			toGlacier := toglacier.ToGlacier{}
 
 			for _, r := range scenario.reports {
 				report.Add(r)
 			}
 
-			emailInfo := EmailInfo{
+			emailInfo := toglacier.EmailInfo{
 				Sender:   scenario.emailSender,
 				Server:   scenario.emailServer,
 				Port:     scenario.emailPort,

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+### Changed
+- Tool moved to cmd subdirectory
+
 ## [3.0.0] - 2017-05-15
 ### Added
 - Encrypt/decrypt backup with a shared secret
