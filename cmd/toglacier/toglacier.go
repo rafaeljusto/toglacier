@@ -243,8 +243,25 @@ func main() {
 		{
 			Name:  "report",
 			Usage: "test report notification",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "format,f",
+					Usage: "output format, could be 'text' or 'html'",
+					Value: "html",
+				},
+			},
 			Action: func(c *cli.Context) error {
 				report.Add(report.NewTest())
+
+				var format report.Format
+				switch raw := strings.ToLower(strings.TrimSpace(c.String("format"))); raw {
+				case "text":
+					format = report.FormatPlain
+				case "html":
+					format = report.FormatHTML
+				default:
+					fmt.Printf("invalid format “%s”, it should be 'text' or 'html'", raw)
+				}
 
 				emailInfo := toglacier.EmailInfo{
 					Sender:   toglacier.EmailSenderFunc(smtp.SendMail),
@@ -254,6 +271,7 @@ func main() {
 					Password: config.Current().Email.Password.Value,
 					From:     config.Current().Email.From,
 					To:       config.Current().Email.To,
+					Format:   format,
 				}
 
 				if err := toGlacier.SendReport(emailInfo); err != nil {

@@ -19,6 +19,7 @@ func TestBuild(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		reports       []report.Report
+		format        report.Format
 		expected      string
 		expectedError error
 	}{
@@ -71,6 +72,7 @@ func TestBuild(t *testing.T) {
 					return r
 				}(),
 			},
+			format: report.FormatPlain,
 			expected: `[2017-03-10 14:10:46] Backups Sent
 
   Backup
@@ -143,7 +145,7 @@ func TestBuild(t *testing.T) {
 			description: "it should detect an error while building a report",
 			reports: []report.Report{
 				mockReport{
-					mockBuild: func() (string, error) {
+					mockBuild: func(report.Format) (string, error) {
 						return "", &report.Error{
 							Code: report.ErrorCodeTemplate,
 							Err:  errors.New("error generating report"),
@@ -151,6 +153,7 @@ func TestBuild(t *testing.T) {
 					},
 				},
 			},
+			format: report.FormatPlain,
 			expectedError: &report.Error{
 				Code: report.ErrorCodeTemplate,
 				Err:  errors.New("error generating report"),
@@ -166,7 +169,7 @@ func TestBuild(t *testing.T) {
 				report.Add(r)
 			}
 
-			output, err := report.Build()
+			output, err := report.Build(scenario.format)
 			output = strings.TrimSpace(output)
 
 			outputLines := strings.Split(output, "\n")
@@ -192,11 +195,11 @@ func TestBuild(t *testing.T) {
 }
 
 type mockReport struct {
-	mockBuild func() (string, error)
+	mockBuild func(report.Format) (string, error)
 }
 
-func (r mockReport) Build() (string, error) {
-	return r.mockBuild()
+func (r mockReport) Build(f report.Format) (string, error) {
+	return r.mockBuild(f)
 }
 
 // Diff is useful to see the difference when comparing two complex types.

@@ -19,10 +19,63 @@ var (
 	reportsLock sync.Mutex
 )
 
+const (
+	// FormatPlain send e-mail containing only ascii characters.
+	FormatPlain Format = "plain"
+
+	// FormatHTML send e-mail with a HTML structure for better presentation
+	// of the content.
+	FormatHTML Format = "html"
+)
+
+// Format defines the format used in the e-mail content.
+type Format string
+
+// String gives the string representation that can be used in e-mail headers.
+func (f Format) String() string {
+	switch f {
+	case FormatPlain:
+		return "text/plain"
+	case FormatHTML:
+		return "text/html"
+	}
+
+	return "text/plain"
+}
+
+const formatHTMLPrefix = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+	  <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>toglacier report</title>
+		<style type="text/css">
+		  .title {
+				background: url("https://github.com/rafaeljusto/toglacier/raw/master/toglacier.png") no-repeat 0px -225px / cover;
+        height: 400px;
+				width: 100%;
+			}
+
+      .report {
+				border-bottom: 2px solid lightgrey;
+			}
+
+			.report .date {
+				color: lightgrey;
+			}
+		</style>
+  </head>
+	<body>
+	  <section class="title"></section>
+`
+
+const formatHTMLSuffix = `  </body>
+</html>`
+
 // Report is the contract that every report must respect so it can be included
 // in the notification engine.
 type Report interface {
-	Build() (string, error)
+	Build(Format) (string, error)
 }
 
 type basic struct {
@@ -73,7 +126,7 @@ func NewSendBackup() SendBackup {
 //         // unknown error
 //       }
 //     }
-func (s SendBackup) Build() (string, error) {
+func (s SendBackup) Build(f Format) (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
 
@@ -143,7 +196,7 @@ func NewListBackups() ListBackups {
 //         // unknown error
 //       }
 //     }
-func (l ListBackups) Build() (string, error) {
+func (l ListBackups) Build(f Format) (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] List Backup
 
@@ -205,7 +258,7 @@ func NewRemoveOldBackups() RemoveOldBackups {
 //         // unknown error
 //       }
 //     }
-func (r RemoveOldBackups) Build() (string, error) {
+func (r RemoveOldBackups) Build(f Format) (string, error) {
 	tmpl := `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Remove Old Backups
 
@@ -269,8 +322,34 @@ func NewTest() Test {
 //         // unknown error
 //       }
 //     }
-func (tr Test) Build() (string, error) {
-	tmpl := `
+func (tr Test) Build(f Format) (string, error) {
+	var tmpl string
+
+	switch f {
+	case FormatHTML:
+		tmpl = formatHTMLPrefix + `
+		<section class="report">
+      <h1>Test report</h1>
+		  <div class="date">
+		    {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+		  </div>
+      <p>Testing the notification mechanisms.</p>
+      {{if .Errors -}}
+      <h2>Errors</h2>
+	    <ul>
+        {{range $err := .Errors}}
+        <li>{{$err}}</li>
+        {{- end -}}
+	    </ul>
+      {{- end}}
+		</section>
+	` + formatHTMLSuffix
+
+	case FormatPlain:
+		fallthrough
+
+	default:
+		tmpl = `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Test report
 
   Testing the notification mechanisms.
@@ -283,6 +362,8 @@ func (tr Test) Build() (string, error) {
     {{- end -}}
   {{- end}}
 	`
+	}
+
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -309,8 +390,8 @@ func Clear() {
 	reports = []Report{}
 }
 
-// Build generates the report in text format. Every time this function is called the
-// internal cache of reports is cleared. On error it will return an
+// Build generates the report in the specify format. Every time this function is
+// called the internal cache of reports is cleared. On error it will return an
 // Error type encapsulated in a traceable error. To retrieve the desired error
 // you can do:
 //
@@ -326,7 +407,7 @@ func Clear() {
 //         // unknown error
 //       }
 //     }
-func Build() (string, error) {
+func Build(f Format) (string, error) {
 	reportsLock.Lock()
 	defer reportsLock.Unlock()
 	defer func() {
@@ -335,7 +416,7 @@ func Build() (string, error) {
 
 	var buffer string
 	for _, r := range reports {
-		tmp, err := r.Build()
+		tmp, err := r.Build(f)
 		if err != nil {
 			return "", errors.WithStack(err)
 		}

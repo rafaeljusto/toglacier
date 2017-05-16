@@ -1467,6 +1467,7 @@ func TestToGlacier_SendReport(t *testing.T) {
 		emailPassword string
 		emailFrom     string
 		emailTo       []string
+		format        report.Format
 		expectedError error
 	}{
 		{
@@ -1495,6 +1496,8 @@ func TestToGlacier_SendReport(t *testing.T) {
 				expectedMsg := `From: test@example.com
 To: user@example.com
 Subject: toglacier report
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
 
 
 [2017-03-10 14:10:46] Test report
@@ -1532,12 +1535,13 @@ Subject: toglacier report
 			emailTo: []string{
 				"user@example.com",
 			},
+			format: report.FormatPlain,
 		},
 		{
 			description: "it should fail to build the reports",
 			reports: []report.Report{
 				mockReport{
-					mockBuild: func() (string, error) {
+					mockBuild: func(report.Format) (string, error) {
 						return "", errors.New("error generating report")
 					},
 				},
@@ -1550,6 +1554,7 @@ Subject: toglacier report
 			emailTo: []string{
 				"user@example.com",
 			},
+			format:        report.FormatPlain,
 			expectedError: errors.New("error generating report"),
 		},
 		{
@@ -1565,6 +1570,7 @@ Subject: toglacier report
 			emailTo: []string{
 				"user@example.com",
 			},
+			format:        report.FormatPlain,
 			expectedError: errors.New("generic error while sending e-mail"),
 		},
 	}
@@ -1587,6 +1593,7 @@ Subject: toglacier report
 				Password: scenario.emailPassword,
 				From:     scenario.emailFrom,
 				To:       scenario.emailTo,
+				Format:   scenario.format,
 			}
 
 			if err := toGlacier.SendReport(emailInfo); !ErrorEqual(scenario.expectedError, err) {
@@ -1664,11 +1671,11 @@ func (m mockStorage) Remove(id string) error {
 }
 
 type mockReport struct {
-	mockBuild func() (string, error)
+	mockBuild func(report.Format) (string, error)
 }
 
-func (r mockReport) Build() (string, error) {
-	return r.mockBuild()
+func (r mockReport) Build(f report.Format) (string, error) {
+	return r.mockBuild(f)
 }
 
 type mockLogger struct {
