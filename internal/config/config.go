@@ -35,12 +35,13 @@ type Config struct {
 	} `yaml:"log" envconfig:"log"`
 
 	Email struct {
-		Server   string    `yaml:"server" envconfig:"server"`
-		Port     int       `yaml:"port" envconfig:"port"`
-		Username string    `yaml:"username" envconfig:"username"`
-		Password encrypted `yaml:"password" envconfig:"password"`
-		From     string    `yaml:"from" envconfig:"from"`
-		To       []string  `yaml:"to" envconfig:"to"`
+		Server   string      `yaml:"server" envconfig:"server"`
+		Port     int         `yaml:"port" envconfig:"port"`
+		Username string      `yaml:"username" envconfig:"username"`
+		Password encrypted   `yaml:"password" envconfig:"password"`
+		From     string      `yaml:"from" envconfig:"from"`
+		To       []string    `yaml:"to" envconfig:"to"`
+		Format   EmailFormat `yaml:"format" envconfig:"format"`
 	} `yaml:"email" envconfig:"email"`
 
 	AWS struct {
@@ -74,6 +75,7 @@ func Default() {
 	c.Database.Type = DatabaseTypeBoltDB
 	c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 	c.Log.Level = LogLevelError
+	c.Email.Format = EmailFormatHTML
 
 	Update(c)
 }
@@ -296,5 +298,39 @@ func (a *aesKey) UnmarshalText(value []byte) error {
 		}
 	}
 
+	return nil
+}
+
+const (
+	// EmailFormatPlain ascii only content for e-mail clients that accept only
+	// simple text.
+	EmailFormatPlain EmailFormat = "plain"
+
+	// EmailFormatHTML better structured content that requires HTML support by the
+	// e-mail client.
+	EmailFormatHTML EmailFormat = "html"
+)
+
+var emailFormatValid = map[string]bool{
+	string(EmailFormatPlain): true,
+	string(EmailFormatHTML):  true,
+}
+
+// EmailFormat defines the desired content format to be used in report e-mails.
+// By default "html" is used.
+type EmailFormat string
+
+// UnmarshalText ensure that the email format defined in the configuration is
+// valid.
+func (e *EmailFormat) UnmarshalText(value []byte) error {
+	emailFormat := string(value)
+	emailFormat = strings.TrimSpace(emailFormat)
+	emailFormat = strings.ToLower(emailFormat)
+
+	if ok := emailFormatValid[emailFormat]; !ok {
+		return newError("", ErrorCodeEmailFormat, nil)
+	}
+
+	*e = EmailFormat(emailFormat)
 	return nil
 }

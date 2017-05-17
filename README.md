@@ -85,6 +85,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_EMAIL_PASSWORD         | Password for e-mail authentication      |
 | TOGLACIER_EMAIL_FROM             | E-mail used when sending the reports    |
 | TOGLACIER_EMAIL_TO               | List of e-mails to send the report to   |
+| TOGLACIER_EMAIL_FORMAT           | E-mail content format (html or plain)   |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -157,6 +158,7 @@ TOGLACIER_EMAIL_USERNAME="user@example.com" \
 TOGLACIER_EMAIL_PASSWORD="encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==" \
 TOGLACIER_EMAIL_FROM="user@example.com" \
 TOGLACIER_EMAIL_TO="report1@example.com,report2@example.com" \
+TOGLACIER_EMAIL_FORMAT="html" \
 toglacier $@
 ```
 
@@ -218,7 +220,8 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_EMAIL_USERNAME=user@example.com ^
   TOGLACIER_EMAIL_PASSWORD=encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA== ^
   TOGLACIER_EMAIL_FROM=user@example.com ^
-  TOGLACIER_EMAIL_TO=report1@example.com,report2@example.com
+  TOGLACIER_EMAIL_TO=report1@example.com,report2@example.com ^
+  TOGLACIER_EMAIL_FORMAT=html
 
 c:\> nssm.exe start toglacier
 ```
