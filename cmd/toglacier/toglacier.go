@@ -246,7 +246,7 @@ func main() {
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "format,f",
-					Usage: "output format, could be 'text' or 'html'",
+					Usage: "output format, could be 'plain' or 'html'",
 					Value: "html",
 				},
 			},
@@ -255,12 +255,12 @@ func main() {
 
 				var format report.Format
 				switch raw := strings.ToLower(strings.TrimSpace(c.String("format"))); raw {
-				case "text":
+				case "plain":
 					format = report.FormatPlain
 				case "html":
 					format = report.FormatHTML
 				default:
-					fmt.Printf("invalid format “%s”, it should be 'text' or 'html'", raw)
+					fmt.Printf("invalid format “%s”, it should be 'plain' or 'html'", raw)
 				}
 
 				emailInfo := toglacier.EmailInfo{

@@ -46,27 +46,40 @@ func (f Format) String() string {
 const formatHTMLPrefix = `<!DOCTYPE html>
 <html lang="en">
   <head>
-	  <meta charset="utf-8">
+    <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>toglacier report</title>
-		<style type="text/css">
-		  .title {
-				background: url("https://github.com/rafaeljusto/toglacier/raw/master/toglacier.png") no-repeat 0px -225px / cover;
+    <style type="text/css">
+      body {
+        font-family: "sans-serif";
+      }
+
+      .title {
+        background: url("https://github.com/rafaeljusto/toglacier/raw/master/toglacier.png") no-repeat 0px -225px / cover;
         height: 400px;
-				width: 100%;
-			}
+        width: 100%;
+      }
 
       .report {
-				border-bottom: 2px solid lightgrey;
-			}
+        border-bottom: 2px solid lightgrey;
+        padding: 10px 0px 20px 0px;
+      }
 
-			.report .date {
-				color: lightgrey;
-			}
-		</style>
+      .report h1 {
+        background-color: #66ccff;
+        border-radius: 10px;
+        box-shadow: 10px 10px 5px #888888;
+        margin-bottom: 30px;
+        padding: 15px;
+      }
+
+      .report .date {
+        color: grey;
+      }
+    </style>
   </head>
-	<body>
-	  <section class="title"></section>
+  <body>
+    <section class="title"></section>
 `
 
 const formatHTMLSuffix = `  </body>
@@ -153,7 +166,7 @@ func (s SendBackup) Build(f Format) (string, error) {
     * {{$err}}
     {{- end -}}
   {{- end}}
-	`
+  `
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -212,7 +225,7 @@ func (l ListBackups) Build(f Format) (string, error) {
     * {{$err}}
     {{- end -}}
   {{- end}}
-	`
+  `
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -284,7 +297,7 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
     * {{$err}}
     {{- end -}}
   {{- end}}
-	`
+  `
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -327,23 +340,23 @@ func (tr Test) Build(f Format) (string, error) {
 
 	switch f {
 	case FormatHTML:
-		tmpl = formatHTMLPrefix + `
-		<section class="report">
+		tmpl = `
+    <section class="report">
       <h1>Test report</h1>
-		  <div class="date">
-		    {{.CreatedAt.Format "2006-01-02 15:04:05"}}
-		  </div>
+      <div class="date">
+        {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+      </div>
       <p>Testing the notification mechanisms.</p>
       {{if .Errors -}}
       <h2>Errors</h2>
-	    <ul>
+      <ul>
         {{range $err := .Errors}}
         <li>{{$err}}</li>
         {{- end -}}
-	    </ul>
+      </ul>
       {{- end}}
-		</section>
-	` + formatHTMLSuffix
+    </section>
+  `
 
 	case FormatPlain:
 		fallthrough
@@ -361,7 +374,7 @@ func (tr Test) Build(f Format) (string, error) {
     * {{$err}}
     {{- end -}}
   {{- end}}
-	`
+  `
 	}
 
 	t := template.Must(template.New("report").Parse(tmpl))
@@ -423,6 +436,10 @@ func Build(f Format) (string, error) {
 
 		// using fmt.Sprintln to create a cross platform line break
 		buffer += fmt.Sprintln(tmp)
+	}
+
+	if f == FormatHTML {
+		buffer = formatHTMLPrefix + buffer + formatHTMLSuffix
 	}
 
 	return buffer, nil
