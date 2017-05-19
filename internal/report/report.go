@@ -140,7 +140,70 @@ func NewSendBackup() SendBackup {
 //       }
 //     }
 func (s SendBackup) Build(f Format) (string, error) {
-	tmpl := `
+	var tmpl string
+
+	switch f {
+	case FormatHTML:
+		tmpl = `
+    <section class="report">
+      <h1>Backups Sent</h1>
+      <div class="date">
+        {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+      </div>
+      <h2>Backup</h2>
+      <div>
+        <label>ID:</label>
+        <span>{{.Backup.ID}}</span>
+      </div>
+      <div>
+        <label>Date:</label>
+        <span>{{.Backup.CreatedAt.Format "2006-01-02 15:04:05"}}</span>
+      </div>
+      <div>
+        <label>Vault:</label>
+        <span>{{.Backup.VaultName}}</span>
+      </div>
+      <div>
+        <label>Checksum:</label>
+        <span>{{.Backup.Checksum}}</span>
+      </div>
+      <div>
+        <label>Paths:</label>
+        <ul>
+          {{range $path := .Paths}}
+          <li>{{$path}}</li>
+          {{- end}}
+        </ul>
+      </div>
+      <h2>Durations</h2>
+      <div>
+        <label>Build:</label>
+        <span>{{.Durations.Build}}</span>
+      </div>
+      <div>
+        <label>Encrypt:</label>
+        <span>{{.Durations.Encrypt}}</span>
+      </div>
+      <div>
+        <label>Send:</label>
+        <span>{{.Durations.Send}}</span>
+      </div>
+      {{if .Errors -}}
+      <h2>Errors</h2>
+      <ul>
+        {{range $err := .Errors}}
+        <li>{{$err}}</li>
+        {{- end -}}
+      </ul>
+      {{- end}}
+    </section>
+  `
+
+	case FormatPlain:
+		fallthrough
+
+	default:
+		tmpl = `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
 
   Backup
@@ -167,6 +230,8 @@ func (s SendBackup) Build(f Format) (string, error) {
     {{- end -}}
   {{- end}}
   `
+	}
+
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -210,7 +275,37 @@ func NewListBackups() ListBackups {
 //       }
 //     }
 func (l ListBackups) Build(f Format) (string, error) {
-	tmpl := `
+	var tmpl string
+
+	switch f {
+	case FormatHTML:
+		tmpl = `
+    <section class="report">
+      <h1>List Backup</h1>
+      <div class="date">
+        {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+      </div>
+      <h2>Durations</h2>
+      <div>
+        <label>List:</label>
+        <span>{{.Durations.List}}</span>
+      </div>
+      {{if .Errors -}}
+      <h2>Errors</h2>
+      <ul>
+        {{range $err := .Errors}}
+        <li>{{$err}}</li>
+        {{- end -}}
+      </ul>
+      {{- end}}
+    </section>
+  `
+
+	case FormatPlain:
+		fallthrough
+
+	default:
+		tmpl = `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] List Backup
 
   Durations
@@ -226,6 +321,8 @@ func (l ListBackups) Build(f Format) (string, error) {
     {{- end -}}
   {{- end}}
   `
+	}
+
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
@@ -272,7 +369,60 @@ func NewRemoveOldBackups() RemoveOldBackups {
 //       }
 //     }
 func (r RemoveOldBackups) Build(f Format) (string, error) {
-	tmpl := `
+	var tmpl string
+
+	switch f {
+	case FormatHTML:
+		tmpl = `
+    <section class="report">
+      <h1>Remove Old Backups</h1>
+      <div class="date">
+        {{.CreatedAt.Format "2006-01-02 15:04:05"}}
+      </div>
+      <h2>Backups</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Date</th>
+            <th>Vault</th>
+            <th>Checksum</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{range $backup := .Backups}}
+          <td>{{$backup.ID}}</td>
+          <td>{{$backup.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
+          <td>{{$backup.VaultName}}</td>
+          <td>{{$backup.Checksum}}</td>
+          {{- end}}
+        </tbody>
+      </table>
+      <h2>Durations</h2>
+      <div>
+        <label>List:</label>
+        <span>{{.Durations.List}}</span>
+      </div>
+      <div>
+        <label>Remove:</label>
+        <span>{{.Durations.Remove}}</span>
+      </div>
+      {{if .Errors -}}
+      <h2>Errors</h2>
+      <ul>
+        {{range $err := .Errors}}
+        <li>{{$err}}</li>
+        {{- end -}}
+      </ul>
+      {{- end}}
+    </section>
+  `
+
+	case FormatPlain:
+		fallthrough
+
+	default:
+		tmpl = `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Remove Old Backups
 
   Backups
@@ -298,6 +448,8 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
     {{- end -}}
   {{- end}}
   `
+	}
+
 	t := template.Must(template.New("report").Parse(tmpl))
 
 	var buffer bytes.Buffer
