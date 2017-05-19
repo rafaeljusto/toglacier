@@ -722,9 +722,9 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 	scenarios := []scenario{
 		func() scenario {
-			var scenario scenario
-			scenario.description = "it should extract an archive correctly with filters"
-			scenario.builder = archive.NewTARBuilder(mockLogger{
+			var s scenario
+			s.description = "it should extract an archive correctly with filters"
+			s.builder = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -765,9 +765,9 @@ func TestTARBuilder_Extract(t *testing.T) {
 			}
 			writeFile(tarArchive, baseDir, archive.TARInfoFilename, string(archiveInfoData))
 
-			scenario.filename = tarFile.Name()
-			scenario.filter = []string{filepath.Join("/", dir2, file2)}
-			scenario.expected = func() error {
+			s.filename = tarFile.Name()
+			s.filter = []string{filepath.Join("/", dir2, file2)}
+			s.expected = func() error {
 				filename1 := filepath.Join(baseDir, dir1, file1)
 
 				if _, err = os.Stat(filename1); !os.IsNotExist(err) {
@@ -793,7 +793,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 				return nil
 			}
-			scenario.expectedArchiveInfo = archive.Info{
+			s.expectedArchiveInfo = archive.Info{
 				file1: archive.ItemInfo{
 					ID:       "AWS123456",
 					Status:   archive.ItemInfoStatusModified,
@@ -804,15 +804,15 @@ func TestTARBuilder_Extract(t *testing.T) {
 					Checksum: "d650616996f255dc8ecda15eca765a490c5b52f3fe2a3f184f38b307dcd57b51",
 				},
 			}
-			scenario.clean = func() {
+			s.clean = func() {
 				os.RemoveAll(baseDir)
 			}
-			return scenario
+			return s
 		}(),
 		func() scenario {
-			var scenario scenario
-			scenario.description = "it should extract an archive correctly without filters"
-			scenario.builder = archive.NewTARBuilder(mockLogger{
+			var s scenario
+			s.description = "it should extract an archive correctly without filters"
+			s.builder = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -832,8 +832,8 @@ func TestTARBuilder_Extract(t *testing.T) {
 			file1 := writeFile(tarArchive, baseDir, "", "this is test 1")
 			file2 := writeFile(tarArchive, baseDir, "", "this is test 2")
 
-			scenario.filename = tarFile.Name()
-			scenario.expected = func() error {
+			s.filename = tarFile.Name()
+			s.expected = func() error {
 				filename1 := filepath.Join(baseDir, file1)
 
 				content, err := ioutil.ReadFile(filename1)
@@ -858,10 +858,10 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 				return nil
 			}
-			scenario.clean = func() {
+			s.clean = func() {
 				os.RemoveAll(baseDir)
 			}
-			return scenario
+			return s
 		}(),
 		{
 			description: "it should detect when the file doesn't exist",
@@ -883,9 +883,9 @@ func TestTARBuilder_Extract(t *testing.T) {
 			},
 		},
 		func() scenario {
-			var scenario scenario
-			scenario.description = "it should detect when the file isn't a TAR"
-			scenario.builder = archive.NewTARBuilder(mockLogger{
+			var s scenario
+			s.description = "it should detect when the file isn't a TAR"
+			s.builder = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -900,19 +900,19 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 			file.WriteString("I'm not a TAR")
 
-			scenario.filename = file.Name()
-			scenario.expectedError = &archive.Error{
+			s.filename = file.Name()
+			s.expectedError = &archive.Error{
 				Filename: file.Name(),
 				Code:     archive.ErrorCodeReadingTAR,
 				Err:      io.ErrUnexpectedEOF,
 			}
 
-			return scenario
+			return s
 		}(),
 		func() scenario {
-			var scenario scenario
-			scenario.description = "it should detect a corrupted archive info"
-			scenario.builder = archive.NewTARBuilder(mockLogger{
+			var s scenario
+			s.description = "it should detect a corrupted archive info"
+			s.builder = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -931,16 +931,16 @@ func TestTARBuilder_Extract(t *testing.T) {
 			baseDir := "backup-" + time.Now().Format("20060102150405.000000000")
 			writeFile(tarArchive, baseDir, archive.TARInfoFilename, "{{{{")
 
-			scenario.filename = tarFile.Name()
-			scenario.expectedError = &archive.Error{
+			s.filename = tarFile.Name()
+			s.expectedError = &archive.Error{
 				Filename: tarFile.Name(),
 				Code:     archive.ErrorCodeDecodingInfo,
 				Err:      errors.New(`invalid character '{' looking for beginning of object key string`), // json.SyntaxError message is a private attribute
 			}
-			scenario.clean = func() {
+			s.clean = func() {
 				os.RemoveAll(baseDir)
 			}
-			return scenario
+			return s
 		}(),
 	}
 
@@ -949,7 +949,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 			archiveInfo, err := scenario.builder.Extract(scenario.filename, scenario.filter)
 
 			if scenario.expected != nil {
-				if err := scenario.expected(); err != nil {
+				if scenarioErr := scenario.expected(); scenarioErr != nil {
 					t.Error(err)
 				}
 			}

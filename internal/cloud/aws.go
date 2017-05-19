@@ -236,8 +236,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 	for offset = 0; offset < archiveSize; offset += partSize {
 		a.Logger.Debugf("cloud: sending part %d/%d", offset, archiveSize)
 
-		n, err := archive.Read(part)
-		if err != nil {
+		var n int
+		if n, err = archive.Read(part); err != nil {
 			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeReadingArchive, err))
 		}
 
@@ -253,8 +253,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 			VaultName: aws.String(a.VaultName),
 		}
 
-		uploadMultipartPartOutput, err := a.Glacier.UploadMultipartPart(&uploadMultipartPartInput)
-		if err != nil {
+		var uploadMultipartPartOutput *glacier.UploadMultipartPartOutput
+		if uploadMultipartPartOutput, err = a.Glacier.UploadMultipartPart(&uploadMultipartPartInput); err != nil {
 			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
 				AccountId: aws.String(a.AccountID),
 				UploadId:  initiateMultipartUploadOutput.UploadId,

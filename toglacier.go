@@ -254,12 +254,13 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	var ignoreMainBackup bool
 
 	if archiveInfo == nil {
+		var filenames map[string]string
+
 		// when there's no archive information, retrieve only the desired backup ID.
 		// We will extract the archive information saved in the backup to detect all
 		// other backup parts that we need. This is important when the local storage
 		// got corrupted due to a disaster
-		filenames, err := t.Cloud.Get(t.Context, id)
-		if err != nil {
+		if filenames, err = t.Cloud.Get(t.Context, id); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -313,7 +314,7 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 			return nil, errors.WithStack(err)
 		}
 
-		if err := os.Rename(decryptedFilename, filename); err != nil {
+		if err = os.Rename(decryptedFilename, filename); err != nil {
 			return nil, errors.WithStack(err)
 		}
 	}

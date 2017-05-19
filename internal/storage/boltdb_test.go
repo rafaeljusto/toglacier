@@ -173,8 +173,8 @@ func TestBoltDB_List(t *testing.T) {
 					Backup: cloud.Backup{
 						ID: "654321",
 						CreatedAt: func() time.Time {
-							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
-							if err != nil {
+							var c time.Time
+							if c, err = time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339)); err != nil {
 								t.Fatalf("error parsing current time. details: %s", err)
 							}
 							return c
