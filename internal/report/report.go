@@ -170,7 +170,7 @@ func (s SendBackup) Build(f Format) (string, error) {
       <div>
         <label>Paths:</label>
         <ul>
-          {{range $path := .Paths}}
+          {{range $path := .Paths -}}
           <li>{{$path}}</li>
           {{- end}}
         </ul>
@@ -191,9 +191,9 @@ func (s SendBackup) Build(f Format) (string, error) {
       {{if .Errors -}}
       <h2>Errors</h2>
       <ul>
-        {{range $err := .Errors}}
+        {{range $err := .Errors -}}
         <li>{{$err}}</li>
-        {{- end -}}
+        {{end -}}
       </ul>
       {{- end}}
     </section>
@@ -293,9 +293,9 @@ func (l ListBackups) Build(f Format) (string, error) {
       {{if .Errors -}}
       <h2>Errors</h2>
       <ul>
-        {{range $err := .Errors}}
+        {{range $err := .Errors -}}
         <li>{{$err}}</li>
-        {{- end -}}
+        {{end -}}
       </ul>
       {{- end}}
     </section>
@@ -390,7 +390,7 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
           </tr>
         </thead>
         <tbody>
-          {{range $backup := .Backups}}
+          {{range $backup := .Backups -}}
           <td>{{$backup.ID}}</td>
           <td>{{$backup.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
           <td>{{$backup.VaultName}}</td>
@@ -410,9 +410,9 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
       {{if .Errors -}}
       <h2>Errors</h2>
       <ul>
-        {{range $err := .Errors}}
+        {{range $err := .Errors -}}
         <li>{{$err}}</li>
-        {{- end -}}
+        {{end -}}
       </ul>
       {{- end}}
     </section>
@@ -502,9 +502,9 @@ func (tr Test) Build(f Format) (string, error) {
       {{if .Errors -}}
       <h2>Errors</h2>
       <ul>
-        {{range $err := .Errors}}
+        {{range $err := .Errors -}}
         <li>{{$err}}</li>
-        {{- end -}}
+        {{end -}}
       </ul>
       {{- end}}
     </section>
