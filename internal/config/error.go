@@ -38,6 +38,10 @@ const (
 	// ErrorCodeLogLevel informed log level is unknown, it should be "debug",
 	// "info", "warning", "error", "fatal" or "panic".
 	ErrorCodeLogLevel ErrorCode = "log-level"
+
+	// ErrorCodeEmailFormat informed email format is unknown, it should be "plain"
+	// or "html".
+	ErrorCodeEmailFormat ErrorCode = "email-format"
 )
 
 // ErrorCode stores the error type that occurred while reading
@@ -65,6 +69,8 @@ func (e ErrorCode) String() string {
 		return "invalid database type"
 	case ErrorCodeLogLevel:
 		return "invalid log level"
+	case ErrorCodeEmailFormat:
+		return "invalid email format"
 	}
 
 	return "unknown error code"

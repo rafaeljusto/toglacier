@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/smtp"
@@ -219,6 +220,7 @@ func main() {
 						Password: config.Current().Email.Password.Value,
 						From:     config.Current().Email.From,
 						To:       config.Current().Email.To,
+						Format:   report.Format(config.Current().Email.Format),
 					}
 
 					if err := toGlacier.SendReport(emailInfo); err != nil {
@@ -244,7 +246,12 @@ func main() {
 			Name:  "report",
 			Usage: "test report notification",
 			Action: func(c *cli.Context) error {
-				report.Add(report.NewTest())
+				test := report.NewTest()
+				test.Errors = append(test.Errors, errors.New("simulated error 1"))
+				test.Errors = append(test.Errors, errors.New("simulated error 2"))
+				test.Errors = append(test.Errors, errors.New("simulated error 3"))
+
+				report.Add(test)
 
 				emailInfo := toglacier.EmailInfo{
 					Sender:   toglacier.EmailSenderFunc(smtp.SendMail),
@@ -254,6 +261,7 @@ func main() {
 					Password: config.Current().Email.Password.Value,
 					From:     config.Current().Email.From,
 					To:       config.Current().Email.To,
+					Format:   report.Format(config.Current().Email.Format),
 				}
 
 				if err := toGlacier.SendReport(emailInfo); err != nil {

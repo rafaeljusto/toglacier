@@ -84,6 +84,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "config: invalid log level",
 		},
 		{
+			description: "it should show the correct error message for invalid email format",
+			err:         &config.Error{Code: config.ErrorCodeEmailFormat},
+			expected:    "config: invalid email format",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &config.Error{Code: config.ErrorCode("i-dont-exist")},
 			expected:    "config: unknown error code",

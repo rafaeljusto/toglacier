@@ -18,6 +18,7 @@ email:
   to:
     - report1@example.com
     - report2@example.com
+  format: html
 aws:
   account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
   access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ

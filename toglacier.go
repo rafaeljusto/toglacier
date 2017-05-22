@@ -388,7 +388,7 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 // SendReport send information from the actions performed by this tool via
 // e-mail to an administrator.
 func (t ToGlacier) SendReport(emailInfo EmailInfo) error {
-	r, err := report.Build()
+	r, err := report.Build(emailInfo.Format)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -396,8 +396,10 @@ func (t ToGlacier) SendReport(emailInfo EmailInfo) error {
 	body := fmt.Sprintf(`From: %s
 To: %s
 Subject: toglacier report
+MIME-Version: 1.0
+Content-Type: %s; charset=utf-8
 
-%s`, emailInfo.From, strings.Join(emailInfo.To, ","), r)
+%s`, emailInfo.From, strings.Join(emailInfo.To, ","), emailInfo.Format, r)
 
 	auth := smtp.PlainAuth("", emailInfo.Username, emailInfo.Password, emailInfo.Server)
 	err = emailInfo.Sender.SendMail(fmt.Sprintf("%s:%d", emailInfo.Server, emailInfo.Port), auth, emailInfo.From, emailInfo.To, []byte(body))
@@ -413,6 +415,7 @@ type EmailInfo struct {
 	Password string
 	From     string
 	To       []string
+	Format   report.Format
 }
 
 // EmailSender e-mail API to make it easy to mock the smtp.SendEmail function.
