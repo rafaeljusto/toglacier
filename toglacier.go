@@ -330,12 +330,18 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 }
 
 // RemoveBackup delete a specific backup from the cloud.
-func (t ToGlacier) RemoveBackup(id string) error {
-	if err := t.Cloud.Remove(t.Context, id); err != nil {
-		return errors.WithStack(err)
+func (t ToGlacier) RemoveBackup(ids ...string) error {
+	for _, id := range ids {
+		if err := t.Cloud.Remove(t.Context, id); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := t.Storage.Remove(id); err != nil {
+			return errors.WithStack(err)
+		}
 	}
 
-	return errors.WithStack(t.Storage.Remove(id))
+	return nil
 }
 
 // RemoveOldBackups delete old backups from the cloud. This will optimize the

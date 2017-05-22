@@ -1196,14 +1196,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 func TestToGlacier_RemoveBackup(t *testing.T) {
 	scenarios := []struct {
 		description   string
-		id            string
+		ids           []string
 		cloud         cloud.Cloud
 		storage       storage.Storage
 		expectedError error
 	}{
 		{
 			description: "it should remove a backup correctly",
-			id:          "123456",
+			ids:         []string{"123456"},
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
 					return nil
@@ -1217,7 +1217,7 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while removing the remote backup",
-			id:          "123456",
+			ids:         []string{"123456"},
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
 					return errors.New("error removing backup")
@@ -1232,7 +1232,7 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while removing the local backup",
-			id:          "123456",
+			ids:         []string{"123456"},
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
 					return nil
@@ -1255,7 +1255,7 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 				Storage: scenario.storage,
 			}
 
-			if err := toGlacier.RemoveBackup(scenario.id); !ErrorEqual(scenario.expectedError, err) {
+			if err := toGlacier.RemoveBackup(scenario.ids...); !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
