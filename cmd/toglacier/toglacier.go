@@ -158,10 +158,12 @@ func main() {
 		{
 			Name:      "remove",
 			Aliases:   []string{"rm"},
-			Usage:     "remove a specific backup from AWS Glacier",
-			ArgsUsage: "<archiveID>",
+			Usage:     "remove backups from AWS Glacier",
+			ArgsUsage: "<archiveID> [archiveID ...]",
 			Action: func(c *cli.Context) error {
-				if err := toGlacier.RemoveBackup(c.Args().First()); err != nil {
+				ids := []string{c.Args().First()}
+				ids = append(ids, c.Args().Tail()...)
+				if err := toGlacier.RemoveBackup(ids...); err != nil {
 					logger.Error(err)
 				}
 				return nil
