@@ -32,7 +32,7 @@ func TestToGlacier_Backup(t *testing.T) {
 		description   string
 		backupPaths   []string
 		backupSecret  string
-		builder       archive.Builder
+		archive       archive.Archive
 		envelop       archive.Envelop
 		cloud         cloud.Cloud
 		storage       storage.Storage
@@ -52,7 +52,7 @@ func TestToGlacier_Backup(t *testing.T) {
 
 				return []string{d}
 			}(),
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
 						t.Fatalf("no backup path informed")
@@ -144,7 +144,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			backupSecret: "12345678901234567890123456789012",
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
@@ -190,7 +190,7 @@ func TestToGlacier_Backup(t *testing.T) {
 			backupPaths: func() []string {
 				return []string{"idontexist12345"}
 			}(),
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					return "", nil, errors.New("path doesn't exist")
 				},
@@ -211,7 +211,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				}
 				return []string{d}
 			}(),
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
 						t.Fatalf("no backup path informed")
@@ -257,7 +257,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			backupSecret: "123456",
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
@@ -307,7 +307,7 @@ func TestToGlacier_Backup(t *testing.T) {
 
 				return []string{d}
 			}(),
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
@@ -344,7 +344,7 @@ func TestToGlacier_Backup(t *testing.T) {
 
 				return []string{d}
 			}(),
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
@@ -381,7 +381,7 @@ func TestToGlacier_Backup(t *testing.T) {
 		t.Run(scenario.description, func(t *testing.T) {
 			toGlacier := toglacier.ToGlacier{
 				Context: context.Background(),
-				Builder: scenario.builder,
+				Archive: scenario.archive,
 				Envelop: scenario.envelop,
 				Cloud:   scenario.cloud,
 				Storage: scenario.storage,
@@ -802,14 +802,16 @@ func TestToGlacier_ListBackups(t *testing.T) {
 
 func TestToGlacier_RetrieveBackup(t *testing.T) {
 	scenarios := []struct {
-		description   string
-		id            string
-		backupSecret  string
-		storage       storage.Storage
-		envelop       archive.Envelop
-		cloud         cloud.Cloud
-		builder       archive.Builder
-		expectedError error
+		description    string
+		id             string
+		backupSecret   string
+		skipUnmodified bool
+		storage        storage.Storage
+		envelop        archive.Envelop
+		cloud          cloud.Cloud
+		archive        archive.Archive
+		logger         log.Logger
+		expectedError  error
 	}{
 		{
 			description: "it should retrieve a backup correctly",
@@ -858,7 +860,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					}, nil
 				},
 			},
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					sort.Strings(filter)
 
@@ -874,6 +876,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					}
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -921,10 +929,16 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return map[string]string{ids[0]: n}, nil
 				},
 			},
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -965,7 +979,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
 				},
 			},
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					switch filename {
 					case "toglacier-archive-1.tar.gz":
@@ -994,6 +1008,182 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return nil, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
+		},
+		{
+			description:    "it should retrieve a backup correctly skipping unmodified files in disk",
+			id:             "AWSID123",
+			skipUnmodified: true,
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file2": archive.ItemInfo{
+									ID:       "AWSID122",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "46813af30d24fb7ad0a019b0da4fcde88368133fcfe39c5a8b25a328e6be4ab2",
+								},
+								"file3": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+								},
+								"file4": archive.ItemInfo{
+									ID:       "AWSID124",
+									Status:   archive.ItemInfoStatusUnmodified,
+									Checksum: "79edf074b55cdb3088721e88814523124c7da05001175e14b0dcf78336730fcd",
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) != 1 {
+						return nil, fmt.Errorf("unexpected number of ids: %v", ids)
+					}
+
+					return map[string]string{
+						"AWSID123": "toglacier-archive-1.tar.gz",
+					}, nil
+				},
+			},
+			archive: mockArchive{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					sort.Strings(filter)
+
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil, nil
+				},
+				mockFileChecksum: func(filename string) (string, error) {
+					switch filename {
+					case "file1":
+						return "a9300479a7d2c663b4806af1bce4483f93175cae287979ee0364d057445482c8", nil
+					case "file2":
+						return "46813af30d24fb7ad0a019b0da4fcde88368133fcfe39c5a8b25a328e6be4ab2", nil
+					case "file3":
+						return "64bd312e9c81172627d898d7ad146d2e9ea47f47dd67ea79477ab224ab8fb01b", nil
+					case "file4":
+						return "57ab560c94249dd6f3e5ee6397364a86aa38b1e893c23b1198e8cad8f2a063c5", nil
+					}
+
+					return "", fmt.Errorf("unexpected filename “%s”", filename)
+				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
+		},
+		{
+			description:    "it should detect when there is a problem calculating the file checksum",
+			id:             "AWSID123",
+			skipUnmodified: true,
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file2": archive.ItemInfo{
+									ID:       "AWSID122",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "46813af30d24fb7ad0a019b0da4fcde88368133fcfe39c5a8b25a328e6be4ab2",
+								},
+								"file3": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+								},
+								"file4": archive.ItemInfo{
+									ID:       "AWSID124",
+									Status:   archive.ItemInfoStatusUnmodified,
+									Checksum: "79edf074b55cdb3088721e88814523124c7da05001175e14b0dcf78336730fcd",
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) != 1 {
+						return nil, fmt.Errorf("unexpected number of ids: %v", ids)
+					}
+
+					return map[string]string{
+						"AWSID123": "toglacier-archive-1.tar.gz",
+					}, nil
+				},
+			},
+			archive: mockArchive{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					sort.Strings(filter)
+
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil, nil
+				},
+				mockFileChecksum: func(filename string) (string, error) {
+					return "", errors.New("checksum failed")
+				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
+			expectedError: errors.New("checksum failed"),
 		},
 		{
 			description: "it should detect an error while retrieving a backup part",
@@ -1031,7 +1221,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
 				},
 			},
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					switch filename {
 					case "toglacier-archive-1.tar.gz":
@@ -1054,6 +1244,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					}
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("failed to download backup"),
 		},
@@ -1079,6 +1275,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				mockGet: func(ids ...string) (filenames map[string]string, err error) {
 					return nil, errors.New("error retrieving the backup")
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error retrieving the backup"),
 		},
@@ -1121,6 +1323,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return map[string]string{ids[0]: n}, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("invalid encrypted content"),
 		},
 		{
@@ -1161,7 +1369,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					}, nil
 				},
 			},
-			builder: mockBuilder{
+			archive: mockArchive{
 				mockExtract: func(filename string, filter []string) (archive.Info, error) {
 					switch filename {
 					case "toglacier-archive-2.tar.gz":
@@ -1169,6 +1377,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					}
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error extracting backup"),
 		},
@@ -1181,10 +1395,11 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				Storage: scenario.storage,
 				Envelop: scenario.envelop,
 				Cloud:   scenario.cloud,
-				Builder: scenario.builder,
+				Archive: scenario.archive,
+				Logger:  scenario.logger,
 			}
 
-			err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret)
+			err := toGlacier.RetrieveBackup(scenario.id, scenario.backupSecret, scenario.skipUnmodified)
 
 			if !archive.ErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
@@ -1603,17 +1818,22 @@ Content-Type: text/plain; charset=utf-8
 	}
 }
 
-type mockBuilder struct {
-	mockBuild   func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
-	mockExtract func(filename string, filter []string) (archive.Info, error)
+type mockArchive struct {
+	mockBuild        func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
+	mockExtract      func(filename string, filter []string) (archive.Info, error)
+	mockFileChecksum func(filename string) (string, error)
 }
 
-func (m mockBuilder) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+func (m mockArchive) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 	return m.mockBuild(lastArchiveInfo, backupPaths...)
 }
 
-func (m mockBuilder) Extract(filename string, filter []string) (archive.Info, error) {
+func (m mockArchive) Extract(filename string, filter []string) (archive.Info, error) {
 	return m.mockExtract(filename, filter)
+}
+
+func (m mockArchive) FileChecksum(filename string) (string, error) {
+	return m.mockFileChecksum(filename)
 }
 
 type mockEnvelop struct {

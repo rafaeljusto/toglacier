@@ -20,7 +20,7 @@ import (
 // ToGlacier manages backups in the cloud.
 type ToGlacier struct {
 	Context context.Context
-	Builder archive.Builder
+	Archive archive.Archive
 	Envelop archive.Envelop
 	Cloud   cloud.Cloud
 	Storage storage.Storage
@@ -47,7 +47,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}
 
 	timeMark := time.Now()
-	filename, archiveInfo, err := t.Builder.Build(archiveInfo, backupPaths...)
+	filename, archiveInfo, err := t.Archive.Build(archiveInfo, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)
@@ -236,8 +236,11 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 	return syncBackups, nil
 }
 
-// RetrieveBackup recover a specific backup from the cloud.
-func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
+// RetrieveBackup recover a specific backup from the cloud. If the backup is
+// encrypted it can be decrypted if the backupSecret is informed. Also, it is
+// possible to avoid downloading backups that contain only unmodified files with
+// the skipUnmodified flag.
+func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) error {
 	backups, err := t.Storage.List()
 	if err != nil {
 		return errors.WithStack(err)
@@ -278,8 +281,25 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string) error {
 	for path, itemInfo := range archiveInfo {
 		// if we already downloaded the main backup we don't need to download it
 		// again, and we should also avoid downloading backups parts just to
-		// retrieve removed files
-		if (!ignoreMainBackup || itemInfo.ID != id) && itemInfo.Status != archive.ItemInfoStatusDeleted {
+		// retrieve removed or unmodified files
+		ignore := (ignoreMainBackup && itemInfo.ID == id) ||
+			itemInfo.Status == archive.ItemInfoStatusDeleted ||
+			itemInfo.Status == archive.ItemInfoStatusUnmodified
+
+		if !ignore && skipUnmodified {
+			var checksum string
+			if checksum, err = t.Archive.FileChecksum(path); err != nil {
+				return errors.WithStack(err)
+			}
+
+			// file did not change since this backup
+			if checksum == itemInfo.Checksum {
+				t.Logger.Infof("toglacier: file “%s” unmodified in disk since backup, it will be ignored", path)
+				ignore = true
+			}
+		}
+
+		if !ignore {
 			idPaths[itemInfo.ID] = append(idPaths[itemInfo.ID], path)
 		}
 	}
@@ -319,7 +339,7 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 		}
 	}
 
-	archiveInfo, err := t.Builder.Extract(filename, filter)
+	archiveInfo, err := t.Archive.Extract(filename, filter)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

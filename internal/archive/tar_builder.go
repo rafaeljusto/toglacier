@@ -197,7 +197,7 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 }
 
 func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInfo ItemInfo, add bool, err error) {
-	encodedChecksum, err := t.fileChecksum(path)
+	encodedChecksum, err := t.FileChecksum(path)
 	if err != nil {
 		return itemInfo, true, errors.WithStack(err)
 	}
@@ -227,7 +227,23 @@ func (t TARBuilder) generateItemInfo(path string, lastArchiveInfo Info) (itemInf
 	return
 }
 
-func (t TARBuilder) fileChecksum(filename string) (string, error) {
+// FileChecksum returns the file SHA256 hash encoded in base64. On error it will
+// return a PathError type encapsulated in a traceable error. To retrieve the
+// desired error you can do:
+//
+//     type causer interface {
+//       Cause() error
+//     }
+//
+//     if causeErr, ok := err.(causer); ok {
+//       switch specificErr := causeErr.Cause().(type) {
+//       case *archive.PathError:
+//         // handle specifically
+//       default:
+//         // unknown error
+//       }
+//     }
+func (t TARBuilder) FileChecksum(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return "", errors.WithStack(newPathError(filename, PathErrorCodeOpeningFile, err))
