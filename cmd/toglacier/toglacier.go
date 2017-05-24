@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/smtp"
 	"os"
 	"os/signal"
@@ -135,7 +136,17 @@ func main() {
 		{
 			Name:  "sync",
 			Usage: "backup now the desired paths to AWS Glacier",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "verbose,v",
+					Usage: "show what is happening behind the scenes",
+				},
+			},
 			Action: func(c *cli.Context) error {
+				if !c.Bool("verbose") {
+					logger.Out = ioutil.Discard
+				}
+
 				if err := toGlacier.Backup(config.Current().Paths, config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
 				}
@@ -143,10 +154,20 @@ func main() {
 			},
 		},
 		{
-			Name:      "get",
-			Usage:     "retrieve a specific backup from AWS Glacier",
+			Name:  "get",
+			Usage: "retrieve a specific backup from AWS Glacier",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "verbose,v",
+					Usage: "show what is happening behind the scenes",
+				},
+			},
 			ArgsUsage: "<archiveID>",
 			Action: func(c *cli.Context) error {
+				if !c.Bool("verbose") {
+					logger.Out = ioutil.Discard
+				}
+
 				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
 					logger.Error(err)
 				} else {
@@ -156,11 +177,21 @@ func main() {
 			},
 		},
 		{
-			Name:      "remove",
-			Aliases:   []string{"rm"},
-			Usage:     "remove backups from AWS Glacier",
+			Name:    "remove",
+			Aliases: []string{"rm"},
+			Usage:   "remove backups from AWS Glacier",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "verbose,v",
+					Usage: "show what is happening behind the scenes",
+				},
+			},
 			ArgsUsage: "<archiveID> [archiveID ...]",
 			Action: func(c *cli.Context) error {
+				if !c.Bool("verbose") {
+					logger.Out = ioutil.Discard
+				}
+
 				ids := []string{c.Args().First()}
 				ids = append(ids, c.Args().Tail()...)
 				if err := toGlacier.RemoveBackup(ids...); err != nil {
@@ -172,21 +203,49 @@ func main() {
 		{
 			Name:    "list",
 			Aliases: []string{"ls"},
-			Usage:   "list all backups sent to AWS Glacier",
+			Usage:   "list all backups sent to AWS Glacier or that contains a specific file",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
 					Name:  "remote,r",
 					Usage: "retrieve the list from AWS Glacier (long wait)",
 				},
+				cli.BoolFlag{
+					Name:  "verbose,v",
+					Usage: "show what is happening behind the scenes",
+				},
 			},
+			ArgsUsage: "[file]",
 			Action: func(c *cli.Context) error {
-				if backups, err := toGlacier.ListBackups(c.Bool("remote")); err != nil {
+				if !c.Bool("verbose") {
+					logger.Out = ioutil.Discard
+				}
+
+				backups, err := toGlacier.ListBackups(c.Bool("remote"))
+				if err != nil {
 					logger.Error(err)
 
-				} else if len(backups) > 0 {
-					fmt.Println("Date             | Vault Name       | Archive ID")
-					fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
-					for _, backup := range backups {
+				} else if len(backups) == 0 {
+					return nil
+				}
+
+				if c.NArg() > 0 {
+					fmt.Printf("Backups containing filename %s\n\n", c.Args().First())
+				}
+
+				fmt.Println("Date             | Vault Name       | Archive ID")
+				fmt.Printf("%s-+-%s-+-%s\n", strings.Repeat("-", 16), strings.Repeat("-", 16), strings.Repeat("-", 138))
+
+				for _, backup := range backups {
+					show := false
+					if c.NArg() > 0 {
+						for filename, itemInfo := range backup.Info {
+							if (itemInfo.Status == archive.ItemInfoStatusNew || itemInfo.Status == archive.ItemInfoStatusModified) && strings.HasSuffix(filename, c.Args().First()) {
+								show = true
+							}
+						}
+					}
+
+					if show || c.NArg() == 0 {
 						fmt.Printf("%-16s | %-16s | %-138s\n", backup.Backup.CreatedAt.Format("2006-01-02 15:04"), backup.Backup.VaultName, backup.Backup.ID)
 					}
 				}

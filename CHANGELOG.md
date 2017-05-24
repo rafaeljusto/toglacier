@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Tool moved to cmd subdirectory
+- Optionally list only backups containing specific file
+- Commands now have verbose flag to show/hide internal messages
 
 ## [3.0.0] - 2017-05-15
 ### Added

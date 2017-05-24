@@ -94,7 +94,7 @@ and `Glacier Service`). You will find your AWS region identification
 By default the tool prints everything on the standard output. If you want to
 redirect it to a log file, you can define the location of the file with the
 `TOGLACIER_LOG_FILE`. Even with the output redirection, the messages are still
-writen in the standard output. You can define the verbosity using the
+written in the standard output. You can define the verbosity using the
 `TOGLACIER_LOG_LEVEL` parameter, that can have the values `debug`, `info`,
 `warning`, `error`, `fatal` or `panic`. By default the `error` log level is
 used.
@@ -102,8 +102,8 @@ used.
 There are some commands in the tool to manage the backups:
 
   * **sync**: execute the backup task now
-  * **get**: retrive a backup from AWS Glacier service
-  * **list or ls**: list the current backups using a local audit file or remotly
+  * **get**: retrieve a backup from AWS Glacier service
+  * **list or ls**: list the current backups in the local storage or remotely
   * **remove or rm**: remove a backup from AWS Glacier service
   * **start**: initialize the scheduler (will block forever)
   * **report**: test report notification
