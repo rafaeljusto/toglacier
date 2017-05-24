@@ -67,10 +67,12 @@ func (a Info) Statistics() map[ItemInfoStatus]int {
 	return statistic
 }
 
-// Builder creates an archive joining all paths in a file.
-type Builder interface {
+// Archive manages an archive joining all paths in a file, extracting and
+// calculating Checksums.
+type Archive interface {
 	Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error)
 	Extract(filename string, filter []string) (Info, error)
+	FileChecksum(filename string) (string, error)
 }
 
 // Envelop manages the security of an archive encrypting and decrypting the

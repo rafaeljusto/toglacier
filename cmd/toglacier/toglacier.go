@@ -123,7 +123,7 @@ func main() {
 
 		toGlacier = toglacier.ToGlacier{
 			Context: ctx,
-			Builder: archive.NewTARBuilder(logger),
+			Archive: archive.NewTARBuilder(logger),
 			Envelop: archive.NewOFBEnvelop(logger),
 			Cloud:   awsCloud,
 			Storage: localStorage,
@@ -158,6 +158,10 @@ func main() {
 			Usage: "retrieve a specific backup from AWS Glacier",
 			Flags: []cli.Flag{
 				cli.BoolFlag{
+					Name:  "skip-unmodified,s",
+					Usage: "ignore files unmodified in disk since the backup",
+				},
+				cli.BoolFlag{
 					Name:  "verbose,v",
 					Usage: "show what is happening behind the scenes",
 				},
@@ -168,7 +172,7 @@ func main() {
 					logger.Out = ioutil.Discard
 				}
 
-				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value); err != nil {
+				if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value, c.Bool("skip-unmodified")); err != nil {
 					logger.Error(err)
 				} else {
 					fmt.Println("Backup recovered successfully")

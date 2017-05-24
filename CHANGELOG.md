@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 ### Added
 - Report e-mail in HTML format
+- Option to ignore backup parts from files that didn't change in disk
+
+### Fixed
+- Ignore unmodified files when choosing the backup parts to download
 
 ### Changed
 - Tool moved to cmd subdirectory
 - Optionally list only backups containing specific file
 - Commands now have verbose flag to show/hide internal messages
+- File checksum method added to archive.Archive (old archive.Builder) interface
 
 ## [3.0.0] - 2017-05-15
 ### Added

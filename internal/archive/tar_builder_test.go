@@ -24,7 +24,7 @@ import (
 func TestTARBuilder_Build(t *testing.T) {
 	scenarios := []struct {
 		description         string
-		builder             *archive.TARBuilder
+		archive             *archive.TARBuilder
 		lastArchiveInfo     func(backupPaths []string) archive.Info
 		backupPaths         []string
 		expected            func(filename string) error
@@ -33,7 +33,7 @@ func TestTARBuilder_Build(t *testing.T) {
 	}{
 		{
 			description: "it should create an archive correctly from directory path",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -156,7 +156,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should ignore the build when all files are unmodified",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -215,7 +215,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should create an archive correctly from multiple directory paths",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -381,7 +381,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should create an archive correctly from file path",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -455,7 +455,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path does not exist",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -476,7 +476,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path (directory) does not have permission",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -505,7 +505,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect when the path (file) does not have permission",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -537,7 +537,7 @@ func TestTARBuilder_Build(t *testing.T) {
 		},
 		{
 			description: "it should detect an error while walking in the path",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -583,7 +583,7 @@ func TestTARBuilder_Build(t *testing.T) {
 				lastArchiveInfo = scenario.lastArchiveInfo(backupPaths)
 			}
 
-			filename, archiveInfo, err := scenario.builder.Build(lastArchiveInfo, backupPaths...)
+			filename, archiveInfo, err := scenario.archive.Build(lastArchiveInfo, backupPaths...)
 			if scenario.expectedError == nil && scenario.expected != nil {
 				if err = scenario.expected(filename); err != nil {
 					t.Errorf("unexpected archive content (%s). details: %s", filename, err)
@@ -711,7 +711,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 	type scenario struct {
 		description         string
-		builder             *archive.TARBuilder
+		archive             *archive.TARBuilder
 		filename            string
 		filter              []string
 		expected            func() error
@@ -724,7 +724,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		func() scenario {
 			var s scenario
 			s.description = "it should extract an archive correctly with filters"
-			s.builder = archive.NewTARBuilder(mockLogger{
+			s.archive = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -812,7 +812,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		func() scenario {
 			var s scenario
 			s.description = "it should extract an archive correctly without filters"
-			s.builder = archive.NewTARBuilder(mockLogger{
+			s.archive = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -865,7 +865,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		}(),
 		{
 			description: "it should detect when the file doesn't exist",
-			builder: archive.NewTARBuilder(mockLogger{
+			archive: archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -885,7 +885,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		func() scenario {
 			var s scenario
 			s.description = "it should detect when the file isn't a TAR"
-			s.builder = archive.NewTARBuilder(mockLogger{
+			s.archive = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -912,7 +912,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 		func() scenario {
 			var s scenario
 			s.description = "it should detect a corrupted archive info"
-			s.builder = archive.NewTARBuilder(mockLogger{
+			s.archive = archive.NewTARBuilder(mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
 				mockInfo:   func(args ...interface{}) {},
@@ -946,7 +946,7 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
-			archiveInfo, err := scenario.builder.Extract(scenario.filename, scenario.filter)
+			archiveInfo, err := scenario.archive.Extract(scenario.filename, scenario.filter)
 
 			if scenario.expected != nil {
 				if scenarioErr := scenario.expected(); scenarioErr != nil {
@@ -964,6 +964,71 @@ func TestTARBuilder_Extract(t *testing.T) {
 
 			if scenario.clean != nil {
 				scenario.clean()
+			}
+		})
+	}
+}
+
+func TestTARBuilder_FileChecksum(t *testing.T) {
+	scenarios := []struct {
+		description   string
+		archive       *archive.TARBuilder
+		filename      string
+		expected      string
+		expectedError error
+	}{
+		{
+			description: "it should calculate the file checksum correctly",
+			archive: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			filename: func() string {
+				f, err := ioutil.TempFile("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating temporary file. details: %s", err)
+				}
+				defer f.Close()
+
+				f.WriteString("this is a test")
+				return f.Name()
+			}(),
+			// echo -n "this is a test" | openssl dgst -binary -sha256 | openssl base64 -A
+			expected: "Lpl1hUiXKo6IIq1H+hAX/3Lwbz/2oBaFH0XDmHMrxQw=",
+		},
+		{
+			description: "it should detect when the file does not exist",
+			archive: archive.NewTARBuilder(mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			}),
+			filename: "toglacier-i-dont-exist.tmp",
+			expectedError: &archive.PathError{
+				Path: "toglacier-i-dont-exist.tmp",
+				Code: archive.PathErrorCodeOpeningFile,
+				Err: &os.PathError{
+					Op:   "open",
+					Path: "toglacier-i-dont-exist.tmp",
+					Err:  errors.New("no such file or directory"),
+				},
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			checksum, err := scenario.archive.FileChecksum(scenario.filename)
+
+			if !reflect.DeepEqual(scenario.expected, checksum) {
+				t.Errorf("checksum don't match. expected “%s” and got “%s”", scenario.expected, checksum)
+			}
+
+			if !archive.PathErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})
 	}
