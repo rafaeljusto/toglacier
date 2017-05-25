@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Report e-mail in HTML format
 - Option to ignore backup parts from files that didn't change in disk
+- Download many archives in parallel
 
 ### Fixed
 - Ignore unmodified files when choosing the backup parts to download
