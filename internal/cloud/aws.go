@@ -80,6 +80,14 @@ type AWSCloud struct {
 	Clock     Clock
 }
 
+// jobResult contains the result data after a archive download. It is used in
+// channels for parallel downloads.
+type jobResult struct {
+	id       string
+	filename string
+	err      error
+}
+
 // NewAWSCloud initializes the Amazon cloud object, defining the account ID and
 // vault name that are going to be used in the AWS Glacier service. For more
 // details set the debug flag to receive low level information in the standard
@@ -473,36 +481,95 @@ func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, e
 		return nil, errors.WithStack(err)
 	}
 
-	filenames := make(map[string]string)
+	var waitGroup sync.WaitGroup
+	jobResults := make(chan jobResult, len(jobIDs))
 
 	for id, jobID := range jobIDs {
-		jobOutputInput := glacier.GetJobOutputInput{
-			AccountId: aws.String(a.AccountID),
-			JobId:     aws.String(jobID),
-			VaultName: aws.String(a.VaultName),
-		}
-
-		jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
-		if err != nil {
-			return nil, errors.WithStack(newError(jobID, ErrorCodeJobComplete, err))
-		}
-		defer jobOutputOutput.Body.Close()
-
-		backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
-		if err != nil {
-			return nil, errors.WithStack(newError(id, ErrorCodeCreatingArchive, err))
-		}
-		defer backup.Close()
-
-		if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
-			return nil, errors.WithStack(newError(id, ErrorCodeCopyingData, err))
-		}
-
-		a.Logger.Infof("cloud: backup “%s” retrieved successfully from the aws cloud and saved in temporary file “%s”", id, backup.Name())
-		filenames[id] = backup.Name()
+		waitGroup.Add(1)
+		go a.get(ctx, id, jobID, &waitGroup, jobResults)
 	}
 
+	waitGroup.Wait()
+
+	filenames := make(map[string]string)
+	for i := 0; i < len(jobIDs); i++ {
+		result := <-jobResults
+		if result.err != nil {
+			// TODO: if only one file failed we will stop it all?
+			return nil, errors.WithStack(result.err)
+		}
+		filenames[result.id] = result.filename
+	}
 	return filenames, nil
+}
+
+func (a *AWSCloud) get(ctx context.Context, id, jobID string, waitGroup *sync.WaitGroup, result chan<- jobResult) {
+	defer waitGroup.Done()
+
+	jobOutputInput := glacier.GetJobOutputInput{
+		AccountId: aws.String(a.AccountID),
+		JobId:     aws.String(jobID),
+		VaultName: aws.String(a.VaultName),
+	}
+
+	var jobOutputOutput *glacier.GetJobOutputOutput
+	var err error
+
+	// as the download action can take a while (big backups) we need to be able to
+	// handle cancel signals from the user
+	done := make(chan bool)
+	go func() {
+		jobOutputOutput, err = a.Glacier.GetJobOutput(&jobOutputInput)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	// nothing to do here
+
+	case <-ctx.Done():
+		a.Logger.Debugf("cloud: backup download “%s” cancelled by user", id)
+
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(id, ErrorCodeCancelled, ctx.Err())),
+		}
+		return
+	}
+
+	if err != nil {
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(jobID, ErrorCodeJobComplete, err)),
+		}
+		return
+	}
+	defer jobOutputOutput.Body.Close()
+
+	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
+	if err != nil {
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(id, ErrorCodeCreatingArchive, err)),
+		}
+		return
+	}
+	defer backup.Close()
+
+	if _, err := io.Copy(backup, jobOutputOutput.Body); err != nil {
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(id, ErrorCodeCopyingData, err)),
+		}
+		return
+	}
+
+	a.Logger.Infof("cloud: backup “%s” retrieved successfully from the aws cloud and saved in temporary file “%s”", id, backup.Name())
+
+	result <- jobResult{
+		id:       id,
+		filename: backup.Name(),
+	}
 }
 
 // Remove erase a specific backup from the cloud. If an error occurs it will be

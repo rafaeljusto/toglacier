@@ -1496,7 +1496,7 @@ func TestAWSCloud_Get(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when the task was cancelled by the user",
+			description: "it should detect when the task was cancelled by the user while the job was not done",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
 				Logger: mockLogger{
@@ -1547,6 +1547,57 @@ func TestAWSCloud_Get(t *testing.T) {
 			expectedError: &cloud.JobsError{
 				Jobs: []string{"JOBID123"},
 				Code: cloud.JobsErrorCodeCancelled,
+				Err:  context.Canceled,
+			},
+		},
+		{
+			description: "it should detect when the task was cancelled by the user while the downloading the backup",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return &glacier.ListJobsOutput{
+							JobList: []*glacier.JobDescription{
+								{
+									JobId:      aws.String("JOBID123"),
+									Completed:  aws.Bool(true),
+									StatusCode: aws.String("Succeeded"),
+								},
+							},
+						}, nil
+					},
+					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+						// sleep for a small amount of time to allow the task to be
+						// cancelled
+						time.Sleep(200 * time.Millisecond)
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.Error{
+				ID:   "AWSID123",
+				Code: cloud.ErrorCodeCancelled,
 				Err:  context.Canceled,
 			},
 		},

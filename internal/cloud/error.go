@@ -59,6 +59,9 @@ const (
 
 	// ErrorCodeRemovingArchive error while removing the archive from the cloud.
 	ErrorCodeRemovingArchive ErrorCode = "removing-archive"
+
+	// ErrorCodeCancelled action cancelled by the user.
+	ErrorCodeCancelled ErrorCode = "cancelled"
 )
 
 // ErrorCode stores the error type that occurred while performing any operation
@@ -80,6 +83,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeCreatingArchive:     "error creating backup file",
 	ErrorCodeCopyingData:         "error copying data to the backup file",
 	ErrorCodeRemovingArchive:     "error removing backup",
+	ErrorCodeCancelled:           "action cancelled by the user",
 }
 
 // String translate the error code to a human readable text.
