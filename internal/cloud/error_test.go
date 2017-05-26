@@ -109,6 +109,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "cloud: error removing backup",
 		},
 		{
+			description: "it should show the correct error message for action cancelled by the user",
+			err:         &cloud.Error{Code: cloud.ErrorCodeCancelled},
+			expected:    "cloud: action cancelled by the user",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &cloud.Error{Code: cloud.ErrorCode("i-dont-exist")},
 			expected:    "cloud: unknown error code",

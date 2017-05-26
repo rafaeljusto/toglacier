@@ -486,7 +486,7 @@ func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, e
 
 	for id, jobID := range jobIDs {
 		waitGroup.Add(1)
-		go a.get(id, jobID, &waitGroup, jobResults)
+		go a.get(ctx, id, jobID, &waitGroup, jobResults)
 	}
 
 	waitGroup.Wait()
@@ -503,7 +503,7 @@ func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, e
 	return filenames, nil
 }
 
-func (a *AWSCloud) get(id, jobID string, waitGroup *sync.WaitGroup, result chan<- jobResult) {
+func (a *AWSCloud) get(ctx context.Context, id, jobID string, waitGroup *sync.WaitGroup, result chan<- jobResult) {
 	defer waitGroup.Done()
 
 	jobOutputInput := glacier.GetJobOutputInput{
@@ -512,7 +512,31 @@ func (a *AWSCloud) get(id, jobID string, waitGroup *sync.WaitGroup, result chan<
 		VaultName: aws.String(a.VaultName),
 	}
 
-	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
+	var jobOutputOutput *glacier.GetJobOutputOutput
+	var err error
+
+	// as the download action can take a while (big backups) we need to be able to
+	// handle cancel signals from the user
+	done := make(chan bool)
+	go func() {
+		jobOutputOutput, err = a.Glacier.GetJobOutput(&jobOutputInput)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	// nothing to do here
+
+	case <-ctx.Done():
+		a.Logger.Debugf("cloud: backup download “%s” cancelled by user", id)
+
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(id, ErrorCodeCancelled, ctx.Err())),
+		}
+		return
+	}
+
 	if err != nil {
 		result <- jobResult{
 			id:  id,
