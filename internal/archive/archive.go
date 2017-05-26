@@ -21,6 +21,12 @@ const (
 // ItemInfoStatus describes the current archive's item state.
 type ItemInfoStatus string
 
+// Useful returns if the current status indicates that the archive item is
+// useful or not.
+func (i ItemInfoStatus) Useful() bool {
+	return i == ItemInfoStatusNew || i == ItemInfoStatusModified
+}
+
 // ItemInfo stores all the necessary information to track the archive's item
 // state.
 type ItemInfo struct {

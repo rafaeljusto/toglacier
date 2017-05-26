@@ -88,7 +88,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 
 	// fill backup id for new and modified files
 	for path, itemInfo := range archiveInfo {
-		if itemInfo.Status == archive.ItemInfoStatusNew || itemInfo.Status == archive.ItemInfoStatusModified {
+		if itemInfo.Status.Useful() {
 			itemInfo.ID = backupReport.Backup.ID
 			archiveInfo[path] = itemInfo
 		}
@@ -282,9 +282,7 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 		// if we already downloaded the main backup we don't need to download it
 		// again, and we should also avoid downloading backups parts just to
 		// retrieve removed or unmodified files
-		ignore := (ignoreMainBackup && itemInfo.ID == id) ||
-			itemInfo.Status == archive.ItemInfoStatusDeleted ||
-			itemInfo.Status == archive.ItemInfoStatusUnmodified
+		ignore := (ignoreMainBackup && itemInfo.ID == id) || !itemInfo.Status.Useful()
 
 		if !ignore && skipUnmodified {
 			var checksum string

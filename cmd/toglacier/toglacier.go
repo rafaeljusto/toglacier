@@ -243,7 +243,7 @@ func main() {
 					show := false
 					if c.NArg() > 0 {
 						for filename, itemInfo := range backup.Info {
-							if (itemInfo.Status == archive.ItemInfoStatusNew || itemInfo.Status == archive.ItemInfoStatusModified) && strings.HasSuffix(filename, c.Args().First()) {
+							if itemInfo.Status.Useful() && strings.HasSuffix(filename, c.Args().First()) {
 								show = true
 							}
 						}
