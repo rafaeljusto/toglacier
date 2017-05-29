@@ -482,10 +482,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expected: storage.Backups{
 				{
@@ -530,10 +532,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expected: storage.Backups{
 				{
@@ -555,10 +559,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error listing backups"),
 		},
@@ -570,10 +576,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error listing backups"),
 		},
@@ -612,10 +620,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error retrieving backups"),
 		},
@@ -667,10 +677,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error removing backup"),
 		},
@@ -714,10 +726,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error removing backup"),
 		},
@@ -769,10 +783,12 @@ func TestToGlacier_ListBackups(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error adding backup"),
 		},
@@ -878,10 +894,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -935,10 +953,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -1009,10 +1029,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -1099,10 +1121,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 		},
 		{
@@ -1178,10 +1202,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("checksum failed"),
 		},
@@ -1246,10 +1272,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("failed to download backup"),
 		},
@@ -1277,10 +1305,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error retrieving the backup"),
 		},
@@ -1324,10 +1354,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("invalid encrypted content"),
 		},
@@ -1379,10 +1411,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				},
 			},
 			logger: mockLogger{
-				mockDebug:  func(args ...interface{}) {},
-				mockDebugf: func(format string, args ...interface{}) {},
-				mockInfo:   func(args ...interface{}) {},
-				mockInfof:  func(format string, args ...interface{}) {},
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error extracting backup"),
 		},
@@ -1899,23 +1933,36 @@ func (r mockReport) Build(f report.Format) (string, error) {
 }
 
 type mockLogger struct {
-	mockDebug  func(args ...interface{})
-	mockDebugf func(format string, args ...interface{})
-	mockInfo   func(args ...interface{})
-	mockInfof  func(format string, args ...interface{})
+	mockDebug    func(args ...interface{})
+	mockDebugf   func(format string, args ...interface{})
+	mockInfo     func(args ...interface{})
+	mockInfof    func(format string, args ...interface{})
+	mockWarning  func(args ...interface{})
+	mockWarningf func(format string, args ...interface{})
 }
 
 func (m mockLogger) Debug(args ...interface{}) {
 	m.mockDebug(args...)
 }
+
 func (m mockLogger) Debugf(format string, args ...interface{}) {
 	m.mockDebugf(format, args...)
 }
+
 func (m mockLogger) Info(args ...interface{}) {
 	m.mockInfo(args...)
 }
+
 func (m mockLogger) Infof(format string, args ...interface{}) {
 	m.mockInfof(format, args...)
+}
+
+func (m mockLogger) Warning(args ...interface{}) {
+	m.mockWarning(args...)
+}
+
+func (m mockLogger) Warningf(format string, args ...interface{}) {
+	m.mockWarningf(format, args...)
 }
 
 // ErrorEqual compares the errors messages. This is useful in unit tests to
