@@ -272,6 +272,12 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 			return errors.WithStack(err)
 		}
 
+		// after extracting the content we don't need the archive anymore, but if
+		// there's some error removing it we don't want to stop the process
+		if err = os.Remove(filenames[id]); err != nil {
+			t.Logger.Warningf("toglacier: failed to remove file “%s”. details: %s", filenames[id], err)
+		}
+
 		// as we already downloaded the main backup, we should avoid downloading it
 		// again when retrieving the backup parts
 		ignoreMainBackup = true
@@ -313,9 +319,14 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 	}
 
 	for id, filename := range filenames {
-		// there's only one backup downloaded at this point
 		if archiveInfo, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
 			return errors.WithStack(err)
+		}
+
+		// after extracting the content we don't need the archive anymore, but if
+		// there's some error removing it we don't want to stop the process
+		if err = os.Remove(filename); err != nil {
+			t.Logger.Warningf("toglacier: failed to remove file “%s”. details: %s", filename, err)
 		}
 	}
 
