@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Ignore unmodified files when choosing the backup parts to download
 - Handle user cancel signal when downloading an archive
+- Remove tarball after extraction to save disk space
 
 ### Changed
 - Tool moved to cmd subdirectory
