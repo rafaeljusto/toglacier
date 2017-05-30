@@ -114,7 +114,7 @@ func (t ToGlacier) ListBackups(remote bool) (storage.Backups, error) {
 		return nil, errors.WithStack(err)
 	}
 
-	// TODO: should we sort here or let the library to do that?
+	sort.Sort(backupsByCreationDate(backups))
 	return backups, nil
 }
 
@@ -224,7 +224,7 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 	// add backups that were kept
 	for _, id := range kept {
 		index := sort.Search(len(backups), func(i int) bool {
-			return backups[i].Backup.ID == id
+			return strings.Compare(backups[i].Backup.ID, id) >= 0
 		})
 
 		if index < len(backups) && backups[index].Backup.ID == id {
@@ -232,7 +232,7 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 		}
 	}
 
-	sort.Sort(syncBackups)
+	sort.Sort(backupsByCreationDate(syncBackups))
 	return syncBackups, nil
 }
 
@@ -246,17 +246,18 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 		return errors.WithStack(err)
 	}
 
-	var archiveInfo archive.Info
-	for _, backup := range backups {
-		if backup.Backup.ID == id {
-			archiveInfo = backup.Info
-			break
-		}
+	index := sort.Search(len(backups), func(i int) bool {
+		return strings.Compare(backups[i].Backup.ID, id) >= 0
+	})
+
+	var selectedBackup storage.Backup
+	if index < len(backups) && backups[index].Backup.ID == id {
+		selectedBackup = backups[index]
 	}
 
 	var ignoreMainBackup bool
 
-	if archiveInfo == nil {
+	if selectedBackup.Info == nil {
 		var filenames map[string]string
 
 		// when there's no archive information, retrieve only the desired backup ID.
@@ -268,14 +269,16 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 		}
 
 		// there's only one backup downloaded at this point
-		if archiveInfo, err = t.decryptAndExtract(backupSecret, filenames[id], nil); err != nil {
+		if selectedBackup.Info, err = t.decryptAndExtract(backupSecret, filenames[id], nil); err != nil {
 			return errors.WithStack(err)
 		}
 
-		// after extracting the content we don't need the archive anymore, but if
-		// there's some error removing it we don't want to stop the process
-		if err = os.Remove(filenames[id]); err != nil {
-			t.Logger.Warningf("toglacier: failed to remove file “%s”. details: %s", filenames[id], err)
+		// synchronize the archive information in the local storage only if the
+		// backup exists
+		if selectedBackup.Backup.ID != "" {
+			if err = t.Storage.Save(selectedBackup); err != nil {
+				return errors.WithStack(err)
+			}
 		}
 
 		// as we already downloaded the main backup, we should avoid downloading it
@@ -284,7 +287,7 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 	}
 
 	idPaths := make(map[string][]string)
-	for path, itemInfo := range archiveInfo {
+	for path, itemInfo := range selectedBackup.Info {
 		// if we already downloaded the main backup we don't need to download it
 		// again, and we should also avoid downloading backups parts just to
 		// retrieve removed or unmodified files
@@ -319,14 +322,25 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 	}
 
 	for id, filename := range filenames {
-		if archiveInfo, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
+		index := sort.Search(len(backups), func(i int) bool {
+			return strings.Compare(backups[i].Backup.ID, id) >= 0
+		})
+
+		selectedBackup = storage.Backup{}
+		if index < len(backups) && backups[index].Backup.ID == id {
+			selectedBackup = backups[index]
+		}
+
+		if selectedBackup.Info, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
 			return errors.WithStack(err)
 		}
 
-		// after extracting the content we don't need the archive anymore, but if
-		// there's some error removing it we don't want to stop the process
-		if err = os.Remove(filename); err != nil {
-			t.Logger.Warningf("toglacier: failed to remove file “%s”. details: %s", filename, err)
+		// synchronize the archive information in the local storage only if the
+		// backup exists
+		if selectedBackup.Backup.ID != "" {
+			if err := t.Storage.Save(selectedBackup); err != nil {
+				return errors.WithStack(err)
+			}
 		}
 	}
 
@@ -353,7 +367,11 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 		return nil, errors.WithStack(err)
 	}
 
-	// TODO: Update archive info in the local storage
+	// after extracting the content we don't need the archive anymore, but if
+	// there's some error removing it we don't want to stop the process
+	if err = os.Remove(filename); err != nil {
+		t.Logger.Warningf("toglacier: failed to remove file “%s”. details: %s", filename, err)
+	}
 
 	return archiveInfo, nil
 }
@@ -389,6 +407,8 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 		return errors.WithStack(err)
 	}
+
+	sort.Sort(backupsByCreationDate(backups))
 
 	// with the incremental backup we cannot remove backups without checking the
 	// archive info to identify partial backup entries
@@ -466,3 +486,18 @@ type EmailSenderFunc func(addr string, a smtp.Auth, from string, to []string, ms
 func (r EmailSenderFunc) SendMail(addr string, a smtp.Auth, from string, to []string, msg []byte) error {
 	return r(addr, a, from, to, msg)
 }
+
+// backupsByCreationDate reorder the backups by reverse creation date.
+type backupsByCreationDate storage.Backups
+
+// Len returns the number of backups.
+func (b backupsByCreationDate) Len() int { return len(b) }
+
+// Less compares two positions of the slice and verifies the preference. They
+// are ordered from the newest backup to the oldest.
+func (b backupsByCreationDate) Less(i, j int) bool {
+	return b[i].Backup.CreatedAt.After(b[j].Backup.CreatedAt)
+}
+
+// Swap change the backups position inside the slice.
+func (b backupsByCreationDate) Swap(i, j int) { b[i], b[j] = b[j], b[i] }

@@ -88,7 +88,7 @@ const (
 )
 
 // ErrorCode stores the error type that occurred to easy automatize an external
-// actual depending on the problem.
+// action depending on the problem.
 type ErrorCode string
 
 var errorCodeString = map[ErrorCode]string{

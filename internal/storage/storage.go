@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"strings"
+
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 )
@@ -21,8 +23,10 @@ type Backups []Backup
 func (b Backups) Len() int { return len(b) }
 
 // Less compares two positions of the slice and verifies the preference. They
-// are ordered from the newest backup to the oldest.
-func (b Backups) Less(i, j int) bool { return b[i].Backup.CreatedAt.After(b[j].Backup.CreatedAt) }
+// are ordered by the id, that should be unique.
+func (b Backups) Less(i, j int) bool {
+	return strings.Compare(b[i].Backup.ID, b[j].Backup.ID) >= 0
+}
 
 // Swap change the backups position inside the slice.
 func (b Backups) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
