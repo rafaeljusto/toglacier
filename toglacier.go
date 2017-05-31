@@ -223,12 +223,8 @@ func (t ToGlacier) listRemoteBackups() (storage.Backups, error) {
 
 	// add backups that were kept
 	for _, id := range kept {
-		index := sort.Search(len(backups), func(i int) bool {
-			return strings.Compare(backups[i].Backup.ID, id) >= 0
-		})
-
-		if index < len(backups) && backups[index].Backup.ID == id {
-			syncBackups = append(syncBackups, backups[index])
+		if backup, ok := backups.Search(id); ok {
+			syncBackups = append(syncBackups, backup)
 		}
 	}
 
@@ -246,13 +242,9 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 		return errors.WithStack(err)
 	}
 
-	index := sort.Search(len(backups), func(i int) bool {
-		return strings.Compare(backups[i].Backup.ID, id) >= 0
-	})
-
-	var selectedBackup storage.Backup
-	if index < len(backups) && backups[index].Backup.ID == id {
-		selectedBackup = backups[index]
+	selectedBackup, ok := backups.Search(id)
+	if !ok {
+		t.Logger.Warningf("toglacier: backup “%s” not found in local storage")
 	}
 
 	var ignoreMainBackup bool
@@ -322,13 +314,8 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 	}
 
 	for id, filename := range filenames {
-		index := sort.Search(len(backups), func(i int) bool {
-			return strings.Compare(backups[i].Backup.ID, id) >= 0
-		})
-
-		selectedBackup = storage.Backup{}
-		if index < len(backups) && backups[index].Backup.ID == id {
-			selectedBackup = backups[index]
+		if selectedBackup, ok = backups.Search(id); !ok {
+			t.Logger.Warningf("toglacier: backup “%s” not found in local storage")
 		}
 
 		if selectedBackup.Info, err = t.decryptAndExtract(backupSecret, filename, idPaths[id]); err != nil {
