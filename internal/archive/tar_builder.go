@@ -361,25 +361,7 @@ func (t TARBuilder) Extract(filename string, filter []string) (Info, error) {
 			// tarball, because not all files will be extracted
 
 		case tar.TypeReg:
-			// for comparing the tarball file with the filter, we need to retrieve
-			// the original file path, removing the backup directory in the
-			// beginning. Tarball path before:
-			//
-			//     backup-20170506120000/dir1/dir2/file
-			//
-			// and after the magic:
-			//
-			//     /dir1/dir2/file
-			name := header.Name
-			if nameParts := strings.Split(header.Name, string(os.PathSeparator)); len(nameParts) > 1 {
-				name = strings.Join(nameParts[1:], string(os.PathSeparator))
-
-				// if there's more than one directory level we need to add the root,
-				// otherwise is just a simple filename
-				if strings.Count(name, string(os.PathSeparator)) > 0 {
-					name = string(os.PathSeparator) + name
-				}
-			}
+			name := normalizeHeaderName(header.Name)
 
 			if name == TARInfoFilename {
 				decoder := json.NewDecoder(tarReader)
@@ -389,19 +371,9 @@ func (t TARBuilder) Extract(filename string, filter []string) (Info, error) {
 				continue
 			}
 
-			if filter != nil {
-				found := false
-				for _, item := range filter {
-					if name == item {
-						found = true
-						break
-					}
-				}
-
-				if !found {
-					t.logger.Debugf("archive: ignoring extraction of path “%s”", header.Name)
-					continue
-				}
+			if filter != nil && !shouldExtract(name, filter) {
+				t.logger.Debugf("archive: ignoring extraction of path “%s”", header.Name)
+				continue
 			}
 
 			dir := filepath.Dir(header.Name)
@@ -429,4 +401,40 @@ func (t TARBuilder) Extract(filename string, filter []string) (Info, error) {
 	}
 
 	return info, nil
+}
+
+// normalizeHeaderName normalize the header name for comparing the tarball file
+// with the filter, we need to retrieve the original file path, removing the
+// backup directory in the beginning. Tarball path before:
+//
+//     backup-20170506120000/dir1/dir2/file
+//
+// and after the magic:
+//
+//     /dir1/dir2/file
+func normalizeHeaderName(name string) string {
+	nameParts := strings.Split(name, string(os.PathSeparator))
+	if len(nameParts) == 0 {
+		return name
+	}
+
+	name = strings.Join(nameParts[1:], string(os.PathSeparator))
+
+	// if there's more than one directory level we need to add the root,
+	// otherwise is just a simple filename
+	if strings.Count(name, string(os.PathSeparator)) > 0 {
+		name = string(os.PathSeparator) + name
+	}
+
+	return name
+}
+
+func shouldExtract(name string, filter []string) bool {
+	for _, item := range filter {
+		if name == item {
+			return true
+		}
+	}
+
+	return false
 }
