@@ -676,7 +676,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_DB_TYPE",
-					FieldName: "type",
+					FieldName: "Type",
 					TypeName:  "config.DatabaseType",
 					Value:     "idontexist",
 					Err: &config.Error{
@@ -712,7 +712,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_LOG_LEVEL",
-					FieldName: "level",
+					FieldName: "Level",
 					TypeName:  "config.LogLevel",
 					Value:     "idontexist",
 					Err: &config.Error{
@@ -748,7 +748,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_AWS_ACCOUNT_ID",
-					FieldName: "account_id",
+					FieldName: "AccountID",
 					TypeName:  "config.encrypted",
 					Value:     "encrypted:invalid",
 					Err: &config.Error{
@@ -785,7 +785,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_BACKUP_SECRET",
-					FieldName: "backup_secret",
+					FieldName: "BackupSecret",
 					TypeName:  "config.aesKey",
 					Value:     "encrypted:invalid",
 					Err: &config.Error{
@@ -928,7 +928,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				Code: config.ErrorCodeReadingEnvVars,
 				Err: &envconfig.ParseError{
 					KeyName:   "TOGLACIER_EMAIL_FORMAT",
-					FieldName: "format",
+					FieldName: "Format",
 					TypeName:  "config.EmailFormat",
 					Value:     "strange",
 					Err: &config.Error{

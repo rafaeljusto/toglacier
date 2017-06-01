@@ -1683,74 +1683,117 @@ func TestAWSCloud_Remove(t *testing.T) {
 }
 
 type mockGlacierAPI struct {
-	mockAbortMultipartUploadRequest     func(*glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput)
-	mockAbortMultipartUpload            func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error)
-	mockAbortVaultLockRequest           func(*glacier.AbortVaultLockInput) (*request.Request, *glacier.AbortVaultLockOutput)
-	mockAbortVaultLock                  func(*glacier.AbortVaultLockInput) (*glacier.AbortVaultLockOutput, error)
-	mockAddTagsToVaultRequest           func(*glacier.AddTagsToVaultInput) (*request.Request, *glacier.AddTagsToVaultOutput)
-	mockAddTagsToVault                  func(*glacier.AddTagsToVaultInput) (*glacier.AddTagsToVaultOutput, error)
-	mockCompleteMultipartUploadRequest  func(*glacier.CompleteMultipartUploadInput) (*request.Request, *glacier.ArchiveCreationOutput)
-	mockCompleteMultipartUpload         func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error)
-	mockCompleteVaultLockRequest        func(*glacier.CompleteVaultLockInput) (*request.Request, *glacier.CompleteVaultLockOutput)
-	mockCompleteVaultLock               func(*glacier.CompleteVaultLockInput) (*glacier.CompleteVaultLockOutput, error)
-	mockCreateVaultRequest              func(*glacier.CreateVaultInput) (*request.Request, *glacier.CreateVaultOutput)
-	mockCreateVault                     func(*glacier.CreateVaultInput) (*glacier.CreateVaultOutput, error)
-	mockDeleteArchiveRequest            func(*glacier.DeleteArchiveInput) (*request.Request, *glacier.DeleteArchiveOutput)
-	mockDeleteArchive                   func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error)
-	mockDeleteVaultRequest              func(*glacier.DeleteVaultInput) (*request.Request, *glacier.DeleteVaultOutput)
-	mockDeleteVault                     func(*glacier.DeleteVaultInput) (*glacier.DeleteVaultOutput, error)
-	mockDeleteVaultAccessPolicyRequest  func(*glacier.DeleteVaultAccessPolicyInput) (*request.Request, *glacier.DeleteVaultAccessPolicyOutput)
-	mockDeleteVaultAccessPolicy         func(*glacier.DeleteVaultAccessPolicyInput) (*glacier.DeleteVaultAccessPolicyOutput, error)
-	mockDeleteVaultNotificationsRequest func(*glacier.DeleteVaultNotificationsInput) (*request.Request, *glacier.DeleteVaultNotificationsOutput)
-	mockDeleteVaultNotifications        func(*glacier.DeleteVaultNotificationsInput) (*glacier.DeleteVaultNotificationsOutput, error)
-	mockDescribeJobRequest              func(*glacier.DescribeJobInput) (*request.Request, *glacier.JobDescription)
-	mockDescribeJob                     func(*glacier.DescribeJobInput) (*glacier.JobDescription, error)
-	mockDescribeVaultRequest            func(*glacier.DescribeVaultInput) (*request.Request, *glacier.DescribeVaultOutput)
-	mockDescribeVault                   func(*glacier.DescribeVaultInput) (*glacier.DescribeVaultOutput, error)
-	mockGetDataRetrievalPolicyRequest   func(*glacier.GetDataRetrievalPolicyInput) (*request.Request, *glacier.GetDataRetrievalPolicyOutput)
-	mockGetDataRetrievalPolicy          func(*glacier.GetDataRetrievalPolicyInput) (*glacier.GetDataRetrievalPolicyOutput, error)
-	mockGetJobOutputRequest             func(*glacier.GetJobOutputInput) (*request.Request, *glacier.GetJobOutputOutput)
-	mockGetJobOutput                    func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error)
-	mockGetVaultAccessPolicyRequest     func(*glacier.GetVaultAccessPolicyInput) (*request.Request, *glacier.GetVaultAccessPolicyOutput)
-	mockGetVaultAccessPolicy            func(*glacier.GetVaultAccessPolicyInput) (*glacier.GetVaultAccessPolicyOutput, error)
-	mockGetVaultLockRequest             func(*glacier.GetVaultLockInput) (*request.Request, *glacier.GetVaultLockOutput)
-	mockGetVaultLock                    func(*glacier.GetVaultLockInput) (*glacier.GetVaultLockOutput, error)
-	mockGetVaultNotificationsRequest    func(*glacier.GetVaultNotificationsInput) (*request.Request, *glacier.GetVaultNotificationsOutput)
-	mockGetVaultNotifications           func(*glacier.GetVaultNotificationsInput) (*glacier.GetVaultNotificationsOutput, error)
-	mockInitiateJobRequest              func(*glacier.InitiateJobInput) (*request.Request, *glacier.InitiateJobOutput)
-	mockInitiateJob                     func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error)
-	mockInitiateMultipartUploadRequest  func(*glacier.InitiateMultipartUploadInput) (*request.Request, *glacier.InitiateMultipartUploadOutput)
-	mockInitiateMultipartUpload         func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error)
-	mockInitiateVaultLockRequest        func(*glacier.InitiateVaultLockInput) (*request.Request, *glacier.InitiateVaultLockOutput)
-	mockInitiateVaultLock               func(*glacier.InitiateVaultLockInput) (*glacier.InitiateVaultLockOutput, error)
-	mockListJobsRequest                 func(*glacier.ListJobsInput) (*request.Request, *glacier.ListJobsOutput)
-	mockListJobs                        func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error)
-	mockListJobsPages                   func(*glacier.ListJobsInput, func(*glacier.ListJobsOutput, bool) bool) error
-	mockListMultipartUploadsRequest     func(*glacier.ListMultipartUploadsInput) (*request.Request, *glacier.ListMultipartUploadsOutput)
-	mockListMultipartUploads            func(*glacier.ListMultipartUploadsInput) (*glacier.ListMultipartUploadsOutput, error)
-	mockListMultipartUploadsPages       func(*glacier.ListMultipartUploadsInput, func(*glacier.ListMultipartUploadsOutput, bool) bool) error
-	mockListPartsRequest                func(*glacier.ListPartsInput) (*request.Request, *glacier.ListPartsOutput)
-	mockListParts                       func(*glacier.ListPartsInput) (*glacier.ListPartsOutput, error)
-	mockListPartsPages                  func(*glacier.ListPartsInput, func(*glacier.ListPartsOutput, bool) bool) error
-	mockListTagsForVaultRequest         func(*glacier.ListTagsForVaultInput) (*request.Request, *glacier.ListTagsForVaultOutput)
-	mockListTagsForVault                func(*glacier.ListTagsForVaultInput) (*glacier.ListTagsForVaultOutput, error)
-	mockListVaultsRequest               func(*glacier.ListVaultsInput) (*request.Request, *glacier.ListVaultsOutput)
-	mockListVaults                      func(*glacier.ListVaultsInput) (*glacier.ListVaultsOutput, error)
-	mockListVaultsPages                 func(*glacier.ListVaultsInput, func(*glacier.ListVaultsOutput, bool) bool) error
-	mockRemoveTagsFromVaultRequest      func(*glacier.RemoveTagsFromVaultInput) (*request.Request, *glacier.RemoveTagsFromVaultOutput)
-	mockRemoveTagsFromVault             func(*glacier.RemoveTagsFromVaultInput) (*glacier.RemoveTagsFromVaultOutput, error)
-	mockSetDataRetrievalPolicyRequest   func(*glacier.SetDataRetrievalPolicyInput) (*request.Request, *glacier.SetDataRetrievalPolicyOutput)
-	mockSetDataRetrievalPolicy          func(*glacier.SetDataRetrievalPolicyInput) (*glacier.SetDataRetrievalPolicyOutput, error)
-	mockSetVaultAccessPolicyRequest     func(*glacier.SetVaultAccessPolicyInput) (*request.Request, *glacier.SetVaultAccessPolicyOutput)
-	mockSetVaultAccessPolicy            func(*glacier.SetVaultAccessPolicyInput) (*glacier.SetVaultAccessPolicyOutput, error)
-	mockSetVaultNotificationsRequest    func(*glacier.SetVaultNotificationsInput) (*request.Request, *glacier.SetVaultNotificationsOutput)
-	mockSetVaultNotifications           func(*glacier.SetVaultNotificationsInput) (*glacier.SetVaultNotificationsOutput, error)
-	mockUploadArchiveRequest            func(*glacier.UploadArchiveInput) (*request.Request, *glacier.ArchiveCreationOutput)
-	mockUploadArchive                   func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error)
-	mockUploadMultipartPartRequest      func(*glacier.UploadMultipartPartInput) (*request.Request, *glacier.UploadMultipartPartOutput)
-	mockUploadMultipartPart             func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error)
-	mockWaitUntilVaultExists            func(*glacier.DescribeVaultInput) error
-	mockWaitUntilVaultNotExists         func(*glacier.DescribeVaultInput) error
+	mockAbortMultipartUpload                   func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error)
+	mockAbortMultipartUploadWithContext        func(aws.Context, *glacier.AbortMultipartUploadInput, ...request.Option) (*glacier.AbortMultipartUploadOutput, error)
+	mockAbortMultipartUploadRequest            func(*glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput)
+	mockAbortVaultLock                         func(*glacier.AbortVaultLockInput) (*glacier.AbortVaultLockOutput, error)
+	mockAbortVaultLockWithContext              func(aws.Context, *glacier.AbortVaultLockInput, ...request.Option) (*glacier.AbortVaultLockOutput, error)
+	mockAbortVaultLockRequest                  func(*glacier.AbortVaultLockInput) (*request.Request, *glacier.AbortVaultLockOutput)
+	mockAddTagsToVault                         func(*glacier.AddTagsToVaultInput) (*glacier.AddTagsToVaultOutput, error)
+	mockAddTagsToVaultWithContext              func(aws.Context, *glacier.AddTagsToVaultInput, ...request.Option) (*glacier.AddTagsToVaultOutput, error)
+	mockAddTagsToVaultRequest                  func(*glacier.AddTagsToVaultInput) (*request.Request, *glacier.AddTagsToVaultOutput)
+	mockCompleteMultipartUpload                func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error)
+	mockCompleteMultipartUploadWithContext     func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error)
+	mockCompleteMultipartUploadRequest         func(*glacier.CompleteMultipartUploadInput) (*request.Request, *glacier.ArchiveCreationOutput)
+	mockCompleteVaultLock                      func(*glacier.CompleteVaultLockInput) (*glacier.CompleteVaultLockOutput, error)
+	mockCompleteVaultLockWithContext           func(aws.Context, *glacier.CompleteVaultLockInput, ...request.Option) (*glacier.CompleteVaultLockOutput, error)
+	mockCompleteVaultLockRequest               func(*glacier.CompleteVaultLockInput) (*request.Request, *glacier.CompleteVaultLockOutput)
+	mockCreateVault                            func(*glacier.CreateVaultInput) (*glacier.CreateVaultOutput, error)
+	mockCreateVaultWithContext                 func(aws.Context, *glacier.CreateVaultInput, ...request.Option) (*glacier.CreateVaultOutput, error)
+	mockCreateVaultRequest                     func(*glacier.CreateVaultInput) (*request.Request, *glacier.CreateVaultOutput)
+	mockDeleteArchive                          func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error)
+	mockDeleteArchiveWithContext               func(aws.Context, *glacier.DeleteArchiveInput, ...request.Option) (*glacier.DeleteArchiveOutput, error)
+	mockDeleteArchiveRequest                   func(*glacier.DeleteArchiveInput) (*request.Request, *glacier.DeleteArchiveOutput)
+	mockDeleteVault                            func(*glacier.DeleteVaultInput) (*glacier.DeleteVaultOutput, error)
+	mockDeleteVaultWithContext                 func(aws.Context, *glacier.DeleteVaultInput, ...request.Option) (*glacier.DeleteVaultOutput, error)
+	mockDeleteVaultRequest                     func(*glacier.DeleteVaultInput) (*request.Request, *glacier.DeleteVaultOutput)
+	mockDeleteVaultAccessPolicy                func(*glacier.DeleteVaultAccessPolicyInput) (*glacier.DeleteVaultAccessPolicyOutput, error)
+	mockDeleteVaultAccessPolicyWithContext     func(aws.Context, *glacier.DeleteVaultAccessPolicyInput, ...request.Option) (*glacier.DeleteVaultAccessPolicyOutput, error)
+	mockDeleteVaultAccessPolicyRequest         func(*glacier.DeleteVaultAccessPolicyInput) (*request.Request, *glacier.DeleteVaultAccessPolicyOutput)
+	mockDeleteVaultNotifications               func(*glacier.DeleteVaultNotificationsInput) (*glacier.DeleteVaultNotificationsOutput, error)
+	mockDeleteVaultNotificationsWithContext    func(aws.Context, *glacier.DeleteVaultNotificationsInput, ...request.Option) (*glacier.DeleteVaultNotificationsOutput, error)
+	mockDeleteVaultNotificationsRequest        func(*glacier.DeleteVaultNotificationsInput) (*request.Request, *glacier.DeleteVaultNotificationsOutput)
+	mockDescribeJob                            func(*glacier.DescribeJobInput) (*glacier.JobDescription, error)
+	mockDescribeJobWithContext                 func(aws.Context, *glacier.DescribeJobInput, ...request.Option) (*glacier.JobDescription, error)
+	mockDescribeJobRequest                     func(*glacier.DescribeJobInput) (*request.Request, *glacier.JobDescription)
+	mockDescribeVault                          func(*glacier.DescribeVaultInput) (*glacier.DescribeVaultOutput, error)
+	mockDescribeVaultWithContext               func(aws.Context, *glacier.DescribeVaultInput, ...request.Option) (*glacier.DescribeVaultOutput, error)
+	mockDescribeVaultRequest                   func(*glacier.DescribeVaultInput) (*request.Request, *glacier.DescribeVaultOutput)
+	mockGetDataRetrievalPolicy                 func(*glacier.GetDataRetrievalPolicyInput) (*glacier.GetDataRetrievalPolicyOutput, error)
+	mockGetDataRetrievalPolicyWithContext      func(aws.Context, *glacier.GetDataRetrievalPolicyInput, ...request.Option) (*glacier.GetDataRetrievalPolicyOutput, error)
+	mockGetDataRetrievalPolicyRequest          func(*glacier.GetDataRetrievalPolicyInput) (*request.Request, *glacier.GetDataRetrievalPolicyOutput)
+	mockGetJobOutput                           func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error)
+	mockGetJobOutputWithContext                func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error)
+	mockGetJobOutputRequest                    func(*glacier.GetJobOutputInput) (*request.Request, *glacier.GetJobOutputOutput)
+	mockGetVaultAccessPolicy                   func(*glacier.GetVaultAccessPolicyInput) (*glacier.GetVaultAccessPolicyOutput, error)
+	mockGetVaultAccessPolicyWithContext        func(aws.Context, *glacier.GetVaultAccessPolicyInput, ...request.Option) (*glacier.GetVaultAccessPolicyOutput, error)
+	mockGetVaultAccessPolicyRequest            func(*glacier.GetVaultAccessPolicyInput) (*request.Request, *glacier.GetVaultAccessPolicyOutput)
+	mockGetVaultLock                           func(*glacier.GetVaultLockInput) (*glacier.GetVaultLockOutput, error)
+	mockGetVaultLockWithContext                func(aws.Context, *glacier.GetVaultLockInput, ...request.Option) (*glacier.GetVaultLockOutput, error)
+	mockGetVaultLockRequest                    func(*glacier.GetVaultLockInput) (*request.Request, *glacier.GetVaultLockOutput)
+	mockGetVaultNotifications                  func(*glacier.GetVaultNotificationsInput) (*glacier.GetVaultNotificationsOutput, error)
+	mockGetVaultNotificationsWithContext       func(aws.Context, *glacier.GetVaultNotificationsInput, ...request.Option) (*glacier.GetVaultNotificationsOutput, error)
+	mockGetVaultNotificationsRequest           func(*glacier.GetVaultNotificationsInput) (*request.Request, *glacier.GetVaultNotificationsOutput)
+	mockInitiateJob                            func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error)
+	mockInitiateJobWithContext                 func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error)
+	mockInitiateJobRequest                     func(*glacier.InitiateJobInput) (*request.Request, *glacier.InitiateJobOutput)
+	mockInitiateMultipartUpload                func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error)
+	mockInitiateMultipartUploadWithContext     func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error)
+	mockInitiateMultipartUploadRequest         func(*glacier.InitiateMultipartUploadInput) (*request.Request, *glacier.InitiateMultipartUploadOutput)
+	mockInitiateVaultLock                      func(*glacier.InitiateVaultLockInput) (*glacier.InitiateVaultLockOutput, error)
+	mockInitiateVaultLockWithContext           func(aws.Context, *glacier.InitiateVaultLockInput, ...request.Option) (*glacier.InitiateVaultLockOutput, error)
+	mockInitiateVaultLockRequest               func(*glacier.InitiateVaultLockInput) (*request.Request, *glacier.InitiateVaultLockOutput)
+	mockListJobs                               func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error)
+	mockListJobsWithContext                    func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error)
+	mockListJobsRequest                        func(*glacier.ListJobsInput) (*request.Request, *glacier.ListJobsOutput)
+	mockListJobsPages                          func(*glacier.ListJobsInput, func(*glacier.ListJobsOutput, bool) bool) error
+	mockListJobsPagesWithContext               func(aws.Context, *glacier.ListJobsInput, func(*glacier.ListJobsOutput, bool) bool, ...request.Option) error
+	mockListMultipartUploads                   func(*glacier.ListMultipartUploadsInput) (*glacier.ListMultipartUploadsOutput, error)
+	mockListMultipartUploadsWithContext        func(aws.Context, *glacier.ListMultipartUploadsInput, ...request.Option) (*glacier.ListMultipartUploadsOutput, error)
+	mockListMultipartUploadsRequest            func(*glacier.ListMultipartUploadsInput) (*request.Request, *glacier.ListMultipartUploadsOutput)
+	mockListMultipartUploadsPages              func(*glacier.ListMultipartUploadsInput, func(*glacier.ListMultipartUploadsOutput, bool) bool) error
+	mockListMultipartUploadsPagesWithContext   func(aws.Context, *glacier.ListMultipartUploadsInput, func(*glacier.ListMultipartUploadsOutput, bool) bool, ...request.Option) error
+	mockListParts                              func(*glacier.ListPartsInput) (*glacier.ListPartsOutput, error)
+	mockListPartsWithContext                   func(aws.Context, *glacier.ListPartsInput, ...request.Option) (*glacier.ListPartsOutput, error)
+	mockListPartsRequest                       func(*glacier.ListPartsInput) (*request.Request, *glacier.ListPartsOutput)
+	mockListPartsPages                         func(*glacier.ListPartsInput, func(*glacier.ListPartsOutput, bool) bool) error
+	mockListPartsPagesWithContext              func(aws.Context, *glacier.ListPartsInput, func(*glacier.ListPartsOutput, bool) bool, ...request.Option) error
+	mockListProvisionedCapacity                func(*glacier.ListProvisionedCapacityInput) (*glacier.ListProvisionedCapacityOutput, error)
+	mockListProvisionedCapacityWithContext     func(aws.Context, *glacier.ListProvisionedCapacityInput, ...request.Option) (*glacier.ListProvisionedCapacityOutput, error)
+	mockListProvisionedCapacityRequest         func(*glacier.ListProvisionedCapacityInput) (*request.Request, *glacier.ListProvisionedCapacityOutput)
+	mockListTagsForVault                       func(*glacier.ListTagsForVaultInput) (*glacier.ListTagsForVaultOutput, error)
+	mockListTagsForVaultWithContext            func(aws.Context, *glacier.ListTagsForVaultInput, ...request.Option) (*glacier.ListTagsForVaultOutput, error)
+	mockListTagsForVaultRequest                func(*glacier.ListTagsForVaultInput) (*request.Request, *glacier.ListTagsForVaultOutput)
+	mockListVaults                             func(*glacier.ListVaultsInput) (*glacier.ListVaultsOutput, error)
+	mockListVaultsWithContext                  func(aws.Context, *glacier.ListVaultsInput, ...request.Option) (*glacier.ListVaultsOutput, error)
+	mockListVaultsRequest                      func(*glacier.ListVaultsInput) (*request.Request, *glacier.ListVaultsOutput)
+	mockListVaultsPages                        func(*glacier.ListVaultsInput, func(*glacier.ListVaultsOutput, bool) bool) error
+	mockListVaultsPagesWithContext             func(aws.Context, *glacier.ListVaultsInput, func(*glacier.ListVaultsOutput, bool) bool, ...request.Option) error
+	mockPurchaseProvisionedCapacity            func(*glacier.PurchaseProvisionedCapacityInput) (*glacier.PurchaseProvisionedCapacityOutput, error)
+	mockPurchaseProvisionedCapacityWithContext func(aws.Context, *glacier.PurchaseProvisionedCapacityInput, ...request.Option) (*glacier.PurchaseProvisionedCapacityOutput, error)
+	mockPurchaseProvisionedCapacityRequest     func(*glacier.PurchaseProvisionedCapacityInput) (*request.Request, *glacier.PurchaseProvisionedCapacityOutput)
+	mockRemoveTagsFromVault                    func(*glacier.RemoveTagsFromVaultInput) (*glacier.RemoveTagsFromVaultOutput, error)
+	mockRemoveTagsFromVaultWithContext         func(aws.Context, *glacier.RemoveTagsFromVaultInput, ...request.Option) (*glacier.RemoveTagsFromVaultOutput, error)
+	mockRemoveTagsFromVaultRequest             func(*glacier.RemoveTagsFromVaultInput) (*request.Request, *glacier.RemoveTagsFromVaultOutput)
+	mockSetDataRetrievalPolicy                 func(*glacier.SetDataRetrievalPolicyInput) (*glacier.SetDataRetrievalPolicyOutput, error)
+	mockSetDataRetrievalPolicyWithContext      func(aws.Context, *glacier.SetDataRetrievalPolicyInput, ...request.Option) (*glacier.SetDataRetrievalPolicyOutput, error)
+	mockSetDataRetrievalPolicyRequest          func(*glacier.SetDataRetrievalPolicyInput) (*request.Request, *glacier.SetDataRetrievalPolicyOutput)
+	mockSetVaultAccessPolicy                   func(*glacier.SetVaultAccessPolicyInput) (*glacier.SetVaultAccessPolicyOutput, error)
+	mockSetVaultAccessPolicyWithContext        func(aws.Context, *glacier.SetVaultAccessPolicyInput, ...request.Option) (*glacier.SetVaultAccessPolicyOutput, error)
+	mockSetVaultAccessPolicyRequest            func(*glacier.SetVaultAccessPolicyInput) (*request.Request, *glacier.SetVaultAccessPolicyOutput)
+	mockSetVaultNotifications                  func(*glacier.SetVaultNotificationsInput) (*glacier.SetVaultNotificationsOutput, error)
+	mockSetVaultNotificationsWithContext       func(aws.Context, *glacier.SetVaultNotificationsInput, ...request.Option) (*glacier.SetVaultNotificationsOutput, error)
+	mockSetVaultNotificationsRequest           func(*glacier.SetVaultNotificationsInput) (*request.Request, *glacier.SetVaultNotificationsOutput)
+	mockUploadArchive                          func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error)
+	mockUploadArchiveWithContext               func(aws.Context, *glacier.UploadArchiveInput, ...request.Option) (*glacier.ArchiveCreationOutput, error)
+	mockUploadArchiveRequest                   func(*glacier.UploadArchiveInput) (*request.Request, *glacier.ArchiveCreationOutput)
+	mockUploadMultipartPart                    func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error)
+	mockUploadMultipartPartWithContext         func(aws.Context, *glacier.UploadMultipartPartInput, ...request.Option) (*glacier.UploadMultipartPartOutput, error)
+	mockUploadMultipartPartRequest             func(*glacier.UploadMultipartPartInput) (*request.Request, *glacier.UploadMultipartPartOutput)
+	mockWaitUntilVaultExists                   func(*glacier.DescribeVaultInput) error
+	mockWaitUntilVaultExistsWithContext        func(aws.Context, *glacier.DescribeVaultInput, ...request.WaiterOption) error
+	mockWaitUntilVaultNotExists                func(*glacier.DescribeVaultInput) error
+	mockWaitUntilVaultNotExistsWithContext     func(aws.Context, *glacier.DescribeVaultInput, ...request.WaiterOption) error
 }
 
 func (g mockGlacierAPI) AbortMultipartUploadRequest(a *glacier.AbortMultipartUploadInput) (*request.Request, *glacier.AbortMultipartUploadOutput) {
@@ -2023,6 +2066,178 @@ func (g mockGlacierAPI) WaitUntilVaultExists(d *glacier.DescribeVaultInput) erro
 
 func (g mockGlacierAPI) WaitUntilVaultNotExists(d *glacier.DescribeVaultInput) error {
 	return g.mockWaitUntilVaultNotExists(d)
+}
+
+func (g mockGlacierAPI) AbortMultipartUploadWithContext(c aws.Context, a *glacier.AbortMultipartUploadInput, o ...request.Option) (*glacier.AbortMultipartUploadOutput, error) {
+	return g.mockAbortMultipartUploadWithContext(c, a, o...)
+}
+
+func (g mockGlacierAPI) AbortVaultLockWithContext(c aws.Context, a *glacier.AbortVaultLockInput, o ...request.Option) (*glacier.AbortVaultLockOutput, error) {
+	return g.mockAbortVaultLockWithContext(c, a, o...)
+}
+
+func (g mockGlacierAPI) AddTagsToVaultWithContext(c aws.Context, a *glacier.AddTagsToVaultInput, o ...request.Option) (*glacier.AddTagsToVaultOutput, error) {
+	return g.mockAddTagsToVaultWithContext(c, a, o...)
+}
+
+func (g mockGlacierAPI) CompleteMultipartUploadWithContext(c aws.Context, cmu *glacier.CompleteMultipartUploadInput, o ...request.Option) (*glacier.ArchiveCreationOutput, error) {
+	return g.mockCompleteMultipartUploadWithContext(c, cmu, o...)
+}
+
+func (g mockGlacierAPI) CompleteVaultLockWithContext(c aws.Context, cvli *glacier.CompleteVaultLockInput, o ...request.Option) (*glacier.CompleteVaultLockOutput, error) {
+	return g.mockCompleteVaultLockWithContext(c, cvli, o...)
+}
+
+func (g mockGlacierAPI) CreateVaultWithContext(c aws.Context, cvi *glacier.CreateVaultInput, o ...request.Option) (*glacier.CreateVaultOutput, error) {
+	return g.mockCreateVaultWithContext(c, cvi, o...)
+}
+
+func (g mockGlacierAPI) DeleteArchiveWithContext(c aws.Context, d *glacier.DeleteArchiveInput, o ...request.Option) (*glacier.DeleteArchiveOutput, error) {
+	return g.mockDeleteArchiveWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) DeleteVaultWithContext(c aws.Context, d *glacier.DeleteVaultInput, o ...request.Option) (*glacier.DeleteVaultOutput, error) {
+	return g.mockDeleteVaultWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) DeleteVaultAccessPolicyWithContext(c aws.Context, d *glacier.DeleteVaultAccessPolicyInput, o ...request.Option) (*glacier.DeleteVaultAccessPolicyOutput, error) {
+	return g.mockDeleteVaultAccessPolicyWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) DeleteVaultNotificationsWithContext(c aws.Context, d *glacier.DeleteVaultNotificationsInput, o ...request.Option) (*glacier.DeleteVaultNotificationsOutput, error) {
+	return g.mockDeleteVaultNotificationsWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) DescribeJobWithContext(c aws.Context, d *glacier.DescribeJobInput, o ...request.Option) (*glacier.JobDescription, error) {
+	return g.mockDescribeJobWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) DescribeVaultWithContext(c aws.Context, d *glacier.DescribeVaultInput, o ...request.Option) (*glacier.DescribeVaultOutput, error) {
+	return g.mockDescribeVaultWithContext(c, d, o...)
+}
+
+func (g mockGlacierAPI) GetDataRetrievalPolicyWithContext(c aws.Context, gd *glacier.GetDataRetrievalPolicyInput, o ...request.Option) (*glacier.GetDataRetrievalPolicyOutput, error) {
+	return g.mockGetDataRetrievalPolicyWithContext(c, gd, o...)
+}
+
+func (g mockGlacierAPI) GetJobOutputWithContext(c aws.Context, gj *glacier.GetJobOutputInput, o ...request.Option) (*glacier.GetJobOutputOutput, error) {
+	return g.mockGetJobOutputWithContext(c, gj, o...)
+}
+
+func (g mockGlacierAPI) GetVaultAccessPolicyWithContext(c aws.Context, gv *glacier.GetVaultAccessPolicyInput, o ...request.Option) (*glacier.GetVaultAccessPolicyOutput, error) {
+	return g.mockGetVaultAccessPolicyWithContext(c, gv, o...)
+}
+
+func (g mockGlacierAPI) GetVaultLockWithContext(c aws.Context, gv *glacier.GetVaultLockInput, o ...request.Option) (*glacier.GetVaultLockOutput, error) {
+	return g.mockGetVaultLockWithContext(c, gv, o...)
+}
+
+func (g mockGlacierAPI) GetVaultNotificationsWithContext(c aws.Context, gv *glacier.GetVaultNotificationsInput, o ...request.Option) (*glacier.GetVaultNotificationsOutput, error) {
+	return g.mockGetVaultNotificationsWithContext(c, gv, o...)
+}
+
+func (g mockGlacierAPI) InitiateJobWithContext(c aws.Context, i *glacier.InitiateJobInput, o ...request.Option) (*glacier.InitiateJobOutput, error) {
+	return g.mockInitiateJobWithContext(c, i, o...)
+}
+
+func (g mockGlacierAPI) InitiateMultipartUploadWithContext(c aws.Context, i *glacier.InitiateMultipartUploadInput, o ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
+	return g.mockInitiateMultipartUploadWithContext(c, i, o...)
+}
+
+func (g mockGlacierAPI) InitiateVaultLockWithContext(c aws.Context, i *glacier.InitiateVaultLockInput, o ...request.Option) (*glacier.InitiateVaultLockOutput, error) {
+	return g.mockInitiateVaultLockWithContext(c, i, o...)
+}
+
+func (g mockGlacierAPI) ListJobsWithContext(c aws.Context, l *glacier.ListJobsInput, o ...request.Option) (*glacier.ListJobsOutput, error) {
+	return g.mockListJobsWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListJobsPagesWithContext(c aws.Context, l *glacier.ListJobsInput, f func(*glacier.ListJobsOutput, bool) bool, o ...request.Option) error {
+	return g.mockListJobsPagesWithContext(c, l, f, o...)
+}
+
+func (g mockGlacierAPI) ListMultipartUploadsWithContext(c aws.Context, l *glacier.ListMultipartUploadsInput, o ...request.Option) (*glacier.ListMultipartUploadsOutput, error) {
+	return g.mockListMultipartUploadsWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListMultipartUploadsPagesWithContext(c aws.Context, l *glacier.ListMultipartUploadsInput, f func(*glacier.ListMultipartUploadsOutput, bool) bool, o ...request.Option) error {
+	return g.mockListMultipartUploadsPagesWithContext(c, l, f, o...)
+}
+
+func (g mockGlacierAPI) ListPartsWithContext(c aws.Context, l *glacier.ListPartsInput, o ...request.Option) (*glacier.ListPartsOutput, error) {
+	return g.mockListPartsWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListPartsPagesWithContext(c aws.Context, l *glacier.ListPartsInput, f func(*glacier.ListPartsOutput, bool) bool, o ...request.Option) error {
+	return g.mockListPartsPagesWithContext(c, l, f, o...)
+}
+
+func (g mockGlacierAPI) ListProvisionedCapacity(l *glacier.ListProvisionedCapacityInput) (*glacier.ListProvisionedCapacityOutput, error) {
+	return g.mockListProvisionedCapacity(l)
+}
+
+func (g mockGlacierAPI) ListProvisionedCapacityWithContext(c aws.Context, l *glacier.ListProvisionedCapacityInput, o ...request.Option) (*glacier.ListProvisionedCapacityOutput, error) {
+	return g.mockListProvisionedCapacityWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListProvisionedCapacityRequest(l *glacier.ListProvisionedCapacityInput) (*request.Request, *glacier.ListProvisionedCapacityOutput) {
+	return g.mockListProvisionedCapacityRequest(l)
+}
+
+func (g mockGlacierAPI) ListTagsForVaultWithContext(c aws.Context, l *glacier.ListTagsForVaultInput, o ...request.Option) (*glacier.ListTagsForVaultOutput, error) {
+	return g.mockListTagsForVaultWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListVaultsWithContext(c aws.Context, l *glacier.ListVaultsInput, o ...request.Option) (*glacier.ListVaultsOutput, error) {
+	return g.mockListVaultsWithContext(c, l, o...)
+}
+
+func (g mockGlacierAPI) ListVaultsPagesWithContext(c aws.Context, l *glacier.ListVaultsInput, f func(*glacier.ListVaultsOutput, bool) bool, o ...request.Option) error {
+	return g.mockListVaultsPagesWithContext(c, l, f, o...)
+}
+
+func (g mockGlacierAPI) PurchaseProvisionedCapacity(p *glacier.PurchaseProvisionedCapacityInput) (*glacier.PurchaseProvisionedCapacityOutput, error) {
+	return g.mockPurchaseProvisionedCapacity(p)
+}
+
+func (g mockGlacierAPI) PurchaseProvisionedCapacityWithContext(c aws.Context, p *glacier.PurchaseProvisionedCapacityInput, o ...request.Option) (*glacier.PurchaseProvisionedCapacityOutput, error) {
+	return g.mockPurchaseProvisionedCapacityWithContext(c, p, o...)
+}
+
+func (g mockGlacierAPI) PurchaseProvisionedCapacityRequest(p *glacier.PurchaseProvisionedCapacityInput) (*request.Request, *glacier.PurchaseProvisionedCapacityOutput) {
+	return g.mockPurchaseProvisionedCapacityRequest(p)
+}
+
+func (g mockGlacierAPI) RemoveTagsFromVaultWithContext(c aws.Context, r *glacier.RemoveTagsFromVaultInput, o ...request.Option) (*glacier.RemoveTagsFromVaultOutput, error) {
+	return g.mockRemoveTagsFromVaultWithContext(c, r, o...)
+}
+
+func (g mockGlacierAPI) SetDataRetrievalPolicyWithContext(c aws.Context, s *glacier.SetDataRetrievalPolicyInput, o ...request.Option) (*glacier.SetDataRetrievalPolicyOutput, error) {
+	return g.mockSetDataRetrievalPolicyWithContext(c, s, o...)
+}
+
+func (g mockGlacierAPI) SetVaultAccessPolicyWithContext(c aws.Context, s *glacier.SetVaultAccessPolicyInput, o ...request.Option) (*glacier.SetVaultAccessPolicyOutput, error) {
+	return g.mockSetVaultAccessPolicyWithContext(c, s, o...)
+}
+
+func (g mockGlacierAPI) SetVaultNotificationsWithContext(c aws.Context, s *glacier.SetVaultNotificationsInput, o ...request.Option) (*glacier.SetVaultNotificationsOutput, error) {
+	return g.mockSetVaultNotificationsWithContext(c, s, o...)
+}
+
+func (g mockGlacierAPI) UploadArchiveWithContext(c aws.Context, u *glacier.UploadArchiveInput, o ...request.Option) (*glacier.ArchiveCreationOutput, error) {
+	return g.mockUploadArchiveWithContext(c, u, o...)
+}
+
+func (g mockGlacierAPI) UploadMultipartPartWithContext(c aws.Context, u *glacier.UploadMultipartPartInput, o ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
+	return g.mockUploadMultipartPartWithContext(c, u, o...)
+}
+
+func (g mockGlacierAPI) WaitUntilVaultExistsWithContext(c aws.Context, d *glacier.DescribeVaultInput, w ...request.WaiterOption) error {
+	return g.mockWaitUntilVaultExistsWithContext(c, d, w...)
+}
+
+func (g mockGlacierAPI) WaitUntilVaultNotExistsWithContext(c aws.Context, d *glacier.DescribeVaultInput, w ...request.WaiterOption) error {
+	return g.mockWaitUntilVaultNotExistsWithContext(c, d, w...)
 }
 
 type fakeClock struct {
