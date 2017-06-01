@@ -87,6 +87,12 @@
 			"revisionTime": "2017-05-31T19:36:10Z"
 		},
 		{
+			"checksumSHA1": "9lTLQ16NDGs0idodrawbOUhFZPE=",
+			"path": "github.com/aws/aws-sdk-go/aws/endpoints",
+			"revision": "ef136b83f5b3916c0970f94500ba130e61809a6b",
+			"revisionTime": "2017-05-31T19:36:10Z"
+		},
+		{
 			"checksumSHA1": "Utpqcq3J2hqoaKEsjI7kDF9bUkg=",
 			"path": "github.com/aws/aws-sdk-go/aws/request",
 			"revision": "ef136b83f5b3916c0970f94500ba130e61809a6b",
@@ -103,12 +109,6 @@
 			"path": "github.com/aws/aws-sdk-go/aws/signer/v4",
 			"revision": "ef136b83f5b3916c0970f94500ba130e61809a6b",
 			"revisionTime": "2017-05-31T19:36:10Z"
-		},
-		{
-			"checksumSHA1": "Bm6UrYb2QCzpYseLwwgw6aetgRc=",
-			"path": "github.com/aws/aws-sdk-go/private/endpoints",
-			"revision": "1b2abe886743dc2bcc78472bfd30a15dc0a61fb8",
-			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
 			"checksumSHA1": "wk7EyvDaHwb5qqoOP/4d3cV0708=",
@@ -157,12 +157,6 @@
 			"path": "github.com/aws/aws-sdk-go/private/protocol/xml/xmlutil",
 			"revision": "ef136b83f5b3916c0970f94500ba130e61809a6b",
 			"revisionTime": "2017-05-31T19:36:10Z"
-		},
-		{
-			"checksumSHA1": "Eo9yODN5U99BK0pMzoqnBm7PCrY=",
-			"path": "github.com/aws/aws-sdk-go/private/waiter",
-			"revision": "1b2abe886743dc2bcc78472bfd30a15dc0a61fb8",
-			"revisionTime": "2016-10-13T20:17:12Z"
 		},
 		{
 			"checksumSHA1": "g/B0cturzQMWZN+VJwm9izYoQ5Q=",
