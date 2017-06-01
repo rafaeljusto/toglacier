@@ -435,7 +435,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 						{
 							Backup: cloud.Backup{
 								ID:        "123454",
-								CreatedAt: now.Add(-time.Second),
+								CreatedAt: now.Add(-24 * time.Hour),
 								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
 								VaultName: "test",
 							},
@@ -457,7 +457,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 							},
 							Info: archive.Info{
 								"file1": archive.ItemInfo{
-									ID:       "AWS1234",
+									ID:       "123454",
 									Status:   archive.ItemInfoStatusModified,
 									Checksum: "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
 								},
@@ -499,7 +499,7 @@ func TestToGlacier_ListBackups(t *testing.T) {
 					},
 					Info: archive.Info{
 						"file1": archive.ItemInfo{
-							ID:       "AWS1234",
+							ID:       "123454",
 							Status:   archive.ItemInfoStatusModified,
 							Checksum: "915bd6a5873681a273f405c62993b6a96237eab9150fc525c9d57af0becb7ec1",
 						},
@@ -833,8 +833,23 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			description: "it should retrieve a backup correctly",
 			id:          "AWSID123",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" && b.Backup.ID != "AWSID122" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "8d9ccbb4e474dbd211a7b1f115c7bddaa950842e51a60418c4e943dee29e9113",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
 						{
 							Backup: cloud.Backup{
 								ID:        "AWSID123",
@@ -907,8 +922,24 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			id:           "AWSID123",
 			backupSecret: "1234567890123456",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
-					return nil, nil
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
 				},
 			},
 			envelop: mockEnvelop{
@@ -965,8 +996,23 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			description: "it should retrieve a backup correctly with no archive information and all other backup parts",
 			id:          "AWSID123",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" && b.Backup.ID != "AWSID122" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "325152353325adc8854e185ab59daf44c51e78404e1512eea9dca116f3a8c16d",
+								VaultName: "vault",
+								Size:      38,
+							},
+						},
 						{
 							Backup: cloud.Backup{
 								ID:        "AWSID123",
@@ -1042,6 +1088,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			id:             "AWSID123",
 			skipUnmodified: true,
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
 						{
@@ -1134,6 +1186,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			id:             "AWSID123",
 			skipUnmodified: true,
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
 						{
@@ -1215,6 +1273,12 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			description: "it should detect an error while retrieving a backup part",
 			id:          "AWSID123",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
 						{
@@ -1295,8 +1359,24 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			description: "it should detect when there's an error retrieving a backup",
 			id:          "AWSID123",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
-					return nil, nil
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
 				},
 			},
 			cloud: mockCloud{
@@ -1319,8 +1399,24 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			id:           "AWSID123",
 			backupSecret: "123456",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
-					return nil, nil
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
 				},
 			},
 			envelop: mockEnvelop{
@@ -1367,8 +1463,23 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			description: "it should detect an error while extracting the backup",
 			id:          "AWSID123",
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
 				mockList: func() (storage.Backups, error) {
 					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "350c8ae1300b38a6cc74793e28712b5473c5f663bf8085b5c9bb0f191ed68f6d",
+								VaultName: "vault",
+								Size:      89,
+							},
+						},
 						{
 							Backup: cloud.Backup{
 								ID:        "AWSID123",
@@ -1419,6 +1530,181 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error extracting backup"),
+		},
+		{
+			description: "it should detect an error while saving a backup locally",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					return errors.New("something went wrong")
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "325152353325adc8854e185ab59daf44c51e78404e1512eea9dca116f3a8c16d",
+								VaultName: "vault",
+								Size:      38,
+							},
+						},
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, nil
+					}
+
+					switch ids[0] {
+					case "AWSID123":
+						return map[string]string{
+							"AWSID123": "toglacier-archive-1.tar.gz",
+						}, nil
+					case "AWSID122":
+						return map[string]string{
+							"AWSID122": "toglacier-archive-2.tar.gz",
+						}, nil
+					}
+
+					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
+				},
+			},
+			archive: mockArchive{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 0 {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID123",
+								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+							},
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusModified,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil, nil
+				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
+			expectedError: errors.New("something went wrong"),
+		},
+		{
+			description: "it should detect an error while saving a backup part locally",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					return errors.New("something went wrong")
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "8d9ccbb4e474dbd211a7b1f115c7bddaa950842e51a60418c4e943dee29e9113",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID123",
+								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+								VaultName: "vault",
+								Size:      41,
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file2": archive.ItemInfo{
+									ID:       "AWSID122",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+								},
+								"file3": archive.ItemInfo{
+									ID:       "AWSID123",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+								},
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) != 2 {
+						return nil, fmt.Errorf("unexpected number of ids: %v", ids)
+					}
+
+					return map[string]string{
+						"AWSID123": "toglacier-archive-1.tar.gz",
+						"AWSID122": "toglacier-archive-2.tar.gz",
+					}, nil
+				},
+			},
+			archive: mockArchive{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					sort.Strings(filter)
+
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+					}
+					return nil, nil
+				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
+			expectedError: errors.New("something went wrong"),
 		},
 	}
 
@@ -1526,7 +1812,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 			keepBackups: 2,
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
-					if id != "123458" {
+					if id != "123456" {
 						return fmt.Errorf("unexpected id %s", id)
 					}
 					return nil
@@ -1542,13 +1828,6 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 								Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 								VaultName: "test",
 							},
-							Info: archive.Info{
-								"file1": archive.ItemInfo{
-									ID:       "123459",
-									Status:   archive.ItemInfoStatusUnmodified,
-									Checksum: "4c6733f2d51c5cde947835279ce9f031bcacaa2265988ef1353078810695fb20",
-								},
-							},
 						},
 						{
 							Backup: cloud.Backup{
@@ -1556,6 +1835,13 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 								CreatedAt: now.Add(time.Second),
 								Checksum:  "0484ed70359cd1a4337d16a4143a3d247e0a3ecbce01482c318d709ed5161016",
 								VaultName: "test",
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:       "123459",
+									Status:   archive.ItemInfoStatusUnmodified,
+									Checksum: "4c6733f2d51c5cde947835279ce9f031bcacaa2265988ef1353078810695fb20",
+								},
 							},
 						},
 						{
@@ -1577,7 +1863,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 					}, nil
 				},
 				mockRemove: func(id string) error {
-					if id != "123458" {
+					if id != "123456" {
 						return fmt.Errorf("removing unexpected id %s", id)
 					}
 					return nil
@@ -1632,7 +1918,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 					}, nil
 				},
 				mockRemove: func(id string) error {
-					if id != "123458" {
+					if id != "123456" {
 						return fmt.Errorf("removing unexpected id %s", id)
 					}
 					return nil
@@ -1645,7 +1931,7 @@ func TestToGlacier_RemoveOldBackups(t *testing.T) {
 			keepBackups: 2,
 			cloud: mockCloud{
 				mockRemove: func(id string) error {
-					if id != "123458" {
+					if id != "123456" {
 						return fmt.Errorf("unexpected id %s", id)
 					}
 					return nil

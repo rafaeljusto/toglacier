@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"os"
-	"sort"
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
@@ -86,9 +85,9 @@ func (b *BoltDB) Save(backup Backup) error {
 	return nil
 }
 
-// List all backup information in the storage. The backups are ordered by
-// creation date. On error it will return an Error type encapsulated in a
-// traceable error. To retrieve the desired error you can do:
+// List all backup information in the storage. On error it will return an Error
+// type encapsulated in a traceable error. To retrieve the desired error you can
+// do:
 //
 //     type causer interface {
 //       Cause() error
@@ -125,7 +124,7 @@ func (b BoltDB) List() (Backups, error) {
 			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}
-			backups = append(backups, backup)
+			backups.Add(backup)
 			return nil
 		})
 
@@ -141,7 +140,6 @@ func (b BoltDB) List() (Backups, error) {
 	}
 
 	b.logger.Infof("storage: backups listed successfully from boltdb storage")
-	sort.Sort(backups)
 	return backups, nil
 }
 

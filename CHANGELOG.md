@@ -14,12 +14,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Ignore unmodified files when choosing the backup parts to download
 - Handle user cancel signal when downloading an archive
 - Remove tarball after extraction to save disk space
+- Synchronize local storage with archive information after the download
+- Detect when the backup ID does not exist
+- Search backups algorithm was being used wrongly
 
 ### Changed
 - Tool moved to cmd subdirectory
 - Optionally list only backups containing specific file
 - Commands now have verbose flag to show/hide internal messages
 - File checksum method added to archive.Archive (old archive.Builder) interface
+- Backups from internal library are now ordered by ID
 
 ## [3.0.0] - 2017-05-15
 ### Added
