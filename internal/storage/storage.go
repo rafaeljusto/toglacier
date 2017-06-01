@@ -15,9 +15,9 @@ type Backup struct {
 	Info   archive.Info
 }
 
-// Backups represents a sorted list of backups that are ordered by creation
-// date. It has the necessary methods so you could use the sort package of the
-// standard library.
+// Backups represents a sorted list of backups that are ordered by id. It has
+// the necessary methods so you could use the sort package of the standard
+// library.
 type Backups []Backup
 
 // Len returns the number of backups.
@@ -32,17 +32,26 @@ func (b Backups) Less(i, j int) bool {
 // Swap change the backups position inside the slice.
 func (b Backups) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
 
-// Search looks for a backup containing the id. It will sort the backups by id
-// if they are not yet sorted.
-func (b Backups) Search(id string) (Backup, bool) {
-	// TODO: maybe is not a good idea to sort here for 2 reasons: we are modifying
-	// the slice in a search (that suposes to be read-only) and we sort the slice
-	// everytime. Also, calling IsSorted is linear time in the worst case, so
-	// calling Sort without checking if it is already sorted could be better
-	if !sort.IsSorted(b) {
-		sort.Sort(b)
-	}
+// Add inserts in the sorted slice a new backup. If the backup id already exist
+// it will be replaced by the new one.
+func (b *Backups) Add(backup Backup) {
+	index := sort.Search(len(*b), func(i int) bool {
+		return strings.Compare((*b)[i].Backup.ID, backup.Backup.ID) >= 0
+	})
 
+	if index < len(*b) && (*b)[index].Backup.ID == backup.Backup.ID {
+		(*b)[index] = backup
+
+	} else {
+		// https://github.com/golang/go/wiki/SliceTricks#insert
+		*b = append(*b, Backup{})
+		copy((*b)[index+1:], (*b)[index:])
+		(*b)[index] = backup
+	}
+}
+
+// Search looks for a backup containing the id.
+func (b Backups) Search(id string) (Backup, bool) {
 	index := sort.Search(len(b), func(i int) bool {
 		return strings.Compare(b[i].Backup.ID, id) >= 0
 	})

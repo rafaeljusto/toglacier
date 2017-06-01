@@ -843,6 +843,15 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					return storage.Backups{
 						{
 							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "8d9ccbb4e474dbd211a7b1f115c7bddaa950842e51a60418c4e943dee29e9113",
+								VaultName: "vault",
+								Size:      41,
+							},
+						},
+						{
+							Backup: cloud.Backup{
 								ID:        "AWSID123",
 								CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 								Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
@@ -865,15 +874,6 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 									Status:   archive.ItemInfoStatusNew,
 									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
 								},
-							},
-						},
-						{
-							Backup: cloud.Backup{
-								ID:        "AWSID122",
-								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
-								Checksum:  "8d9ccbb4e474dbd211a7b1f115c7bddaa950842e51a60418c4e943dee29e9113",
-								VaultName: "vault",
-								Size:      41,
 							},
 						},
 					}, nil

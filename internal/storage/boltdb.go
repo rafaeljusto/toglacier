@@ -124,7 +124,7 @@ func (b BoltDB) List() (Backups, error) {
 			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}
-			backups = append(backups, backup)
+			backups.Add(backup)
 			return nil
 		})
 

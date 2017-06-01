@@ -124,7 +124,7 @@ func (a *AuditFile) List() (Backups, error) {
 			}
 		}
 
-		backups = append(backups, backup)
+		backups.Add(backup)
 	}
 
 	if err := scanner.Err(); err != nil {
