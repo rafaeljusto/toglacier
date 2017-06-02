@@ -8,9 +8,7 @@ import (
 	"io/ioutil"
 	"net/smtp"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -352,19 +350,6 @@ func main() {
 		},
 	}
 
-	// create a graceful shutdown when receiving a signal (SIGINT, SIGKILL,
-	// SIGTERM, SIGSTOP)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM, syscall.SIGSTOP)
-
-	go func() {
-		<-sigs
-		if cancelFunc != nil {
-			cancelFunc()
-		}
-
-		cancel()
-	}()
-
+	manageSignals(cancel, cancelFunc)
 	app.Run(os.Args)
 }

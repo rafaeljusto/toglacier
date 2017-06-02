@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Synchronize local storage with archive information after the download
 - Detect when the backup ID does not exist
 - Search backups algorithm was being used wrongly
+- Windows does not support syscall.SIGSTOP
 
 ### Changed
 - Tool moved to cmd subdirectory
