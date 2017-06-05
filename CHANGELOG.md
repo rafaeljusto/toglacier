@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Detect when the backup ID does not exist
 - Search backups algorithm was being used wrongly
 - Windows does not support syscall.SIGSTOP
+- Don't read environment variables without prefix
 
 ### Changed
 - Tool moved to cmd subdirectory

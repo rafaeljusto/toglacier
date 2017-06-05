@@ -937,6 +937,32 @@ func TestLoadFromEnvironment(t *testing.T) {
 				},
 			},
 		},
+		{
+			description: "it should ignore environment variables without prefix",
+			env: map[string]string{
+				"ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"REGION":            "us-east-1",
+				"VAULT_NAME":        "backup",
+				"SERVER":            "smtp.example.com",
+				"PORT":              "587",
+				"USERNAME":          "user@example.com",
+				"PASSWORD":          "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"FROM":              "user@example.com",
+				"TO":                "report1@example.com,report2@example.com",
+				"FORMAT":            "html",
+				"PATHS":             "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TYPE":              "audit-file",
+				"FILE":              "/var/log/toglacier/audit.log",
+				"LEVEL":             "  DEBUG  ",
+				"KEEP_BACKUPS":      "10",
+				"BACKUP_SECRET":     "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+			},
+			expected: func() *config.Config {
+				return new(config.Config)
+			}(),
+		},
 	}
 
 	originalConfig := config.Current()

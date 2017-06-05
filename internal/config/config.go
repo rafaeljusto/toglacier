@@ -20,36 +20,36 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths        []string `yaml:"paths" envconfig:"paths"`
-	KeepBackups  int      `yaml:"keep backups" envconfig:"keep_backups"`
-	BackupSecret aesKey   `yaml:"backup secret" envconfig:"backup_secret"`
+	Paths        []string `yaml:"paths"`
+	KeepBackups  int      `yaml:"keep backups" split_words:"true"`
+	BackupSecret aesKey   `yaml:"backup secret" split_words:"true"`
 
 	Database struct {
-		Type DatabaseType `yaml:"type" envconfig:"type"`
-		File string       `yaml:"file" envconfig:"file"`
+		Type DatabaseType `yaml:"type"`
+		File string       `yaml:"file"`
 	} `yaml:"database" envconfig:"db"`
 
 	Log struct {
-		File  string   `yaml:"file" envconfig:"file"`
-		Level LogLevel `yaml:"level" envconfig:"level"`
+		File  string   `yaml:"file"`
+		Level LogLevel `yaml:"level"`
 	} `yaml:"log" envconfig:"log"`
 
 	Email struct {
-		Server   string      `yaml:"server" envconfig:"server"`
-		Port     int         `yaml:"port" envconfig:"port"`
-		Username string      `yaml:"username" envconfig:"username"`
-		Password encrypted   `yaml:"password" envconfig:"password"`
-		From     string      `yaml:"from" envconfig:"from"`
-		To       []string    `yaml:"to" envconfig:"to"`
-		Format   EmailFormat `yaml:"format" envconfig:"format"`
+		Server   string      `yaml:"server"`
+		Port     int         `yaml:"port"`
+		Username string      `yaml:"username"`
+		Password encrypted   `yaml:"password"`
+		From     string      `yaml:"from"`
+		To       []string    `yaml:"to"`
+		Format   EmailFormat `yaml:"format"`
 	} `yaml:"email" envconfig:"email"`
 
 	AWS struct {
-		AccountID       encrypted `yaml:"account id" envconfig:"account_id"`
-		AccessKeyID     encrypted `yaml:"access key id" envconfig:"access_key_id"`
-		SecretAccessKey encrypted `yaml:"secret access key" envconfig:"secret_access_key"`
-		Region          string    `yaml:"region" envconfig:"region"`
-		VaultName       string    `yaml:"vault name" envconfig:"vault_name"`
+		AccountID       encrypted `yaml:"account id" split_words:"true"`
+		AccessKeyID     encrypted `yaml:"access key id" split_words:"true"`
+		SecretAccessKey encrypted `yaml:"secret access key" split_words:"true"`
+		Region          string    `yaml:"region"`
+		VaultName       string    `yaml:"vault name" split_words:"true"`
 	} `yaml:"aws" envconfig:"aws"`
 }
 
