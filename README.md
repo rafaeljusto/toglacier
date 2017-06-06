@@ -63,7 +63,7 @@ startup (you don't want your backup scheduler to stop working after a reboot).
 
 The program will work with environment variables or/and with a YAML
 configuration file. You can find the configuration file example on
-`toglacier.yml`, for the environment variables check bellow:
+`cmd/toglacier/toglacier.yml`, for the environment variables check bellow:
 
 | Environment Variable             | Description                             |
 | -------------------------------- | --------------------------------------- |
