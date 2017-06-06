@@ -381,27 +381,27 @@ func (t ToGlacier) RemoveBackup(ids ...string) error {
 			return errors.WithStack(err)
 		}
 
+		// remove references from this id from other backups to keep the consistency
+		// of the local storage
+
 		backups, err := t.Storage.List()
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		// remove references from this id from other backups to keep the consistency
-		// of the local storage
-
 		for _, backup := range backups {
-			var removeFilenames []string
+			save := false
 			for filename, itemInfo := range backup.Info {
 				if itemInfo.ID == id {
-					removeFilenames = append(removeFilenames, filename)
+					// https://golang.org/ref/spec#For_range
+					// If map entries that have not yet been reached are removed during
+					// iteration, the corresponding iteration values will not be produced
+					delete(backup.Info, filename)
+					save = true
 				}
 			}
 
-			for _, removeFilename := range removeFilenames {
-				delete(backup.Info, removeFilename)
-			}
-
-			if len(removeFilenames) > 0 {
+			if save {
 				if err = t.Storage.Save(backup); err != nil {
 					return errors.WithStack(err)
 				}
