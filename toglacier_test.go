@@ -1728,7 +1728,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 	}
 }
 
-func TestToGlacier_RemoveBackup(t *testing.T) {
+func TestToGlacier_RemoveBackups(t *testing.T) {
 	scenarios := []struct {
 		description   string
 		ids           []string
@@ -1888,7 +1888,7 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 				Storage: scenario.storage,
 			}
 
-			if err := toGlacier.RemoveBackup(scenario.ids...); !ErrorEqual(scenario.expectedError, err) {
+			if err := toGlacier.RemoveBackups(scenario.ids...); !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
 		})

@@ -370,41 +370,51 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 	return archiveInfo, nil
 }
 
-// RemoveBackup delete a specific backup from the cloud.
-func (t ToGlacier) RemoveBackup(ids ...string) error {
+// RemoveBackups delete a backups identified by ids from the cloud and from the
+// local storage. It will also remove the reference from the removed backup from
+// other backups information.
+func (t ToGlacier) RemoveBackups(ids ...string) error {
 	for _, id := range ids {
-		if err := t.Cloud.Remove(t.Context, id); err != nil {
+		if err := t.removeBackup(id); err != nil {
 			return errors.WithStack(err)
 		}
+	}
 
-		if err := t.Storage.Remove(id); err != nil {
-			return errors.WithStack(err)
-		}
+	return nil
+}
 
-		// remove references from this id from other backups to keep the consistency
-		// of the local storage
+func (t ToGlacier) removeBackup(id string) error {
+	if err := t.Cloud.Remove(t.Context, id); err != nil {
+		return errors.WithStack(err)
+	}
 
-		backups, err := t.Storage.List()
-		if err != nil {
-			return errors.WithStack(err)
-		}
+	if err := t.Storage.Remove(id); err != nil {
+		return errors.WithStack(err)
+	}
 
-		for _, backup := range backups {
-			save := false
-			for filename, itemInfo := range backup.Info {
-				if itemInfo.ID == id {
-					// https://golang.org/ref/spec#For_range
-					// If map entries that have not yet been reached are removed during
-					// iteration, the corresponding iteration values will not be produced
-					delete(backup.Info, filename)
-					save = true
-				}
+	// remove references from this id from other backups to keep the consistency
+	// of the local storage
+
+	backups, err := t.Storage.List()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	for _, backup := range backups {
+		save := false
+		for filename, itemInfo := range backup.Info {
+			if itemInfo.ID == id {
+				// https://golang.org/ref/spec#For_range
+				// If map entries that have not yet been reached are removed during
+				// iteration, the corresponding iteration values will not be produced
+				delete(backup.Info, filename)
+				save = true
 			}
+		}
 
-			if save {
-				if err = t.Storage.Save(backup); err != nil {
-					return errors.WithStack(err)
-				}
+		if save {
+			if err = t.Storage.Save(backup); err != nil {
+				return errors.WithStack(err)
 			}
 		}
 	}
@@ -451,7 +461,7 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		}
 
 		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i].Backup)
-		if err := t.RemoveBackup(backups[i].Backup.ID); err != nil {
+		if err := t.RemoveBackups(backups[i].Backup.ID); err != nil {
 			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 			return errors.WithStack(err)
 		}
