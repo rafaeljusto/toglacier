@@ -380,6 +380,33 @@ func (t ToGlacier) RemoveBackup(ids ...string) error {
 		if err := t.Storage.Remove(id); err != nil {
 			return errors.WithStack(err)
 		}
+
+		backups, err := t.Storage.List()
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		// remove references from this id from other backups to keep the consistency
+		// of the local storage
+
+		for _, backup := range backups {
+			var removeFilenames []string
+			for filename, itemInfo := range backup.Info {
+				if itemInfo.ID == id {
+					removeFilenames = append(removeFilenames, filename)
+				}
+			}
+
+			for _, removeFilename := range removeFilenames {
+				delete(backup.Info, removeFilename)
+			}
+
+			if len(removeFilenames) > 0 {
+				if err = t.Storage.Save(backup); err != nil {
+					return errors.WithStack(err)
+				}
+			}
+		}
 	}
 
 	return nil

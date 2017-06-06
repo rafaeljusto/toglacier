@@ -1745,7 +1745,45 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 				},
 			},
 			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "123457" {
+						return fmt.Errorf("saving unexpected backup id “%s”", b.Backup.ID)
+					}
+
+					if len(b.Info) > 0 {
+						return fmt.Errorf("unexpected number (%d) of items info", len(b.Info))
+					}
+
+					return nil
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID: "123457",
+							},
+							Info: archive.Info{
+								"filename1": archive.ItemInfo{
+									ID: "123456",
+								},
+							},
+						},
+						{
+							Backup: cloud.Backup{
+								ID: "123455",
+							},
+							Info: archive.Info{
+								"filename2": archive.ItemInfo{
+									ID: "123454",
+								},
+							},
+						},
+					}, nil
+				},
 				mockRemove: func(id string) error {
+					if id != "123456" {
+						return fmt.Errorf("unexpected id “%s”", id)
+					}
 					return nil
 				},
 			},
@@ -1779,6 +1817,66 @@ func TestToGlacier_RemoveBackup(t *testing.T) {
 				},
 			},
 			expectedError: errors.New("error removing backup"),
+		},
+		{
+			description: "it should detect an error listing the backups",
+			ids:         []string{"123456"},
+			cloud: mockCloud{
+				mockRemove: func(id string) error {
+					return nil
+				},
+			},
+			storage: mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return nil, errors.New("failed to list backups")
+				},
+				mockRemove: func(id string) error {
+					return nil
+				},
+			},
+			expectedError: errors.New("failed to list backups"),
+		},
+		{
+			description: "it should detect an error saving the backup",
+			ids:         []string{"123456"},
+			cloud: mockCloud{
+				mockRemove: func(id string) error {
+					return nil
+				},
+			},
+			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					return errors.New("could not save the backup")
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID: "123457",
+							},
+							Info: archive.Info{
+								"filename1": archive.ItemInfo{
+									ID: "123456",
+								},
+							},
+						},
+						{
+							Backup: cloud.Backup{
+								ID: "123455",
+							},
+							Info: archive.Info{
+								"filename2": archive.ItemInfo{
+									ID: "123454",
+								},
+							},
+						},
+					}, nil
+				},
+				mockRemove: func(id string) error {
+					return nil
+				},
+			},
+			expectedError: errors.New("could not save the backup"),
 		},
 	}
 
