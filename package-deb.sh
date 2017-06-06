@@ -28,7 +28,7 @@ prepare() {
 
 compile() {
   local project_path=`echo $GOPATH | cut -d: -f1`
-  project_path=$project_path/src/github.com/rafaeljusto/toglacier
+  project_path=$project_path/src/github.com/rafaeljusto/toglacier/cmd/toglacier
 
   cd $project_path || exit_error "Cannot change directory"
   env GOOS=linux GOARCH=amd64 go build || exit_error "Compile error"
