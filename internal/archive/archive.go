@@ -81,6 +81,7 @@ func (a Info) FilterByStatuses(statuses ...ItemInfoStatus) Info {
 		for _, status := range statuses {
 			if itemInfo.Status == status {
 				filtered[filename] = itemInfo
+				break
 			}
 		}
 	}
