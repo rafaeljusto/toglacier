@@ -1,6 +1,7 @@
 package archive_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/rafaeljusto/toglacier/internal/archive"
@@ -24,6 +25,86 @@ func TestItemInfoStatus_Useful(t *testing.T) {
 			useful := scenario.itemInfoStatus.Useful()
 			if useful != scenario.expected {
 				t.Errorf("unexpected result for status “%s”", scenario.itemInfoStatus)
+			}
+		})
+	}
+}
+
+func TestInfo_FilterByStatuses(t *testing.T) {
+	scenarios := []struct {
+		description string
+		statuses    []archive.ItemInfoStatus
+		info        archive.Info
+		expected    archive.Info
+	}{
+		{
+			description: "it should filter correctly the archive information",
+			statuses:    []archive.ItemInfoStatus{archive.ItemInfoStatusModified},
+			info: archive.Info{
+				"file1": archive.ItemInfo{
+					ID:     "12345",
+					Status: archive.ItemInfoStatusNew,
+				},
+				"file2": archive.ItemInfo{
+					ID:     "12346",
+					Status: archive.ItemInfoStatusDeleted,
+				},
+				"file3": archive.ItemInfo{
+					ID:     "12347",
+					Status: archive.ItemInfoStatusModified,
+				},
+			},
+			expected: archive.Info{
+				"file3": archive.ItemInfo{
+					ID:     "12347",
+					Status: archive.ItemInfoStatusModified,
+				},
+			},
+		},
+		{
+			description: "it should filter correctly when there are no statuses",
+			info: archive.Info{
+				"file1": archive.ItemInfo{
+					ID:     "12345",
+					Status: archive.ItemInfoStatusNew,
+				},
+				"file2": archive.ItemInfo{
+					ID:     "12346",
+					Status: archive.ItemInfoStatusDeleted,
+				},
+				"file3": archive.ItemInfo{
+					ID:     "12347",
+					Status: archive.ItemInfoStatusModified,
+				},
+			},
+			expected: make(archive.Info),
+		},
+		{
+			description: "it should filter correctly when the status is not found",
+			statuses:    []archive.ItemInfoStatus{archive.ItemInfoStatusUnmodified},
+			info: archive.Info{
+				"file1": archive.ItemInfo{
+					ID:     "12345",
+					Status: archive.ItemInfoStatusNew,
+				},
+				"file2": archive.ItemInfo{
+					ID:     "12346",
+					Status: archive.ItemInfoStatusDeleted,
+				},
+				"file3": archive.ItemInfo{
+					ID:     "12347",
+					Status: archive.ItemInfoStatusModified,
+				},
+			},
+			expected: make(archive.Info),
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			archiveInfo := scenario.info.FilterByStatuses(scenario.statuses...)
+			if !reflect.DeepEqual(scenario.expected, archiveInfo) {
+				t.Errorf("unexpected result.\n%v", Diff(scenario.expected, archiveInfo))
 			}
 		})
 	}

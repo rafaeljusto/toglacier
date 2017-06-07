@@ -196,7 +196,7 @@ func main() {
 
 				ids := []string{c.Args().First()}
 				ids = append(ids, c.Args().Tail()...)
-				if err := toGlacier.RemoveBackup(ids...); err != nil {
+				if err := toGlacier.RemoveBackups(ids...); err != nil {
 					logger.Error(err)
 				}
 				return nil

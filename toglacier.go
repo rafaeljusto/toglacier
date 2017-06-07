@@ -299,6 +299,15 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 
 		// synchronize the archive information in the local storage only if the
 		// backup exists
+		//
+		// TODO: there're some actions performed that aren't synchronized with the
+		// cloud. For example, when removing a backup we replace the file references
+		// of the removed backup in other files, and the archive information in the
+		// cloud gets outdated. We cannot rebuild the tarballs and send them to the
+		// cloud only because of that, so we should think on a better solution here
+		// to synchronize only when necessary. Maybe compare the archive info and
+		// alert about differences is enough instead of assuming that the cloud
+		// archive info is always better.
 		if selectedBackup.Backup.ID != "" {
 			if err := t.Storage.Save(selectedBackup); err != nil {
 				return errors.WithStack(err)
@@ -370,19 +379,125 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 	return archiveInfo, nil
 }
 
-// RemoveBackup delete a specific backup from the cloud.
-func (t ToGlacier) RemoveBackup(ids ...string) error {
+// RemoveBackups delete a backups identified by ids from the cloud and from the
+// local storage. It will also try to replace or remove the reference from the
+// removed backup on other backups. When it is possible to replace the reference
+// it will try to get the file version right before the removed backup date.
+func (t ToGlacier) RemoveBackups(ids ...string) error {
 	for _, id := range ids {
-		if err := t.Cloud.Remove(t.Context, id); err != nil {
-			return errors.WithStack(err)
-		}
-
-		if err := t.Storage.Remove(id); err != nil {
+		if err := t.removeBackup(id); err != nil {
 			return errors.WithStack(err)
 		}
 	}
 
 	return nil
+}
+
+func (t ToGlacier) removeBackup(id string) error {
+	if err := t.Cloud.Remove(t.Context, id); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := t.rearrangeStorage(id); err != nil {
+		// TODO: an error here will cause an inconsistency between the cloud and the
+		// local storage
+		return errors.WithStack(err)
+	}
+
+	if err := t.Storage.Remove(id); err != nil {
+		// TODO: an error here will cause an inconsistency between the cloud and the
+		// local storage
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (t ToGlacier) rearrangeStorage(id string) error {
+	// remove references from this id from other backups to keep the consistency
+	// of the local storage. We will try to replace the reference id by the most
+	// recently version of the file when possible
+
+	backups, err := t.Storage.List()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// order backups by creation date
+	sort.Sort(backupsByCreationDate(backups))
+
+	backupIndex := -1
+	var archiveInfo archive.Info
+
+	// store the replaceable file references
+	fallbackFiles := make(map[string]string)
+
+	// first we move from the most recent backup to the oldest one, looking for
+	// the backup position that will be removed, and to store all files that we
+	// should look for. After we got the files to look for, we will continue
+	// looking older backups to find reference for this files.
+	for i := 0; i < len(backups) && (backupIndex == -1 || len(archiveInfo) > 0); i++ {
+		if backups[i].Backup.ID == id {
+			backupIndex = i
+
+			// we are only interested in modified files, because if it is a new file,
+			// there's nothing we can do, if it is a unmodified file, the id is
+			// already referencing another backup, and if it is a deleted file it will
+			// not appear in newer backups
+			archiveInfo = backups[i].Info.FilterByStatuses(archive.ItemInfoStatusModified)
+			continue
+		}
+
+		if backupIndex > -1 {
+			// keep looking in older backups for the desired files
+			for filename, itemInfo := range backups[i].Info {
+				// we are only interested in new and modified file matches
+				if _, ok := archiveInfo[filename]; ok && itemInfo.Status.Useful() {
+					fallbackFiles[filename] = backups[i].Backup.ID
+					delete(archiveInfo, filename)
+				}
+			}
+		}
+	}
+
+	// now we need to look for backups that were created after the removed one, so
+	// we can replace the reference of the files or removed if we couldn't find
+	// any match
+	for i := backupIndex - 1; i >= 0; i-- {
+		if t.rearrangeArchiveInfo(id, backups[i].Info, fallbackFiles) {
+			if err = t.Storage.Save(backups[i]); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (t ToGlacier) rearrangeArchiveInfo(id string, archiveInfo archive.Info, fallbackFiles map[string]string) (modified bool) {
+	for filename, itemInfo := range archiveInfo {
+		if itemInfo.ID != id {
+			continue
+		}
+
+		if newID, ok := fallbackFiles[filename]; ok {
+			// we don't need to look for the status in the item info because if it
+			// references the removed backup it should be the unmodified or deleted
+			// statuses
+			itemInfo.ID = newID
+			archiveInfo[filename] = itemInfo
+
+		} else {
+			// https://golang.org/ref/spec#For_range
+			// If map entries that have not yet been reached are removed during
+			// iteration, the corresponding iteration values will not be produced
+			delete(archiveInfo, filename)
+		}
+
+		modified = true
+	}
+
+	return
 }
 
 // RemoveOldBackups delete old backups from the cloud. This will optimize the
@@ -424,7 +539,7 @@ func (t ToGlacier) RemoveOldBackups(keepBackups int) error {
 		}
 
 		removeOldBackupsReport.Backups = append(removeOldBackupsReport.Backups, backups[i].Backup)
-		if err := t.RemoveBackup(backups[i].Backup.ID); err != nil {
+		if err := t.RemoveBackups(backups[i].Backup.ID); err != nil {
 			removeOldBackupsReport.Errors = append(removeOldBackupsReport.Errors, err)
 			return errors.WithStack(err)
 		}

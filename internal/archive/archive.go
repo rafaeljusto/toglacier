@@ -73,6 +73,21 @@ func (a Info) Statistics() map[ItemInfoStatus]int {
 	return statistic
 }
 
+// FilterByStatuses returns the archive information only containing the items
+// that have the desired statuses.
+func (a Info) FilterByStatuses(statuses ...ItemInfoStatus) Info {
+	filtered := make(Info)
+	for filename, itemInfo := range a {
+		for _, status := range statuses {
+			if itemInfo.Status == status {
+				filtered[filename] = itemInfo
+				break
+			}
+		}
+	}
+	return filtered
+}
+
 // Archive manages an archive joining all paths in a file, extracting and
 // calculating Checksums.
 type Archive interface {
