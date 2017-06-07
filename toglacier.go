@@ -299,6 +299,15 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 
 		// synchronize the archive information in the local storage only if the
 		// backup exists
+		//
+		// TODO: there're some actions performed that aren't synchronized with the
+		// cloud. For example, when removing a backup we replace the file references
+		// of the removed backup in other files, and the archive information in the
+		// cloud gets outdated. We cannot rebuild the tarballs and send them to the
+		// cloud only because of that, so we should think on a better solution here
+		// to synchronize only when necessary. Maybe compare the archive info and
+		// alert about differences is enough instead of assuming that the cloud
+		// archive info is always better.
 		if selectedBackup.Backup.ID != "" {
 			if err := t.Storage.Save(selectedBackup); err != nil {
 				return errors.WithStack(err)
@@ -371,8 +380,9 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 }
 
 // RemoveBackups delete a backups identified by ids from the cloud and from the
-// local storage. It will also remove the reference from the removed backup from
-// other backups information.
+// local storage. It will also try to replace or remove the reference from the
+// removed backup on other backups. When it is possible to replace the reference
+// it will try to get the file version right before the removed backup date.
 func (t ToGlacier) RemoveBackups(ids ...string) error {
 	for _, id := range ids {
 		if err := t.removeBackup(id); err != nil {
@@ -388,35 +398,94 @@ func (t ToGlacier) removeBackup(id string) error {
 		return errors.WithStack(err)
 	}
 
-	if err := t.Storage.Remove(id); err != nil {
-		return errors.WithStack(err)
-	}
-
 	// remove references from this id from other backups to keep the consistency
-	// of the local storage
+	// of the local storage. We will try to replace the reference id by the most
+	// recently version of the file when possible
 
 	backups, err := t.Storage.List()
 	if err != nil {
+		// TODO: an error here will cause an inconsistency between the cloud and the
+		// local storage
 		return errors.WithStack(err)
 	}
 
-	for _, backup := range backups {
+	// order backups by creation date
+	sort.Sort(backupsByCreationDate(backups))
+
+	backupIndex := -1
+	searchFiles := make(map[string]bool)
+	fallbackFiles := make(map[string]string)
+
+	// first we move from the most recent backup to the oldest one, looking for
+	// the backup position that will be removed, and to store all files that we
+	// should look for. After we got the files to look for, we will continue
+	// looking older backups to find reference for this files.
+	for i := 0; i < len(backups) && (backupIndex == -1 || len(searchFiles) > 0); i++ {
+		if backups[i].Backup.ID == id {
+			backupIndex = i
+
+			for filename, itemInfo := range backups[i].Info {
+				// we are only interested in modified files, because if it is a new
+				// file, there's nothing we can do, if it is a unmodified file, the id
+				// is already referencing another backup, and if it is a deleted file it
+				// will not appear in newer backups
+				if itemInfo.Status == archive.ItemInfoStatusModified {
+					searchFiles[filename] = true
+				}
+			}
+
+			continue
+		}
+
+		if backupIndex > -1 {
+			// keep looking in older backups for the desired files
+			for filename, itemInfo := range backups[i].Info {
+				// we are only interested in new and modified file matches
+				if _, ok := searchFiles[filename]; ok && itemInfo.Status.Useful() {
+					fallbackFiles[filename] = backups[i].Backup.ID
+					delete(searchFiles, filename)
+				}
+			}
+		}
+	}
+
+	// now we need to look for backups that were created after the removed one, so
+	// we can replace the reference of the files or removed if we couldn't find
+	// any match
+	for i := backupIndex - 1; i >= 0; i-- {
 		save := false
-		for filename, itemInfo := range backup.Info {
+		for filename, itemInfo := range backups[i].Info {
 			if itemInfo.ID == id {
-				// https://golang.org/ref/spec#For_range
-				// If map entries that have not yet been reached are removed during
-				// iteration, the corresponding iteration values will not be produced
-				delete(backup.Info, filename)
-				save = true
+				if newID, ok := fallbackFiles[filename]; ok {
+					itemInfo.ID = newID
+					backups[i].Info[filename] = itemInfo
+					save = true
+
+				} else {
+					// https://golang.org/ref/spec#For_range
+					// If map entries that have not yet been reached are removed during
+					// iteration, the corresponding iteration values will not be produced
+					delete(backups[i].Info, filename)
+					save = true
+				}
 			}
 		}
 
 		if save {
-			if err = t.Storage.Save(backup); err != nil {
+			if err = t.Storage.Save(backups[i]); err != nil {
+				// TODO: an error here will cause an inconsistency between the cloud and the
+				// local storage
 				return errors.WithStack(err)
 			}
 		}
+	}
+
+	// we only remove the desired backup after the local storage is consistent
+	// without it
+	if err := t.Storage.Remove(id); err != nil {
+		// TODO: an error here will cause an inconsistency between the cloud and the
+		// local storage
+		return errors.WithStack(err)
 	}
 
 	return nil

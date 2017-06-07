@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Windows does not support syscall.SIGSTOP
 - Don't read environment variables without prefix
 - Deploy scripts were compiling wrong path
+- Keep consistency of local storage when removing a backup
 
 ### Changed
 - Tool moved to cmd subdirectory

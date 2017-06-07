@@ -37,6 +37,9 @@ Some cool features that you will find in this tool:
   * Upload only modified files (small backups parts);
   * Encrypt backups before sending to the cloud;
   * Automatically download and rebuild backup parts;
+  * Old backups are removed periodically to save you some money;
+  * List all the versions of a file that was backed up;
+  * Smart backup removal, replacing references for incremental backups;
   * Periodic reports sent by e-mail.
 
 ## Install
