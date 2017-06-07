@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Search backups algorithm was being used wrongly
 - Windows does not support syscall.SIGSTOP
 - Don't read environment variables without prefix
-- Deploy scripts were compiling wrong path
 - Keep consistency of local storage when removing a backup
 
 ### Changed
