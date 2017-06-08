@@ -31,7 +31,7 @@ compile() {
   project_path=$project_path/src/github.com/rafaeljusto/toglacier/cmd/toglacier
 
   cd $project_path || exit_error "Cannot change directory"
-  env GOOS=linux GOARCH=amd64 go build || exit_error "Compile error"
+  env GOOS=linux GOARCH=amd64 go build -ldflags "-X github.com/rafaeljusto/toglacier/internal/config.Version=$VERSION" || exit_error "Compile error"
 
   mv toglacier $BIN_PATH || exit_error "Error copying binary"
   cp toglacier.yml $CONF_PATH/toglacier.yml.sample || exit_error "Error copying configuration sample"
