@@ -37,7 +37,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "toglacier"
 	app.Usage = "Send data to AWS Glacier service"
-	app.Version = "2.0.0"
+	app.Version = config.Version
 	app.Authors = []cli.Author{
 		{
 			Name:  "Rafael Dantas Justo",
