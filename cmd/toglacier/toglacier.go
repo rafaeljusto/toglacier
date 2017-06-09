@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/smtp"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -216,7 +217,7 @@ func main() {
 					Usage: "show what is happening behind the scenes",
 				},
 			},
-			ArgsUsage: "[file]",
+			ArgsUsage: "[pattern]",
 			Action: func(c *cli.Context) error {
 				if !c.Bool("verbose") {
 					logger.Out = ioutil.Discard
@@ -230,8 +231,13 @@ func main() {
 					return nil
 				}
 
+				var filenameMatch *regexp.Regexp
 				if c.NArg() > 0 {
-					fmt.Printf("Backups containing filename %s\n\n", c.Args().First())
+					fmt.Printf("Backups containing pattern “%s”\n\n", c.Args().First())
+
+					if filenameMatch, err = regexp.Compile(c.Args().First()); err != nil {
+						logger.Errorf("invalid pattern. details: %s", err)
+					}
 				}
 
 				fmt.Println("Date             | Vault Name       | Archive ID")
@@ -241,7 +247,7 @@ func main() {
 					show := false
 					if c.NArg() > 0 {
 						for filename, itemInfo := range backup.Info {
-							if itemInfo.Status.Useful() && strings.HasSuffix(filename, c.Args().First()) {
+							if itemInfo.Status.Useful() && (filenameMatch != nil && filenameMatch.MatchString(filename)) {
 								show = true
 							}
 						}

@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Tool moved to cmd subdirectory
-- Optionally list only backups containing specific file
+- Optionally list backups containing specific pattern
 - Commands now have verbose flag to show/hide internal messages
 - File checksum method added to archive.Archive (old archive.Builder) interface
 - Backups from internal library are now ordered by ID
