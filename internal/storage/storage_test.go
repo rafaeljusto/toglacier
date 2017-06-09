@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
@@ -276,6 +277,105 @@ func TestBackups_Search(t *testing.T) {
 
 			if scenario.expectedFound != ok {
 				t.Errorf("unexpected found flag, expected %t and got %t", scenario.expectedFound, ok)
+			}
+		})
+	}
+}
+
+func TestBackups_ValidInfo(t *testing.T) {
+	scenarios := []struct {
+		description string
+		archiveInfo archive.Info
+		backups     storage.Backups
+		expected    bool
+	}{
+		{
+			description: "it should be a valid archive information",
+			archiveInfo: archive.Info{
+				"file1": archive.ItemInfo{
+					ID: "1234",
+				},
+				"file2": archive.ItemInfo{
+					ID: "1235",
+				},
+				"file3": archive.ItemInfo{
+					ID: "1236",
+				},
+			},
+			backups: storage.Backups{
+				{
+					Backup: cloud.Backup{
+						ID:        "1234",
+						VaultName: "test2",
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID:        "1235",
+						VaultName: "test3",
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID:        "1236",
+						VaultName: "test1",
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			description: "it should not be a valid archive information",
+			archiveInfo: archive.Info{
+				"file1": archive.ItemInfo{
+					ID: "1234",
+				},
+				"file2": archive.ItemInfo{
+					ID: "1235",
+				},
+				"file3": archive.ItemInfo{
+					ID: "1237",
+				},
+			},
+			backups: storage.Backups{
+				{
+					Backup: cloud.Backup{
+						ID:        "1234",
+						VaultName: "test2",
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID:        "1235",
+						VaultName: "test3",
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID:        "1236",
+						VaultName: "test1",
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			description: "it should detect an undefined archive info as invalid",
+			expected:    false,
+		},
+		{
+			description: "it should detect an empty archive info as invalid",
+			archiveInfo: archive.Info{},
+			expected:    false,
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			ok := scenario.backups.ValidInfo(scenario.archiveInfo)
+
+			if scenario.expected != ok {
+				t.Errorf("unexpected valid flag, expected %t and got %t", scenario.expected, ok)
 			}
 		})
 	}

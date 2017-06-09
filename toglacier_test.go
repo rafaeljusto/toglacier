@@ -834,7 +834,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			id:          "AWSID123",
 			storage: mockStorage{
 				mockSave: func(b storage.Backup) error {
-					if b.Backup.ID != "AWSID123" && b.Backup.ID != "AWSID122" {
+					if b.Backup.ID != "AWSID123" && b.Backup.ID != "AWSID122" && b.Backup.ID != "AWSID124" {
 						return fmt.Errorf("unexpected id %s", b.Backup.ID)
 					}
 					return nil
@@ -866,13 +866,18 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								},
 								"file2": archive.ItemInfo{
 									ID:       "AWSID122",
-									Status:   archive.ItemInfoStatusNew,
+									Status:   archive.ItemInfoStatusUnmodified,
 									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 								"file3": archive.ItemInfo{
 									ID:       "AWSID123",
 									Status:   archive.ItemInfoStatusNew,
 									Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+								},
+								"file4": archive.ItemInfo{
+									ID:       "AWSID124",
+									Status:   archive.ItemInfoStatusUnmodified,
+									Checksum: "352c30aa6751b62c658473a90d0a3ffcf98e66f00968c5320a2f1c2969db7024",
 								},
 							},
 						},
@@ -881,13 +886,14 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 			},
 			cloud: mockCloud{
 				mockGet: func(ids ...string) (filenames map[string]string, err error) {
-					if len(ids) != 2 {
+					if len(ids) != 3 {
 						return nil, fmt.Errorf("unexpected number of ids: %v", ids)
 					}
 
 					return map[string]string{
 						"AWSID123": "toglacier-archive-1.tar.gz",
 						"AWSID122": "toglacier-archive-2.tar.gz",
+						"AWSID124": "toglacier-archive-3.tar.gz",
 					}, nil
 				},
 			},
@@ -900,10 +906,60 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								ID:       "AWSID123",
+								Status:   archive.ItemInfoStatusNew,
+								Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+							},
+							"file2": archive.ItemInfo{
+								ID:       "AWSID122",
+								Status:   archive.ItemInfoStatusUnmodified,
+								Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+							},
+							"file3": archive.ItemInfo{
+								ID:       "AWSID123",
+								Status:   archive.ItemInfoStatusNew,
+								Checksum: "429713c8e82ae8d02bff0cd368581903ac6d368cfdacc5bb5ec6fc14d13f3fd0",
+							},
+							"file4": archive.ItemInfo{
+								ID:       "AWSID124",
+								Status:   archive.ItemInfoStatusUnmodified,
+								Checksum: "352c30aa6751b62c658473a90d0a3ffcf98e66f00968c5320a2f1c2969db7024",
+							},
+						}, nil
+
 					case "toglacier-archive-2.tar.gz":
 						if len(filter) != 1 || filter[0] != "file2" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
+
+						return archive.Info{
+							"file2": archive.ItemInfo{
+								ID:       "AWSID122",
+								Status:   archive.ItemInfoStatusNew,
+								Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
+							},
+							"file4": archive.ItemInfo{
+								ID:       "AWSID124",
+								Status:   archive.ItemInfoStatusUnmodified,
+								Checksum: "352c30aa6751b62c658473a90d0a3ffcf98e66f00968c5320a2f1c2969db7024",
+							},
+						}, nil
+
+					case "toglacier-archive-3.tar.gz":
+						if len(filter) != 1 || filter[0] != "file4" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file4": archive.ItemInfo{
+								ID:       "AWSID124",
+								Status:   archive.ItemInfoStatusNew,
+								Checksum: "352c30aa6751b62c658473a90d0a3ffcf98e66f00968c5320a2f1c2969db7024",
+							},
+						}, nil
 					}
 					return nil, nil
 				},
@@ -1060,7 +1116,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
 							},
 							"file2": archive.ItemInfo{
-								Status:   archive.ItemInfoStatusModified,
+								Status:   archive.ItemInfoStatusUnmodified,
 								ID:       "AWSID122",
 								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
 							},
@@ -1070,6 +1126,104 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 						if len(filter) != 1 || filter[0] != "file2" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
+
+						return archive.Info{
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+					}
+					return nil, nil
+				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
+		},
+		{
+			description: "it should retrieve a backup correctly that does not exist locally",
+			id:          "AWSID123",
+			storage: mockStorage{
+				mockSave: func(b storage.Backup) error {
+					if b.Backup.ID != "AWSID123" && b.Backup.ID != "AWSID122" {
+						return fmt.Errorf("unexpected id %s", b.Backup.ID)
+					}
+					return nil
+				},
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "AWSID122",
+								CreatedAt: time.Date(2015, 12, 27, 8, 14, 53, 0, time.UTC),
+								Checksum:  "325152353325adc8854e185ab59daf44c51e78404e1512eea9dca116f3a8c16d",
+								VaultName: "vault",
+								Size:      38,
+							},
+						},
+					}, nil
+				},
+			},
+			cloud: mockCloud{
+				mockGet: func(ids ...string) (filenames map[string]string, err error) {
+					if len(ids) == 0 {
+						return nil, nil
+					}
+
+					switch ids[0] {
+					case "AWSID123":
+						return map[string]string{
+							"AWSID123": "toglacier-archive-1.tar.gz",
+						}, nil
+					case "AWSID122":
+						return map[string]string{
+							"AWSID122": "toglacier-archive-2.tar.gz",
+						}, nil
+					}
+
+					return nil, fmt.Errorf("unexpected id “%s”", ids[0])
+				},
+			},
+			archive: mockArchive{
+				mockExtract: func(filename string, filter []string) (archive.Info, error) {
+					switch filename {
+					case "toglacier-archive-1.tar.gz":
+						if len(filter) != 0 {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID123",
+								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+							},
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusUnmodified,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+
+					case "toglacier-archive-2.tar.gz":
+						if len(filter) != 1 || filter[0] != "file2" {
+							return nil, fmt.Errorf("unexpected filter “%v”", filter)
+						}
+
+						return archive.Info{
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
 					}
 					return nil, nil
 				},
@@ -1112,7 +1266,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								},
 								"file2": archive.ItemInfo{
 									ID:       "AWSID122",
-									Status:   archive.ItemInfoStatusNew,
+									Status:   archive.ItemInfoStatusUnmodified,
 									Checksum: "46813af30d24fb7ad0a019b0da4fcde88368133fcfe39c5a8b25a328e6be4ab2",
 								},
 								"file3": archive.ItemInfo{
@@ -1166,7 +1320,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 					case "file3":
 						return "64bd312e9c81172627d898d7ad146d2e9ea47f47dd67ea79477ab224ab8fb01b", nil
 					case "file4":
-						return "57ab560c94249dd6f3e5ee6397364a86aa38b1e893c23b1198e8cad8f2a063c5", nil
+						return "79edf074b55cdb3088721e88814523124c7da05001175e14b0dcf78336730fcd", nil
 					}
 
 					return "", fmt.Errorf("unexpected filename “%s”", filename)
@@ -1210,7 +1364,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								},
 								"file2": archive.ItemInfo{
 									ID:       "AWSID122",
-									Status:   archive.ItemInfoStatusNew,
+									Status:   archive.ItemInfoStatusUnmodified,
 									Checksum: "46813af30d24fb7ad0a019b0da4fcde88368133fcfe39c5a8b25a328e6be4ab2",
 								},
 								"file3": archive.ItemInfo{
@@ -1326,7 +1480,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
 							},
 							"file2": archive.ItemInfo{
-								Status:   archive.ItemInfoStatusModified,
+								Status:   archive.ItemInfoStatusUnmodified,
 								ID:       "AWSID122",
 								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
 							},
@@ -1496,7 +1650,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								},
 								"file2": archive.ItemInfo{
 									ID:       "AWSID122",
-									Status:   archive.ItemInfoStatusNew,
+									Status:   archive.ItemInfoStatusUnmodified,
 									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 							},
@@ -1596,7 +1750,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
 							},
 							"file2": archive.ItemInfo{
-								Status:   archive.ItemInfoStatusModified,
+								Status:   archive.ItemInfoStatusUnmodified,
 								ID:       "AWSID122",
 								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
 							},
@@ -1654,7 +1808,7 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 								},
 								"file2": archive.ItemInfo{
 									ID:       "AWSID122",
-									Status:   archive.ItemInfoStatusNew,
+									Status:   archive.ItemInfoStatusUnmodified,
 									Checksum: "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 								},
 								"file3": archive.ItemInfo{
@@ -1688,10 +1842,32 @@ func TestToGlacier_RetrieveBackup(t *testing.T) {
 						if len(filter) != 2 || filter[0] != "file1" || filter[1] != "file3" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
+
+						return archive.Info{
+							"file1": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID123",
+								Checksum: "a5b2df3d72bd28d2382b0b4cca4c25fa260e018b58a915f1e5af14485a746ca8",
+							},
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusUnmodified,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
+
 					case "toglacier-archive-2.tar.gz":
 						if len(filter) != 1 || filter[0] != "file2" {
 							return nil, fmt.Errorf("unexpected filter “%v”", filter)
 						}
+
+						return archive.Info{
+							"file2": archive.ItemInfo{
+								Status:   archive.ItemInfoStatusNew,
+								ID:       "AWSID122",
+								Checksum: "a8c23a9b1441de7f048471994f9500664acb0f6551e418e5b9da5af559606a63",
+							},
+						}, nil
 					}
 					return nil, nil
 				},

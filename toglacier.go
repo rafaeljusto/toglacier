@@ -297,21 +297,8 @@ func (t ToGlacier) RetrieveBackup(id, backupSecret string, skipUnmodified bool) 
 			return errors.WithStack(err)
 		}
 
-		// synchronize the archive information in the local storage only if the
-		// backup exists
-		//
-		// TODO: there're some actions performed that aren't synchronized with the
-		// cloud. For example, when removing a backup we replace the file references
-		// of the removed backup in other files, and the archive information in the
-		// cloud gets outdated. We cannot rebuild the tarballs and send them to the
-		// cloud only because of that, so we should think on a better solution here
-		// to synchronize only when necessary. Maybe compare the archive info and
-		// alert about differences is enough instead of assuming that the cloud
-		// archive info is always better.
-		if selectedBackup.Backup.ID != "" {
-			if err := t.Storage.Save(selectedBackup); err != nil {
-				return errors.WithStack(err)
-			}
+		if err = t.synchronizeArchiveInfo(selectedBackup, backups); err != nil {
+			return errors.WithStack(err)
 		}
 	}
 
@@ -323,8 +310,8 @@ func (t ToGlacier) extractIDs(id string, archiveInfo archive.Info, ignoreMainBac
 	for path, itemInfo := range archiveInfo {
 		// if we already downloaded the main backup we don't need to download it
 		// again, and we should also avoid downloading backups parts just to
-		// retrieve removed or unmodified files
-		ignore := (ignoreMainBackup && itemInfo.ID == id) || !itemInfo.Status.Useful()
+		// retrieve removed files
+		ignore := (ignoreMainBackup && itemInfo.ID == id) || itemInfo.Status == archive.ItemInfoStatusDeleted
 
 		if !ignore && skipUnmodified {
 			var checksum string
@@ -377,6 +364,27 @@ func (t ToGlacier) decryptAndExtract(backupSecret, filename string, filter []str
 	}
 
 	return archiveInfo, nil
+}
+
+func (t ToGlacier) synchronizeArchiveInfo(backup storage.Backup, backups storage.Backups) error {
+	// synchronize the archive information in the local storage only if the
+	// backup exists
+	if backup.Backup.ID == "" {
+		return nil
+	}
+
+	// there're some actions performed locally that aren't synchronized with
+	// the cloud. For example, when removing a backup we replace the file
+	// references of the removed backup in other backups, and many archive
+	// information in the cloud gets outdated. So we will check if all
+	// references in the remote archive information are valid before replacing
+	// the local version
+	if !backups.ValidInfo(backup.Info) {
+		t.Logger.Warningf("toglacier: archive information from backup “%s” is outdated and will not be synchronized", backup.Backup.ID)
+		return nil
+	}
+
+	return errors.WithStack(t.Storage.Save(backup))
 }
 
 // RemoveBackups delete a backups identified by ids from the cloud and from the

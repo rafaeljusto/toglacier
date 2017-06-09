@@ -63,6 +63,22 @@ func (b Backups) Search(id string) (Backup, bool) {
 	return Backup{}, false
 }
 
+// ValidInfo verifies if an archive information contains references for backups
+// that exist.
+func (b Backups) ValidInfo(archiveInfo archive.Info) bool {
+	if archiveInfo == nil || len(archiveInfo) == 0 {
+		return false
+	}
+
+	for _, itemInfo := range archiveInfo {
+		if _, ok := b.Search(itemInfo.ID); !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
 // Storage represents all commands to manage backups information locally. After
 // the backup is uploaded we must keep track of them locally to speed up
 // recovery and cloud cleanup (remove old ones).
