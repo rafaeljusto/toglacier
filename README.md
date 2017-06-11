@@ -55,8 +55,13 @@ go get -u github.com/rafaeljusto/toglacier/...
 
 If you are thinking that is a good idea to encrypt some sensitive parameters and
 want to improve the security, you should replace the numbers of the slices in
-the function `passwordKey` of the `encpass.go` file for your own random numbers.
-Remember to compile the tool again (`go install`).
+the function `passwordKey` of the `encpass_key.go` file for your own random
+numbers, or run the python script (inside `internal/config` package) with the
+command bellow. Remember to compile the tool again (`go install`).
+
+```
+encpass_key_generator.py -w
+```
 
 As this program can work like a service/daemon (start command), in this case you
 should run it in background. It is a good practice to also add it to your system
