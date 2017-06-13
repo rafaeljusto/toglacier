@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/aws/aws-sdk-go/service/glacier/glacieriface"
@@ -171,7 +173,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 
 	if archiveInfo.Size() <= multipartUploadLimit {
 		a.Logger.Debugf("cloud: using small file strategy (%d)", archiveInfo.Size())
-		backup, err = a.sendSmall(archive)
+		backup, err = a.sendSmall(ctx, archive)
 
 	} else {
 		a.Logger.Debugf("cloud: using big file strategy (%d)", archiveInfo.Size())
@@ -186,7 +188,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 	return backup, err
 }
 
-func (a *AWSCloud) sendSmall(archive io.ReadSeeker) (Backup, error) {
+func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
 	}
@@ -203,9 +205,9 @@ func (a *AWSCloud) sendSmall(archive io.ReadSeeker) (Backup, error) {
 		VaultName:          aws.String(a.VaultName),
 	}
 
-	archiveCreationOutput, err := a.Glacier.UploadArchive(&uploadArchiveInput)
+	archiveCreationOutput, err := a.Glacier.UploadArchiveWithContext(ctx, &uploadArchiveInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
+		return Backup{}, errors.WithStack(a.checkCancellation(newError("", ErrorCodeSendingArchive, err)))
 	}
 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
@@ -233,9 +235,9 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 		VaultName:          aws.String(a.VaultName),
 	}
 
-	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUpload(&initiateMultipartUploadInput)
+	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUploadWithContext(ctx, &initiateMultipartUploadInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeInitMultipart, err))
+		return Backup{}, errors.WithStack(a.checkCancellation(newError("", ErrorCodeInitMultipart, err)))
 	}
 
 	var offset int64
@@ -262,15 +264,15 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 		}
 
 		var uploadMultipartPartOutput *glacier.UploadMultipartPartOutput
-		if uploadMultipartPartOutput, err = a.Glacier.UploadMultipartPart(&uploadMultipartPartInput); err != nil {
+		if uploadMultipartPartOutput, err = a.Glacier.UploadMultipartPartWithContext(ctx, &uploadMultipartPartInput); err != nil {
 			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
 				AccountId: aws.String(a.AccountID),
 				UploadId:  initiateMultipartUploadOutput.UploadId,
 				VaultName: aws.String(a.VaultName),
 			}
 
-			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeSendingArchive, err))
+			a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
+			return Backup{}, errors.WithStack(a.checkCancellation(newMultipartError(offset, archiveSize, MultipartErrorCodeSendingArchive, err)))
 		}
 
 		// verify checksum of each uploaded part
@@ -283,25 +285,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 				VaultName: aws.String(a.VaultName),
 			}
 
-			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
+			a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
 			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeComparingChecksums, err))
-		}
-
-		select {
-		case <-ctx.Done():
-			a.Logger.Debug("cloud: upload cancelled by user")
-
-			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
-				AccountId: aws.String(a.AccountID),
-				UploadId:  initiateMultipartUploadOutput.UploadId,
-				VaultName: aws.String(a.VaultName),
-			}
-
-			a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeCancelled, ctx.Err()))
-
-		default:
-			continue
 		}
 	}
 
@@ -317,7 +302,7 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 		VaultName:   aws.String(a.VaultName),
 	}
 
-	archiveCreationOutput, err := a.Glacier.CompleteMultipartUpload(&completeMultipartUploadInput)
+	archiveCreationOutput, err := a.Glacier.CompleteMultipartUploadWithContext(ctx, &completeMultipartUploadInput)
 	if err != nil {
 		abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
 			AccountId: aws.String(a.AccountID),
@@ -325,8 +310,8 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 			VaultName: aws.String(a.VaultName),
 		}
 
-		a.Glacier.AbortMultipartUpload(&abortMultipartUploadInput)
-		return Backup{}, errors.WithStack(newError(*initiateMultipartUploadOutput.UploadId, ErrorCodeCompleteMultipart, err))
+		a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
+		return Backup{}, errors.WithStack(a.checkCancellation(newError(*initiateMultipartUploadOutput.UploadId, ErrorCodeCompleteMultipart, err)))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -380,9 +365,9 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 		VaultName: aws.String(a.VaultName),
 	}
 
-	initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
+	initiateJobOutput, err := a.Glacier.InitiateJobWithContext(ctx, &initiateJobInput)
 	if err != nil {
-		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
+		return nil, errors.WithStack(a.checkCancellation(newError("", ErrorCodeInitJob, err)))
 	}
 
 	if err = a.waitJobs(ctx, *initiateJobOutput.JobId); err != nil {
@@ -395,9 +380,9 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 		VaultName: aws.String(a.VaultName),
 	}
 
-	jobOutputOutput, err := a.Glacier.GetJobOutput(&jobOutputInput)
+	jobOutputOutput, err := a.Glacier.GetJobOutputWithContext(ctx, &jobOutputInput)
 	if err != nil {
-		return nil, errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err))
+		return nil, errors.WithStack(a.checkCancellation(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err)))
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -464,9 +449,9 @@ func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, e
 			VaultName: aws.String(a.VaultName),
 		}
 
-		initiateJobOutput, err := a.Glacier.InitiateJob(&initiateJobInput)
+		initiateJobOutput, err := a.Glacier.InitiateJobWithContext(ctx, &initiateJobInput)
 		if err != nil {
-			return nil, errors.WithStack(newError(id, ErrorCodeInitJob, err))
+			return nil, errors.WithStack(a.checkCancellation(newError(id, ErrorCodeInitJob, err)))
 		}
 
 		jobIDs[id] = *initiateJobOutput.JobId
@@ -512,35 +497,11 @@ func (a *AWSCloud) get(ctx context.Context, id, jobID string, waitGroup *sync.Wa
 		VaultName: aws.String(a.VaultName),
 	}
 
-	var jobOutputOutput *glacier.GetJobOutputOutput
-	var err error
-
-	// as the download action can take a while (big backups) we need to be able to
-	// handle cancel signals from the user
-	done := make(chan bool)
-	go func() {
-		jobOutputOutput, err = a.Glacier.GetJobOutput(&jobOutputInput)
-		done <- true
-	}()
-
-	select {
-	case <-done:
-	// nothing to do here
-
-	case <-ctx.Done():
-		a.Logger.Debugf("cloud: backup download “%s” cancelled by user", id)
-
-		result <- jobResult{
-			id:  id,
-			err: errors.WithStack(newError(id, ErrorCodeCancelled, ctx.Err())),
-		}
-		return
-	}
-
+	jobOutputOutput, err := a.Glacier.GetJobOutputWithContext(ctx, &jobOutputInput)
 	if err != nil {
 		result <- jobResult{
 			id:  id,
-			err: errors.WithStack(newError(jobID, ErrorCodeJobComplete, err)),
+			err: errors.WithStack(a.checkCancellation(newError(id, ErrorCodeJobComplete, err))),
 		}
 		return
 	}
@@ -597,8 +558,8 @@ func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 		VaultName: aws.String(a.VaultName),
 	}
 
-	if _, err := a.Glacier.DeleteArchive(&deleteArchiveInput); err != nil {
-		return errors.WithStack(newError(id, ErrorCodeRemovingArchive, err))
+	if _, err := a.Glacier.DeleteArchiveWithContext(ctx, &deleteArchiveInput); err != nil {
+		return errors.WithStack(a.checkCancellation(newError(id, ErrorCodeRemovingArchive, err)))
 	}
 
 	a.Logger.Infof("cloud: backup “%s” removed successfully from the aws cloud", id)
@@ -619,9 +580,9 @@ func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 			VaultName: aws.String(a.VaultName),
 		}
 
-		listJobsOutput, err := a.Glacier.ListJobs(&listJobsInput)
+		listJobsOutput, err := a.Glacier.ListJobsWithContext(ctx, &listJobsInput)
 		if err != nil {
-			return errors.WithStack(newJobsError(jobs, JobsErrorCodeRetrievingJob, err))
+			return errors.WithStack(a.checkCancellation(newJobsError(jobs, JobsErrorCodeRetrievingJob, err)))
 		}
 
 		jobsRemaining := make([]string, len(jobs))
@@ -680,6 +641,36 @@ func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 	}
 
 	return nil
+}
+
+func (a *AWSCloud) checkCancellation(err error) error {
+	switch v := err.(type) {
+	case *Error:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newError(v.ID, ErrorCodeCancelled, v.Err)
+		}
+
+	case *MultipartError:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newMultipartError(v.Offset, v.Size, MultipartErrorCodeCancelled, v.Err)
+		}
+
+	case *JobsError:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newJobsError(v.Jobs, JobsErrorCodeCancelled, v.Err)
+		}
+	}
+
+	return err
 }
 
 // AWSInventoryArchiveList stores the archive information retrieved from AWS

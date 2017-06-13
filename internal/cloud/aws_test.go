@@ -19,6 +19,7 @@ import (
 
 	"github.com/aryann/difflib"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/glacier"
 	"github.com/davecgh/go-spew/spew"
@@ -150,7 +151,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
+					mockUploadArchiveWithContext: func(aws.Context, *glacier.UploadArchiveInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705"),
@@ -196,7 +197,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
+					mockUploadArchiveWithContext: func(aws.Context, *glacier.UploadArchiveInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return nil, errors.New("connection error")
 					},
 				},
@@ -235,7 +236,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockUploadArchive: func(*glacier.UploadArchiveInput) (*glacier.ArchiveCreationOutput, error) {
+					mockUploadArchiveWithContext: func(aws.Context, *glacier.UploadArchiveInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
@@ -277,7 +278,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateMultipartUpload: func(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(ctx aws.Context, i *glacier.InitiateMultipartUploadInput, opts ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						partSize, err := strconv.ParseInt(*i.PartSize, 10, 64)
 						if err != nil {
 							return nil, err
@@ -293,13 +294,13 @@ func TestAWSCloud_Send(t *testing.T) {
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
 						}, nil
 					},
-					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+					mockCompleteMultipartUploadWithContext: func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242"),
@@ -345,7 +346,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return nil, errors.New("aws is out")
 					},
 				},
@@ -384,17 +385,17 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+					mockAbortMultipartUploadWithContext: func(aws.Context, *glacier.AbortMultipartUploadInput, ...request.Option) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func() func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func() func(aws.Context, *glacier.UploadMultipartPartInput, ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						var i int
-						return func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+						return func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 							i++
 							if i >= 5 {
 								return nil, errors.New("part rejected")
@@ -421,7 +422,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when backup part checksum don't match",
+			description: "it should detect when backup part checksum do not match",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -444,15 +445,15 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+					mockAbortMultipartUploadWithContext: func(aws.Context, *glacier.AbortMultipartUploadInput, ...request.Option) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(*glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(aws.Context, *glacier.UploadMultipartPartInput, ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
 						}, nil
@@ -494,21 +495,21 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+					mockAbortMultipartUploadWithContext: func(aws.Context, *glacier.AbortMultipartUploadInput, ...request.Option) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
 						}, nil
 					},
-					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+					mockCompleteMultipartUploadWithContext: func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return nil, errors.New("backup too big")
 					},
 				},
@@ -525,7 +526,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when a big backup checksum don't match",
+			description: "it should detect when a big backup checksum do not match",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -548,25 +549,25 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockDeleteArchive: func(d *glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+					mockDeleteArchiveWithContext: func(ctx aws.Context, d *glacier.DeleteArchiveInput, opts ...request.Option) (*glacier.DeleteArchiveOutput, error) {
 						if *d.ArchiveId != "AWSID123" {
 							return nil, fmt.Errorf("unexpected id %s", *d.ArchiveId)
 						}
 
 						return &glacier.DeleteArchiveOutput{}, nil
 					},
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
 						}, nil
 					},
-					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+					mockCompleteMultipartUploadWithContext: func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
@@ -592,7 +593,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when a big backup checksum don't match and fail to remove it",
+			description: "it should detect when a big backup checksum do not match and fail to remove it",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -615,21 +616,21 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+					mockDeleteArchiveWithContext: func(aws.Context, *glacier.DeleteArchiveInput, ...request.Option) (*glacier.DeleteArchiveOutput, error) {
 						return nil, errors.New("connection error")
 					},
-					mockInitiateMultipartUpload: func(*glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(aws.Context, *glacier.InitiateMultipartUploadInput, ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						return &glacier.InitiateMultipartUploadOutput{
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
 						}, nil
 					},
-					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+					mockCompleteMultipartUploadWithContext: func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
@@ -683,7 +684,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateMultipartUpload: func(i *glacier.InitiateMultipartUploadInput) (*glacier.InitiateMultipartUploadOutput, error) {
+					mockInitiateMultipartUploadWithContext: func(ctx aws.Context, i *glacier.InitiateMultipartUploadInput, opts ...request.Option) (*glacier.InitiateMultipartUploadOutput, error) {
 						partSize, err := strconv.ParseInt(*i.PartSize, 10, 64)
 						if err != nil {
 							return nil, err
@@ -699,24 +700,29 @@ func TestAWSCloud_Send(t *testing.T) {
 							UploadId: aws.String("UPLOAD123"),
 						}, nil
 					},
-					mockUploadMultipartPart: func(u *glacier.UploadMultipartPartInput) (*glacier.UploadMultipartPartOutput, error) {
+					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						// sleep for a small amount of time to allow the task to be
 						// cancelled
-						time.Sleep(200 * time.Millisecond)
+						select {
+						case <-time.After(200 * time.Millisecond):
+						// do nothing
+						case <-ctx.Done():
+							return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+						}
 
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
 							Checksum: aws.String(hex.EncodeToString(hash.TreeHash)),
 						}, nil
 					},
-					mockCompleteMultipartUpload: func(*glacier.CompleteMultipartUploadInput) (*glacier.ArchiveCreationOutput, error) {
+					mockCompleteMultipartUploadWithContext: func(aws.Context, *glacier.CompleteMultipartUploadInput, ...request.Option) (*glacier.ArchiveCreationOutput, error) {
 						return &glacier.ArchiveCreationOutput{
 							ArchiveId: aws.String("AWSID123"),
 							Checksum:  aws.String("a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242"),
 							Location:  aws.String("/archive/AWSID123"),
 						}, nil
 					},
-					mockAbortMultipartUpload: func(*glacier.AbortMultipartUploadInput) (*glacier.AbortMultipartUploadOutput, error) {
+					mockAbortMultipartUploadWithContext: func(aws.Context, *glacier.AbortMultipartUploadInput, ...request.Option) (*glacier.AbortMultipartUploadOutput, error) {
 						return nil, nil
 					},
 				},
@@ -735,7 +741,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				Offset: 0,
 				Size:   42000,
 				Code:   cloud.MultipartErrorCodeCancelled,
-				Err:    context.Canceled,
+				Err:    awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
 			},
 		},
 	}
@@ -786,12 +792,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -802,7 +808,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
@@ -866,7 +872,7 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return nil, errors.New("a crazy error")
 					},
 				},
@@ -888,12 +894,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return nil, errors.New("another crazy error")
 					},
 				},
@@ -916,12 +922,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -953,12 +959,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -988,14 +994,14 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						var i int
-						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 							i++
 							return &glacier.ListJobsOutput{
 								JobList: []*glacier.JobDescription{
@@ -1008,7 +1014,7 @@ func TestAWSCloud_List(t *testing.T) {
 							}, nil
 						}
 					}(),
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
@@ -1058,12 +1064,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1074,7 +1080,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return nil, errors.New("job corrupted")
 					},
 				},
@@ -1097,12 +1103,12 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1113,7 +1119,7 @@ func TestAWSCloud_List(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return &glacier.GetJobOutputOutput{
 							Body: ioutil.NopCloser(bytes.NewBufferString(`{{{invalid json`)),
 						}, nil
@@ -1140,14 +1146,14 @@ func TestAWSCloud_List(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						var i int
-						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 							// sleep for a small amount of time to allow the task to be
 							// cancelled
 							time.Sleep(200 * time.Millisecond)
@@ -1164,7 +1170,7 @@ func TestAWSCloud_List(t *testing.T) {
 							}, nil
 						}
 					}(),
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						inventory := struct {
 							VaultARN      string `json:"VaultARN"`
 							InventoryDate string `json:"InventoryDate"`
@@ -1208,6 +1214,93 @@ func TestAWSCloud_List(t *testing.T) {
 				Jobs: []string{"JOBID123"},
 				Code: cloud.JobsErrorCodeCancelled,
 				Err:  context.Canceled,
+			},
+		},
+		{
+			description: "it should detect when the action is cancelled by the user while listing jobs",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							select {
+							case <-time.After(200 * time.Millisecond):
+							// do nothing
+							case <-ctx.Done():
+								return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+							}
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
+						inventory := struct {
+							VaultARN      string `json:"VaultARN"`
+							InventoryDate string `json:"InventoryDate"`
+							ArchiveList   cloud.AWSInventoryArchiveList
+						}{
+							ArchiveList: cloud.AWSInventoryArchiveList{
+								{
+									ArchiveID:          "AWSID123",
+									ArchiveDescription: "another test backup",
+									CreationDate:       time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+									Size:               4000,
+									SHA256TreeHash:     "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+								},
+								{
+									ArchiveID:          "AWSID122",
+									ArchiveDescription: "great test",
+									CreationDate:       time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
+									Size:               2456,
+									SHA256TreeHash:     "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
+								},
+							},
+						}
+
+						body, err := json.Marshal(inventory)
+						if err != nil {
+							t.Fatalf("error build job output response. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBuffer(body)),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
+				Err:  awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
 			},
 		},
 	}
@@ -1257,12 +1350,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1273,7 +1366,7 @@ func TestAWSCloud_Get(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return &glacier.GetJobOutputOutput{
 							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
 						}, nil
@@ -1297,7 +1390,7 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return nil, errors.New("a crazy error")
 					},
 				},
@@ -1321,12 +1414,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return nil, errors.New("another crazy error")
 					},
 				},
@@ -1350,12 +1443,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1388,12 +1481,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1424,14 +1517,14 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						var i int
-						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 							i++
 							return &glacier.ListJobsOutput{
 								JobList: []*glacier.JobDescription{
@@ -1444,7 +1537,7 @@ func TestAWSCloud_Get(t *testing.T) {
 							}, nil
 						}
 					}(),
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return &glacier.GetJobOutputOutput{
 							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
 						}, nil
@@ -1468,12 +1561,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1484,19 +1577,19 @@ func TestAWSCloud_Get(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return nil, errors.New("job corrupted")
 					},
 				},
 			},
 			expectedError: &cloud.Error{
-				ID:   "JOBID123",
+				ID:   "AWSID123",
 				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
 			},
 		},
 		{
-			description: "it should detect when the task was cancelled by the user while the job was not done",
+			description: "it should detect when the task was cancelled by the user while the job was not done (sleeping)",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
 				Logger: mockLogger{
@@ -1508,14 +1601,14 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func() func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						var i int
-						return func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 							// sleep for a small amount of time to allow the task to be
 							// cancelled
 							time.Sleep(200 * time.Millisecond)
@@ -1532,7 +1625,7 @@ func TestAWSCloud_Get(t *testing.T) {
 							}, nil
 						}
 					}(),
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
 						return &glacier.GetJobOutputOutput{
 							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
 						}, nil
@@ -1551,6 +1644,66 @@ func TestAWSCloud_Get(t *testing.T) {
 			},
 		},
 		{
+			description: "it should detect when the task was cancelled by the user while the job was not done (listing)",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							select {
+							case <-time.After(200 * time.Millisecond):
+							// do nothing
+							case <-ctx.Done():
+								return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+							}
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
+				Err:  awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
+			},
+		},
+		{
 			description: "it should detect when the task was cancelled by the user while the downloading the backup",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
@@ -1563,12 +1716,12 @@ func TestAWSCloud_Get(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockInitiateJob: func(*glacier.InitiateJobInput) (*glacier.InitiateJobOutput, error) {
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
 						return &glacier.InitiateJobOutput{
 							JobId: aws.String("JOBID123"),
 						}, nil
 					},
-					mockListJobs: func(*glacier.ListJobsInput) (*glacier.ListJobsOutput, error) {
+					mockListJobsWithContext: func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
 						return &glacier.ListJobsOutput{
 							JobList: []*glacier.JobDescription{
 								{
@@ -1579,10 +1732,13 @@ func TestAWSCloud_Get(t *testing.T) {
 							},
 						}, nil
 					},
-					mockGetJobOutput: func(*glacier.GetJobOutputInput) (*glacier.GetJobOutputOutput, error) {
-						// sleep for a small amount of time to allow the task to be
-						// cancelled
-						time.Sleep(200 * time.Millisecond)
+					mockGetJobOutputWithContext: func(ctx aws.Context, g *glacier.GetJobOutputInput, opts ...request.Option) (*glacier.GetJobOutputOutput, error) {
+						select {
+						case <-time.After(200 * time.Millisecond):
+						// do nothing
+						case <-ctx.Done():
+							return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+						}
 
 						return &glacier.GetJobOutputOutput{
 							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
@@ -1598,7 +1754,7 @@ func TestAWSCloud_Get(t *testing.T) {
 			expectedError: &cloud.Error{
 				ID:   "AWSID123",
 				Code: cloud.ErrorCodeCancelled,
-				Err:  context.Canceled,
+				Err:  awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
 			},
 		},
 	}
@@ -1640,7 +1796,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+					mockDeleteArchiveWithContext: func(aws.Context, *glacier.DeleteArchiveInput, ...request.Option) (*glacier.DeleteArchiveOutput, error) {
 						return &glacier.DeleteArchiveOutput{}, nil
 					},
 				},
@@ -1659,7 +1815,7 @@ func TestAWSCloud_Remove(t *testing.T) {
 				AccountID: "account",
 				VaultName: "vault",
 				Glacier: mockGlacierAPI{
-					mockDeleteArchive: func(*glacier.DeleteArchiveInput) (*glacier.DeleteArchiveOutput, error) {
+					mockDeleteArchiveWithContext: func(aws.Context, *glacier.DeleteArchiveInput, ...request.Option) (*glacier.DeleteArchiveOutput, error) {
 						return nil, errors.New("no backup here")
 					},
 				},
