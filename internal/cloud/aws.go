@@ -207,7 +207,7 @@ func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup
 
 	archiveCreationOutput, err := a.Glacier.UploadArchiveWithContext(ctx, &uploadArchiveInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
+		return Backup{}, errors.WithStack(a.checkCancellation(newError("", ErrorCodeSendingArchive, err)))
 	}
 
 	if hex.EncodeToString(hash.TreeHash) != *archiveCreationOutput.Checksum {
@@ -237,7 +237,7 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 
 	initiateMultipartUploadOutput, err := a.Glacier.InitiateMultipartUploadWithContext(ctx, &initiateMultipartUploadInput)
 	if err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeInitMultipart, err))
+		return Backup{}, errors.WithStack(a.checkCancellation(newError("", ErrorCodeInitMultipart, err)))
 	}
 
 	var offset int64
@@ -272,7 +272,7 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 			}
 
 			a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
-			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeSendingArchive, err))
+			return Backup{}, errors.WithStack(a.checkCancellation(newMultipartError(offset, archiveSize, MultipartErrorCodeSendingArchive, err)))
 		}
 
 		// verify checksum of each uploaded part
@@ -287,23 +287,6 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 
 			a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
 			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeComparingChecksums, err))
-		}
-
-		select {
-		case <-ctx.Done():
-			a.Logger.Debug("cloud: upload cancelled by user")
-
-			abortMultipartUploadInput := glacier.AbortMultipartUploadInput{
-				AccountId: aws.String(a.AccountID),
-				UploadId:  initiateMultipartUploadOutput.UploadId,
-				VaultName: aws.String(a.VaultName),
-			}
-
-			a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
-			return Backup{}, errors.WithStack(newMultipartError(offset, archiveSize, MultipartErrorCodeCancelled, ctx.Err()))
-
-		default:
-			continue
 		}
 	}
 
@@ -328,7 +311,7 @@ func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSi
 		}
 
 		a.Glacier.AbortMultipartUploadWithContext(ctx, &abortMultipartUploadInput)
-		return Backup{}, errors.WithStack(newError(*initiateMultipartUploadOutput.UploadId, ErrorCodeCompleteMultipart, err))
+		return Backup{}, errors.WithStack(a.checkCancellation(newError(*initiateMultipartUploadOutput.UploadId, ErrorCodeCompleteMultipart, err)))
 	}
 
 	locationParts := strings.Split(*archiveCreationOutput.Location, "/")
@@ -384,7 +367,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 
 	initiateJobOutput, err := a.Glacier.InitiateJobWithContext(ctx, &initiateJobInput)
 	if err != nil {
-		return nil, errors.WithStack(newError("", ErrorCodeInitJob, err))
+		return nil, errors.WithStack(a.checkCancellation(newError("", ErrorCodeInitJob, err)))
 	}
 
 	if err = a.waitJobs(ctx, *initiateJobOutput.JobId); err != nil {
@@ -399,7 +382,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 
 	jobOutputOutput, err := a.Glacier.GetJobOutputWithContext(ctx, &jobOutputInput)
 	if err != nil {
-		return nil, errors.WithStack(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err))
+		return nil, errors.WithStack(a.checkCancellation(newError(*initiateJobOutput.JobId, ErrorCodeJobComplete, err)))
 	}
 	defer jobOutputOutput.Body.Close()
 
@@ -468,7 +451,7 @@ func (a *AWSCloud) Get(ctx context.Context, ids ...string) (map[string]string, e
 
 		initiateJobOutput, err := a.Glacier.InitiateJobWithContext(ctx, &initiateJobInput)
 		if err != nil {
-			return nil, errors.WithStack(newError(id, ErrorCodeInitJob, err))
+			return nil, errors.WithStack(a.checkCancellation(newError(id, ErrorCodeInitJob, err)))
 		}
 
 		jobIDs[id] = *initiateJobOutput.JobId
@@ -516,17 +499,9 @@ func (a *AWSCloud) get(ctx context.Context, id, jobID string, waitGroup *sync.Wa
 
 	jobOutputOutput, err := a.Glacier.GetJobOutputWithContext(ctx, &jobOutputInput)
 	if err != nil {
-		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == request.CanceledErrorCode {
-			result <- jobResult{
-				id:  id,
-				err: errors.WithStack(newError(id, ErrorCodeCancelled, err)),
-			}
-
-		} else {
-			result <- jobResult{
-				id:  id,
-				err: errors.WithStack(newError(jobID, ErrorCodeJobComplete, err)),
-			}
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(a.checkCancellation(newError(id, ErrorCodeJobComplete, err))),
 		}
 		return
 	}
@@ -584,7 +559,7 @@ func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 	}
 
 	if _, err := a.Glacier.DeleteArchiveWithContext(ctx, &deleteArchiveInput); err != nil {
-		return errors.WithStack(newError(id, ErrorCodeRemovingArchive, err))
+		return errors.WithStack(a.checkCancellation(newError(id, ErrorCodeRemovingArchive, err)))
 	}
 
 	a.Logger.Infof("cloud: backup “%s” removed successfully from the aws cloud", id)
@@ -607,7 +582,7 @@ func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 
 		listJobsOutput, err := a.Glacier.ListJobsWithContext(ctx, &listJobsInput)
 		if err != nil {
-			return errors.WithStack(newJobsError(jobs, JobsErrorCodeRetrievingJob, err))
+			return errors.WithStack(a.checkCancellation(newJobsError(jobs, JobsErrorCodeRetrievingJob, err)))
 		}
 
 		jobsRemaining := make([]string, len(jobs))
@@ -666,6 +641,36 @@ func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 	}
 
 	return nil
+}
+
+func (a *AWSCloud) checkCancellation(err error) error {
+	switch v := err.(type) {
+	case *Error:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newError(v.ID, ErrorCodeCancelled, v.Err)
+		}
+
+	case *MultipartError:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newMultipartError(v.Offset, v.Size, MultipartErrorCodeCancelled, v.Err)
+		}
+
+	case *JobsError:
+		awsErr, ok := errors.Cause(v.Err).(awserr.Error)
+		cancellation := ok && awsErr.Code() == request.CanceledErrorCode
+		if cancellation {
+			a.Logger.Debug("operation cancelled by user")
+			return newJobsError(v.Jobs, JobsErrorCodeCancelled, v.Err)
+		}
+	}
+
+	return err
 }
 
 // AWSInventoryArchiveList stores the archive information retrieved from AWS

@@ -422,7 +422,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when backup part checksum don't match",
+			description: "it should detect when backup part checksum do not match",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -526,7 +526,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when a big backup checksum don't match",
+			description: "it should detect when a big backup checksum do not match",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -593,7 +593,7 @@ func TestAWSCloud_Send(t *testing.T) {
 			},
 		},
 		{
-			description: "it should detect when a big backup checksum don't match and fail to remove it",
+			description: "it should detect when a big backup checksum do not match and fail to remove it",
 			filename: func() string {
 				f, err := ioutil.TempFile("", "toglacier-test-")
 				if err != nil {
@@ -703,7 +703,12 @@ func TestAWSCloud_Send(t *testing.T) {
 					mockUploadMultipartPartWithContext: func(ctx aws.Context, u *glacier.UploadMultipartPartInput, opts ...request.Option) (*glacier.UploadMultipartPartOutput, error) {
 						// sleep for a small amount of time to allow the task to be
 						// cancelled
-						time.Sleep(200 * time.Millisecond)
+						select {
+						case <-time.After(200 * time.Millisecond):
+						// do nothing
+						case <-ctx.Done():
+							return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+						}
 
 						hash := glacier.ComputeHashes(u.Body)
 						return &glacier.UploadMultipartPartOutput{
@@ -736,7 +741,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				Offset: 0,
 				Size:   42000,
 				Code:   cloud.MultipartErrorCodeCancelled,
-				Err:    context.Canceled,
+				Err:    awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
 			},
 		},
 	}
@@ -1211,6 +1216,93 @@ func TestAWSCloud_List(t *testing.T) {
 				Err:  context.Canceled,
 			},
 		},
+		{
+			description: "it should detect when the action is cancelled by the user while listing jobs",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							select {
+							case <-time.After(200 * time.Millisecond):
+							// do nothing
+							case <-ctx.Done():
+								return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+							}
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
+						inventory := struct {
+							VaultARN      string `json:"VaultARN"`
+							InventoryDate string `json:"InventoryDate"`
+							ArchiveList   cloud.AWSInventoryArchiveList
+						}{
+							ArchiveList: cloud.AWSInventoryArchiveList{
+								{
+									ArchiveID:          "AWSID123",
+									ArchiveDescription: "another test backup",
+									CreationDate:       time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
+									Size:               4000,
+									SHA256TreeHash:     "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
+								},
+								{
+									ArchiveID:          "AWSID122",
+									ArchiveDescription: "great test",
+									CreationDate:       time.Date(2016, 11, 7, 12, 0, 0, 0, time.UTC),
+									Size:               2456,
+									SHA256TreeHash:     "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
+								},
+							},
+						}
+
+						body, err := json.Marshal(inventory)
+						if err != nil {
+							t.Fatalf("error build job output response. details: %s", err)
+						}
+
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBuffer(body)),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
+				Err:  awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
+			},
+		},
 	}
 
 	for _, scenario := range scenarios {
@@ -1491,13 +1583,13 @@ func TestAWSCloud_Get(t *testing.T) {
 				},
 			},
 			expectedError: &cloud.Error{
-				ID:   "JOBID123",
+				ID:   "AWSID123",
 				Code: cloud.ErrorCodeJobComplete,
 				Err:  errors.New("job corrupted"),
 			},
 		},
 		{
-			description: "it should detect when the task was cancelled by the user while the job was not done",
+			description: "it should detect when the task was cancelled by the user while the job was not done (sleeping)",
 			id:          "AWSID123",
 			awsCloud: cloud.AWSCloud{
 				Logger: mockLogger{
@@ -1549,6 +1641,66 @@ func TestAWSCloud_Get(t *testing.T) {
 				Jobs: []string{"JOBID123"},
 				Code: cloud.JobsErrorCodeCancelled,
 				Err:  context.Canceled,
+			},
+		},
+		{
+			description: "it should detect when the task was cancelled by the user while the job was not done (listing)",
+			id:          "AWSID123",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+				Glacier: mockGlacierAPI{
+					mockInitiateJobWithContext: func(aws.Context, *glacier.InitiateJobInput, ...request.Option) (*glacier.InitiateJobOutput, error) {
+						return &glacier.InitiateJobOutput{
+							JobId: aws.String("JOBID123"),
+						}, nil
+					},
+					mockListJobsWithContext: func() func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+						var i int
+						return func(aws.Context, *glacier.ListJobsInput, ...request.Option) (*glacier.ListJobsOutput, error) {
+							// sleep for a small amount of time to allow the task to be
+							// cancelled
+							select {
+							case <-time.After(200 * time.Millisecond):
+							// do nothing
+							case <-ctx.Done():
+								return nil, awserr.New(request.CanceledErrorCode, "request context canceled", ctx.Err())
+							}
+
+							i++
+							return &glacier.ListJobsOutput{
+								JobList: []*glacier.JobDescription{
+									{
+										JobId:      aws.String("JOBID123"),
+										Completed:  aws.Bool(i == 2),
+										StatusCode: aws.String("Succeeded"),
+									},
+								},
+							}, nil
+						}
+					}(),
+					mockGetJobOutputWithContext: func(aws.Context, *glacier.GetJobOutputInput, ...request.Option) (*glacier.GetJobOutputOutput, error) {
+						return &glacier.GetJobOutputOutput{
+							Body: ioutil.NopCloser(bytes.NewBufferString("Important information for the test backup")),
+						}, nil
+					},
+				},
+			},
+			goFunc: func() {
+				// wait for the send task to start
+				time.Sleep(100 * time.Millisecond)
+				cancel()
+			},
+			expectedError: &cloud.JobsError{
+				Jobs: []string{"JOBID123"},
+				Code: cloud.JobsErrorCodeCancelled,
+				Err:  awserr.New(request.CanceledErrorCode, "request context canceled", context.Canceled),
 			},
 		},
 		{
