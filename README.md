@@ -35,6 +35,7 @@ Some cool features that you will find in this tool:
 
   * Backup the desired directories periodically;
   * Upload only modified files (small backups parts);
+  * Detect ransomware infection (too many modified files);
   * Encrypt backups before sending to the cloud;
   * Automatically download and rebuild backup parts;
   * Old backups are removed periodically to save you some money;
@@ -87,6 +88,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_LOG_LEVEL              | Verbosity of the logger                 |
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 | TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
+| TOGLACIER_MODIFY_TOLERANCE       | Maximum percentage of modified files    |
 | TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
 | TOGLACIER_EMAIL_PORT             | SMTP server port                        |
 | TOGLACIER_EMAIL_USERNAME         | Username for e-mail authentication      |
@@ -160,6 +162,7 @@ TOGLACIER_LOG_FILE="/var/log/toglacier/toglacier.log" \
 TOGLACIER_LOG_LEVEL="error" \
 TOGLACIER_KEEP_BACKUPS="10" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
+TOGLACIER_MODIFY_TOLERANCE="90%" \
 TOGLACIER_EMAIL_SERVER="smtp.example.com" \
 TOGLACIER_EMAIL_PORT="587" \
 TOGLACIER_EMAIL_USERNAME="user@example.com" \
@@ -223,6 +226,7 @@ c:\> nssm.exe set toglacier AppEnvironmentExtra ^
   TOGLACIER_LOG_LEVEL=error ^
   TOGLACIER_KEEP_BACKUPS=10 ^
   TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ== ^
+  TOGLACIER_MODIFY_TOLERANCE=90% ^
   TOGLACIER_EMAIL_SERVER=smtp.example.com ^
   TOGLACIER_EMAIL_PORT=587 ^
   TOGLACIER_EMAIL_USERNAME=user@example.com ^

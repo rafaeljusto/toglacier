@@ -3,6 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"unsafe"
@@ -20,9 +21,10 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths        []string `yaml:"paths"`
-	KeepBackups  int      `yaml:"keep backups" split_words:"true"`
-	BackupSecret aesKey   `yaml:"backup secret" split_words:"true"`
+	Paths           []string   `yaml:"paths"`
+	KeepBackups     int        `yaml:"keep backups" split_words:"true"`
+	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true"`
+	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true"`
 
 	Database struct {
 		Type DatabaseType `yaml:"type"`
@@ -332,5 +334,28 @@ func (e *EmailFormat) UnmarshalText(value []byte) error {
 	}
 
 	*e = EmailFormat(emailFormat)
+	return nil
+}
+
+// Percentage stores a valid percentage value.
+type Percentage float64
+
+// UnmarshalText verifies if a percentage is a valid number.
+func (p *Percentage) UnmarshalText(value []byte) error {
+	percentage := string(value)
+	percentage = strings.TrimSpace(percentage)
+	percentage = strings.ToLower(percentage)
+	percentage = strings.TrimSuffix(percentage, "%")
+
+	number, err := strconv.ParseFloat(percentage, 64)
+	if err != nil {
+		return newError("", ErrorCodePercentageFormat, err)
+	}
+
+	if number < 0 || number > 100 {
+		return newError("", ErrorCodePercentageRange, err)
+	}
+
+	*p = Percentage(number)
 	return nil
 }

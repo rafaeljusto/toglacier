@@ -89,6 +89,16 @@ func TestError_Error(t *testing.T) {
 			expected:    "config: invalid email format",
 		},
 		{
+			description: "it should show the correct error message for invalid percentage format",
+			err:         &config.Error{Code: config.ErrorCodePercentageFormat},
+			expected:    "config: invalid percentage format",
+		},
+		{
+			description: "it should show the correct error message for invalid percentage range",
+			err:         &config.Error{Code: config.ErrorCodePercentageRange},
+			expected:    "config: invalid percentage range",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &config.Error{Code: config.ErrorCode("i-dont-exist")},
 			expected:    "config: unknown error code",
