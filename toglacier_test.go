@@ -28,16 +28,20 @@ import (
 func TestToGlacier_Backup(t *testing.T) {
 	now := time.Now()
 
-	scenarios := []struct {
-		description   string
-		backupPaths   []string
-		backupSecret  string
-		archive       archive.Archive
-		envelop       archive.Envelop
-		cloud         cloud.Cloud
-		storage       storage.Storage
-		expectedError error
-	}{
+	type scenario struct {
+		description     string
+		backupPaths     []string
+		backupSecret    string
+		modifyTolerance float64
+		archive         archive.Archive
+		envelop         archive.Envelop
+		cloud           cloud.Cloud
+		storage         storage.Storage
+		logger          log.Logger
+		expectedError   error
+	}
+
+	scenarios := []scenario{
 		{
 			description: "it should backup correctly an archive",
 			backupPaths: func() []string {
@@ -50,8 +54,13 @@ func TestToGlacier_Backup(t *testing.T) {
 					t.Fatalf("error creating temporary file. details %s", err)
 				}
 
+				if err := ioutil.WriteFile(path.Join(d, "file2"), []byte("file2 test"), os.ModePerm); err != nil {
+					t.Fatalf("error creating temporary file. details %s", err)
+				}
+
 				return []string{d}
 			}(),
+			modifyTolerance: 50.0,
 			archive: mockArchive{
 				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
@@ -69,6 +78,11 @@ func TestToGlacier_Backup(t *testing.T) {
 							ID:       "",
 							Status:   archive.ItemInfoStatusModified,
 							Checksum: "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+						},
+						path.Join(backupPaths[0], "file2"): archive.ItemInfo{
+							ID:       "",
+							Status:   archive.ItemInfoStatusNew,
+							Checksum: "643e692567bfeedc34f914ce740fa353c624ed6a9662ad158266549dd8fd8b70",
 						},
 					}, nil
 				},
@@ -107,6 +121,14 @@ func TestToGlacier_Backup(t *testing.T) {
 					}, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
 		},
 		{
 			description: "it should detect when there's a problem listing the current backups",
@@ -126,6 +148,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockList: func() (storage.Backups, error) {
 					return nil, errors.New("problem loading backups from storage")
 				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("problem loading backups from storage"),
 		},
@@ -184,6 +214,14 @@ func TestToGlacier_Backup(t *testing.T) {
 					return nil, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
 		},
 		{
 			description: "it should detect an error while building the package",
@@ -199,6 +237,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockList: func() (storage.Backups, error) {
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("path doesn't exist"),
 		},
@@ -241,7 +287,108 @@ func TestToGlacier_Backup(t *testing.T) {
 					}, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
 		},
+		func() scenario {
+			d, err := ioutil.TempDir("", "toglacier-test")
+			if err != nil {
+				t.Fatalf("error creating temporary directory. details %s", err)
+			}
+
+			if err := ioutil.WriteFile(path.Join(d, "file1"), []byte("file1 test"), os.ModePerm); err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+
+			if err := ioutil.WriteFile(path.Join(d, "file2"), []byte("file2 test"), os.ModePerm); err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+
+			if err := ioutil.WriteFile(path.Join(d, "file3"), []byte("file3 test"), os.ModePerm); err != nil {
+				t.Fatalf("error creating temporary file. details %s", err)
+			}
+
+			var s scenario
+			s.description = "it should detect when the modified tolerance is reached"
+			s.backupPaths = []string{d}
+			s.modifyTolerance = 50.0
+
+			s.archive = mockArchive{
+				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+					if len(backupPaths) == 0 {
+						t.Fatalf("no backup path informed")
+					}
+
+					f, err := ioutil.TempFile("", "toglacier-test")
+					if err != nil {
+						t.Fatalf("error creating temporary file. details: %s", err)
+					}
+					defer f.Close()
+
+					return f.Name(), archive.Info{
+						path.Join(backupPaths[0], "file1"): archive.ItemInfo{
+							ID:       "",
+							Status:   archive.ItemInfoStatusModified,
+							Checksum: "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+						},
+						path.Join(backupPaths[0], "file2"): archive.ItemInfo{
+							ID:       "",
+							Status:   archive.ItemInfoStatusNew,
+							Checksum: "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+						},
+						path.Join(backupPaths[0], "file3"): archive.ItemInfo{
+							ID:       "",
+							Status:   archive.ItemInfoStatusModified,
+							Checksum: "11e87f16676135f6b4bc8da00883e4e02e51595d07841dbc8c16c5d2047a304d",
+						},
+					}, nil
+				},
+			}
+
+			s.storage = mockStorage{
+				mockList: func() (storage.Backups, error) {
+					return storage.Backups{
+						{
+							Backup: cloud.Backup{
+								ID:        "123455",
+								CreatedAt: now.Add(-time.Hour),
+								Checksum:  "03c7c9c26fbb71dbc1546fd2fd5f2fbc3f4a410360e8fc016c41593b2456cf59",
+								VaultName: "test",
+							},
+							Info: archive.Info{
+								"file1": archive.ItemInfo{
+									ID:       "123455",
+									Status:   archive.ItemInfoStatusNew,
+									Checksum: "49ddf1762657fa04e29aa8ca6b22a848ce8a9b590748d6d708dd208309bcfee6",
+								},
+							},
+						},
+					}, nil
+				},
+			}
+
+			s.logger = mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			}
+
+			s.expectedError = toglacier.Error{
+				Paths: []string{d},
+				Code:  toglacier.ErrorCodeModifyTolerance,
+			}
+
+			return s
+		}(),
 		{
 			description: "it should detect an error while encrypting the package",
 			backupPaths: func() []string {
@@ -291,6 +438,14 @@ func TestToGlacier_Backup(t *testing.T) {
 					return nil, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("failed to encrypt the archive"),
 		},
 		{
@@ -327,6 +482,14 @@ func TestToGlacier_Backup(t *testing.T) {
 				mockList: func() (storage.Backups, error) {
 					return nil, nil
 				},
+			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
 			},
 			expectedError: errors.New("error sending backup"),
 		},
@@ -373,6 +536,14 @@ func TestToGlacier_Backup(t *testing.T) {
 					return nil, nil
 				},
 			},
+			logger: mockLogger{
+				mockDebug:    func(args ...interface{}) {},
+				mockDebugf:   func(format string, args ...interface{}) {},
+				mockInfo:     func(args ...interface{}) {},
+				mockInfof:    func(format string, args ...interface{}) {},
+				mockWarning:  func(args ...interface{}) {},
+				mockWarningf: func(format string, args ...interface{}) {},
+			},
 			expectedError: errors.New("error saving the backup information"),
 		},
 	}
@@ -385,9 +556,10 @@ func TestToGlacier_Backup(t *testing.T) {
 				Envelop: scenario.envelop,
 				Cloud:   scenario.cloud,
 				Storage: scenario.storage,
+				Logger:  scenario.logger,
 			}
 
-			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret)
+			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret, scenario.modifyTolerance)
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}

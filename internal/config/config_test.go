@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -82,6 +83,7 @@ log:
   level:   DEBUG
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -114,6 +116,7 @@ aws:
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
+				c.ModifyTolerance = 90.0
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -164,6 +167,7 @@ log:
   level: error
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -214,6 +218,7 @@ log:
   level: idontexist
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -291,6 +296,7 @@ log:
   level: debug
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -342,6 +348,7 @@ log:
   level: debug
 keep backups: 10
 backup secret: encrypted:invalid
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -395,6 +402,7 @@ log:
   level: debug
 keep backups: 10
 backup secret: a123456789012345678901234567890
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -427,6 +435,7 @@ aws:
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
+				c.ModifyTolerance = 90
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -466,6 +475,7 @@ log:
   level: debug
 keep backups: 10
 backup secret: a12345678901234567890123456789012
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -498,6 +508,7 @@ aws:
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
+				c.ModifyTolerance = 90.0
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -535,6 +546,7 @@ log:
   level:   DEBUG
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
 email:
   server: smtp.example.com
   port: 587
@@ -561,6 +573,164 @@ aws:
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &config.Error{
 					Code: config.ErrorCodeEmailFormat,
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level:   DEBUG
+keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: XX%
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+  format: html
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+			var s scenario
+			s.description = "it should detect when the modified files percentage has an invalid format"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodePercentageFormat,
+					Err: &strconv.NumError{
+						Func: "ParseFloat",
+						Num:  "xx",
+						Err:  strconv.ErrSyntax,
+					},
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level:   DEBUG
+keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 101%
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+  format: html
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+			var s scenario
+			s.description = "it should detect when the modified files percentage is out of range (above top)"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodePercentageRange,
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level:   DEBUG
+keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: -1%
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+  format: html
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+			var s scenario
+			s.description = "it should detect when the modified files percentage is out of range (bellow bottom)"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodePercentageRange,
 				},
 			}
 
@@ -618,6 +788,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -631,6 +802,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
+				c.ModifyTolerance = 90.0
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -671,6 +843,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "error",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -707,6 +880,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "idontexist",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -743,6 +917,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -780,6 +955,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -817,6 +993,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a123456789012345678901234567890",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -830,6 +1007,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
+				c.ModifyTolerance = 90.0
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -870,6 +1048,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "debug",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a12345678901234567890123456789012",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -883,6 +1062,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
+				c.ModifyTolerance = 90.0
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -923,6 +1103,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -933,6 +1114,122 @@ func TestLoadFromEnvironment(t *testing.T) {
 					Value:     "strange",
 					Err: &config.Error{
 						Code: config.ErrorCodeEmailFormat,
+					},
+				},
+			},
+		},
+		{
+			description: "it should detect an invalid percentage in modify tolerance field",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_EMAIL_FORMAT":          "html",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "XX%",
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_MODIFY_TOLERANCE",
+					FieldName: "ModifyTolerance",
+					TypeName:  "config.Percentage",
+					Value:     "XX%",
+					Err: &config.Error{
+						Code: config.ErrorCodePercentageFormat,
+						Err: &strconv.NumError{
+							Func: "ParseFloat",
+							Num:  "xx",
+							Err:  strconv.ErrSyntax,
+						},
+					},
+				},
+			},
+		},
+		{
+			description: "it should detect an invalid range in modify tolerance field (above top)",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_EMAIL_FORMAT":          "html",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "101%",
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_MODIFY_TOLERANCE",
+					FieldName: "ModifyTolerance",
+					TypeName:  "config.Percentage",
+					Value:     "101%",
+					Err: &config.Error{
+						Code: config.ErrorCodePercentageRange,
+					},
+				},
+			},
+		},
+		{
+			description: "it should detect an invalid range in modify tolerance field (bellow bottom)",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_EMAIL_FORMAT":          "html",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "-1%",
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_MODIFY_TOLERANCE",
+					FieldName: "ModifyTolerance",
+					TypeName:  "config.Percentage",
+					Value:     "-1%",
+					Err: &config.Error{
+						Code: config.ErrorCodePercentageRange,
 					},
 				},
 			},
@@ -958,6 +1255,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"LEVEL":             "  DEBUG  ",
 				"KEEP_BACKUPS":      "10",
 				"BACKUP_SECRET":     "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"MODIFY_TOLERANCE":  "90%",
 			},
 			expected: func() *config.Config {
 				return new(config.Config)

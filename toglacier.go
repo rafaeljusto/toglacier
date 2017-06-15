@@ -27,8 +27,13 @@ type ToGlacier struct {
 	Logger  log.Logger
 }
 
-// Backup create an archive and send it to the cloud.
-func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
+// Backup create an archive and send it to the cloud. Optionally encrypt the
+// backup with the backupSecret password, if you leave it blank no encryption
+// will be performed. There's also an option to stop the backup if there're to
+// many files modified (ransomware detection), the modifyTolerance is the
+// percentage (0 - 100) of modified files that is tolerated. If there's no need
+// to keep track of the modified files set modifyTolerance to 0 or 100.
+func (t ToGlacier) Backup(backupPaths []string, backupSecret string, modifyTolerance float64) error {
 	backupReport := report.NewSendBackup()
 	defer func() {
 		report.Add(backupReport)
@@ -62,6 +67,10 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 
 	defer os.Remove(filename)
 	backupReport.Durations.Build = time.Now().Sub(timeMark)
+
+	if t.modifyToleranceReached(archiveInfo, modifyTolerance) {
+		return errors.WithStack(newError(backupPaths, ErrorCodeModifyTolerance, nil))
+	}
 
 	if backupSecret != "" {
 		var encryptedFilename string
@@ -100,6 +109,28 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string) error {
 	}
 
 	return nil
+}
+
+func (t ToGlacier) modifyToleranceReached(archiveInfo archive.Info, modifyTolerance float64) bool {
+	if len(archiveInfo) == 0 || modifyTolerance == 0 || modifyTolerance == 100 {
+		return false
+	}
+
+	var modified int
+	for _, itemInfo := range archiveInfo {
+		if itemInfo.Status == archive.ItemInfoStatusModified {
+			modified++
+		}
+	}
+
+	modifyPercentage := float64(modified*100) / float64(len(archiveInfo))
+	if modifyPercentage > modifyTolerance {
+		t.Logger.Warningf("toglacier: detected %.2f%% of modified files (%d/%d), tolerance limited at %.2f%%, aborting backup",
+			modifyPercentage, modified, len(archiveInfo), modifyTolerance)
+		return true
+	}
+
+	return false
 }
 
 // ListBackups show the current backups. With the remote flag it is possible to

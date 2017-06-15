@@ -42,6 +42,12 @@ const (
 	// ErrorCodeEmailFormat informed email format is unknown, it should be "plain"
 	// or "html".
 	ErrorCodeEmailFormat ErrorCode = "email-format"
+
+	// ErrorCodePercentageFormat invalid percentage format.
+	ErrorCodePercentageFormat ErrorCode = "percentage-format"
+
+	// ErrorCodePercentageRange percentage must be between 0 and 100.
+	ErrorCodePercentageRange ErrorCode = "percentage-range"
 )
 
 // ErrorCode stores the error type that occurred while reading
@@ -71,6 +77,10 @@ func (e ErrorCode) String() string {
 		return "invalid log level"
 	case ErrorCodeEmailFormat:
 		return "invalid email format"
+	case ErrorCodePercentageFormat:
+		return "invalid percentage format"
+	case ErrorCodePercentageRange:
+		return "invalid percentage range"
 	}
 
 	return "unknown error code"

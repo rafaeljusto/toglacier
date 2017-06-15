@@ -9,6 +9,7 @@ log:
   level: error
 keep backups: 10
 backup secret: encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
+modify tolerance: 90.0
 email:
   server: smtp.example.com
   port: 587
