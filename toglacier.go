@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +17,10 @@ import (
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
 )
+
+// ignoreFiles will exclude from the backup files or directories that start with
+// the symbols ~, # or $.
+var ignoreFiles = regexp.MustCompile(fmt.Sprintf(`^.*%s(~|#|\$).*$`, string(os.PathSeparator)))
 
 // ToGlacier manages backups in the cloud.
 type ToGlacier struct {
@@ -52,7 +57,7 @@ func (t ToGlacier) Backup(backupPaths []string, backupSecret string, modifyToler
 	}
 
 	timeMark := time.Now()
-	filename, archiveInfo, err := t.Archive.Build(archiveInfo, backupPaths...)
+	filename, archiveInfo, err := t.Archive.Build(archiveInfo, ignoreFiles, backupPaths...)
 	if err != nil {
 		backupReport.Errors = append(backupReport.Errors, err)
 		return errors.WithStack(err)

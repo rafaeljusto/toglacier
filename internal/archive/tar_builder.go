@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -59,7 +60,7 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 //         // unknown error
 //       }
 //     }
-func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error) {
+func (t TARBuilder) Build(lastArchiveInfo Info, ignoreFiles *regexp.Regexp, backupPaths ...string) (string, Info, error) {
 	t.logger.Debugf("archive: build tar for backup paths %v", backupPaths)
 
 	tarFile, err := ioutil.TempFile("", "toglacier-")
@@ -81,7 +82,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 
 		t.logger.Debugf("archive: analyzing backup path “%s”", path)
 
-		tmpArchiveInfo, tmpHasFiles, err := t.build(lastArchiveInfo, tarArchive, basePath, path)
+		tmpArchiveInfo, tmpHasFiles, err := t.build(lastArchiveInfo, tarArchive, basePath, path, ignoreFiles)
 		if err != nil {
 			return "", nil, errors.WithStack(err)
 		}
@@ -125,7 +126,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 	return tarFile.Name(), archiveInfo, nil
 }
 
-func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string) (archiveInfo Info, hasFiles bool, err error) {
+func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string, ignoreFiles *regexp.Regexp) (archiveInfo Info, hasFiles bool, err error) {
 	var directories []*tar.Header
 	archiveInfo = make(Info)
 
@@ -135,6 +136,11 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 		}
 
 		t.logger.Debugf("archive: walking into path “%s”", path)
+
+		if ignoreFiles != nil && ignoreFiles.MatchString(path) {
+			t.logger.Infof("archive: path “%s” ignored", path)
+			return nil
+		}
 
 		header, err := tar.FileInfoHeader(info, path)
 		if err != nil {

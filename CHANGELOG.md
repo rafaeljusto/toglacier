@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Keep consistency of local storage when removing a backup
 - Tool version automatically defined in build scripts
 - TAR header path was including volume name in Windows environments
+- Ignore temporary files when building the tarball
 
 ### Changed
 - Tool moved to cmd subdirectory
