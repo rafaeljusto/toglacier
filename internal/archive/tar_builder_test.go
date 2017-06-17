@@ -26,7 +26,6 @@ func TestTARBuilder_Build(t *testing.T) {
 		description         string
 		archive             *archive.TARBuilder
 		lastArchiveInfo     func(backupPaths []string) archive.Info
-		ignoreFiles         *regexp.Regexp
 		backupPaths         []string
 		expected            func(filename string) error
 		expectedArchiveInfo func(backupPaths []string) archive.Info
@@ -59,7 +58,6 @@ func TestTARBuilder_Build(t *testing.T) {
 					},
 				}
 			},
-			ignoreFiles: regexp.MustCompile(fmt.Sprintf("^.*%s~.*$", string(os.PathSeparator))),
 			backupPaths: func() []string {
 				d, err := ioutil.TempDir("", "toglacier-test")
 				if err != nil {
@@ -71,10 +69,6 @@ func TestTARBuilder_Build(t *testing.T) {
 				}
 
 				if err := ioutil.WriteFile(path.Join(d, "file2"), []byte("file2 test"), os.ModePerm); err != nil {
-					t.Fatalf("error creating temporary file. details %s", err)
-				}
-
-				if err := ioutil.WriteFile(path.Join(d, "~file2"), []byte("temporary file2 test"), os.ModePerm); err != nil {
 					t.Fatalf("error creating temporary file. details %s", err)
 				}
 
@@ -589,7 +583,7 @@ func TestTARBuilder_Build(t *testing.T) {
 				lastArchiveInfo = scenario.lastArchiveInfo(backupPaths)
 			}
 
-			filename, archiveInfo, err := scenario.archive.Build(lastArchiveInfo, scenario.ignoreFiles, backupPaths...)
+			filename, archiveInfo, err := scenario.archive.Build(lastArchiveInfo, backupPaths...)
 			if scenario.expectedError == nil && scenario.expected != nil {
 				if err = scenario.expected(filename); err != nil {
 					t.Errorf("unexpected archive content (%s). details: %s", filename, err)
