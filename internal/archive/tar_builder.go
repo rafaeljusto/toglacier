@@ -149,7 +149,7 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 
 		// store the full path in the tarball to avoid conflicts when appending
 		// multiple backup paths
-		header.Name = filepath.Join(baseDir, path)
+		header.Name = filepath.Join(baseDir, cleanPathToJoin(path))
 
 		if info.IsDir() {
 			// tar always use slash as a path separator, even on Windows
