@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -33,6 +34,7 @@ func TestToGlacier_Backup(t *testing.T) {
 		backupPaths     []string
 		backupSecret    string
 		modifyTolerance float64
+		ignorePatterns  []*regexp.Regexp
 		archive         archive.Archive
 		envelop         archive.Envelop
 		cloud           cloud.Cloud
@@ -61,10 +63,17 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			modifyTolerance: 50.0,
+			ignorePatterns: []*regexp.Regexp{
+				regexp.MustCompile(`^.*\~\$.*$`),
+			},
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
 						t.Fatalf("no backup path informed")
+					}
+
+					if len(ignorePatterns) != 1 {
+						t.Fatalf("unexpected ignore patterns: %v", ignorePatterns)
 					}
 
 					f, err := ioutil.TempFile("", "toglacier-test")
@@ -175,7 +184,7 @@ func TestToGlacier_Backup(t *testing.T) {
 			}(),
 			backupSecret: "12345678901234567890123456789012",
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
@@ -229,7 +238,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{"idontexist12345"}
 			}(),
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					return "", nil, errors.New("path doesn't exist")
 				},
 			},
@@ -258,7 +267,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
 						t.Fatalf("no backup path informed")
 					}
@@ -320,7 +329,7 @@ func TestToGlacier_Backup(t *testing.T) {
 			s.modifyTolerance = 50.0
 
 			s.archive = mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					if len(backupPaths) == 0 {
 						t.Fatalf("no backup path informed")
 					}
@@ -405,7 +414,7 @@ func TestToGlacier_Backup(t *testing.T) {
 			}(),
 			backupSecret: "123456",
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
@@ -463,7 +472,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
@@ -508,7 +517,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				return []string{d}
 			}(),
 			archive: mockArchive{
-				mockBuild: func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
+				mockBuild: func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
 					f, err := ioutil.TempFile("", "toglacier-test")
 					if err != nil {
 						t.Fatalf("error creating temporary file. details: %s", err)
@@ -559,7 +568,7 @@ func TestToGlacier_Backup(t *testing.T) {
 				Logger:  scenario.logger,
 			}
 
-			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret, scenario.modifyTolerance)
+			err := toGlacier.Backup(scenario.backupPaths, scenario.backupSecret, scenario.modifyTolerance, scenario.ignorePatterns)
 			if !archive.ErrorEqual(scenario.expectedError, err) && !archive.PathErrorEqual(scenario.expectedError, err) && !ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
 			}
@@ -2728,13 +2737,13 @@ Content-Type: text/plain; charset=utf-8
 }
 
 type mockArchive struct {
-	mockBuild        func(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error)
+	mockBuild        func(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error)
 	mockExtract      func(filename string, filter []string) (archive.Info, error)
 	mockFileChecksum func(filename string) (string, error)
 }
 
-func (m mockArchive) Build(lastArchiveInfo archive.Info, backupPaths ...string) (string, archive.Info, error) {
-	return m.mockBuild(lastArchiveInfo, backupPaths...)
+func (m mockArchive) Build(lastArchiveInfo archive.Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, archive.Info, error) {
+	return m.mockBuild(lastArchiveInfo, ignorePatterns, backupPaths...)
 }
 
 func (m mockArchive) Extract(filename string, filter []string) (archive.Info, error) {

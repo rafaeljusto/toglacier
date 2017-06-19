@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Download many archives in parallel
 - Using context from AWS library for user cancellation
 - Detect ransomware infection (maximum number of modified files)
+- Ignore files or directories in the backup paths
 
 ### Fixed
 - Ignore unmodified files when choosing the backup parts to download
@@ -24,7 +25,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Keep consistency of local storage when removing a backup
 - Tool version automatically defined in build scripts
 - TAR header path was including volume name in Windows environments
-- Ignore temporary files when building the tarball
 
 ### Changed
 - Tool moved to cmd subdirectory

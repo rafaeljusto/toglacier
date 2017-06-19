@@ -1,5 +1,7 @@
 package archive
 
+import "regexp"
+
 const (
 	// ItemInfoStatusNew refers to an item that appeared for the first time in the
 	// archive.
@@ -91,7 +93,7 @@ func (a Info) FilterByStatuses(statuses ...ItemInfoStatus) Info {
 // Archive manages an archive joining all paths in a file, extracting and
 // calculating Checksums.
 type Archive interface {
-	Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error)
+	Build(lastArchiveInfo Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, Info, error)
 	Extract(filename string, filter []string) (Info, error)
 	FileChecksum(filename string) (string, error)
 }
