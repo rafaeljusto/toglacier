@@ -33,7 +33,9 @@ type ToGlacier struct {
 // will be performed. There's also an option to stop the backup if there're to
 // many files modified (ransomware detection), the modifyTolerance is the
 // percentage (0 - 100) of modified files that is tolerated. If there's no need
-// to keep track of the modified files set modifyTolerance to 0 or 100.
+// to keep track of the modified files set modifyTolerance to 0 or 100. You
+// could also ignore some files or directories in the backup paths using regular
+// expressions in the ignorePatterns parameter.
 func (t ToGlacier) Backup(backupPaths []string, backupSecret string, modifyTolerance float64, ignorePatterns []*regexp.Regexp) error {
 	backupReport := report.NewSendBackup()
 	defer func() {

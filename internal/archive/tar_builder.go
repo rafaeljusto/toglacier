@@ -40,11 +40,13 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 
 // Build builds a tarball containing all the desired files that you want to
 // backup. A control file is added to the tarball root so we can control
-// incremental archives (send only what was modified). On success it will return
-// an open file, so the caller is responsible for closing it. If no file was
-// written to the tarball, an empty filename is returned. On error it will
-// return an Error or PathError type encapsulated in a traceable error. To
-// retrieve the desired error you can do:
+// incremental archives (send only what was modified). Files and directories can
+// be ignores in the backupPaths using the regular expressions in the
+// ignorePatterns parameter. On success it will return an open file, so the
+// caller is responsible for closing it. If no file was written to the tarball,
+// an empty filename is returned. On error it will return an Error or PathError
+// type encapsulated in a traceable error. To retrieve the desired error you can
+// do:
 //
 //     type causer interface {
 //       Cause() error
