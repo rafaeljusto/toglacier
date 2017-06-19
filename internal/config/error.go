@@ -48,6 +48,10 @@ const (
 
 	// ErrorCodePercentageRange percentage must be between 0 and 100.
 	ErrorCodePercentageRange ErrorCode = "percentage-range"
+
+	// ErrorCodePattern invalid pattern detected when parsing the regular
+	// expression.
+	ErrorCodePattern ErrorCode = "pattern"
 )
 
 // ErrorCode stores the error type that occurred while reading
@@ -81,6 +85,8 @@ func (e ErrorCode) String() string {
 		return "invalid percentage format"
 	case ErrorCodePercentageRange:
 		return "invalid percentage range"
+	case ErrorCodePattern:
+		return "invalid pattern"
 	}
 
 	return "unknown error code"

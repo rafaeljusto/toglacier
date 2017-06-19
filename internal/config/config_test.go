@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"regexp"
+	"regexp/syntax"
 	"strconv"
 	"strings"
 	"syscall"
@@ -84,6 +86,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -117,6 +121,9 @@ aws:
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -168,6 +175,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -219,6 +228,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -297,6 +308,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -349,6 +362,8 @@ log:
 keep backups: 10
 backup secret: encrypted:invalid
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -403,6 +418,8 @@ log:
 keep backups: 10
 backup secret: a123456789012345678901234567890
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -435,7 +452,10 @@ aws:
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
-				c.ModifyTolerance = 90
+				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -476,6 +496,8 @@ log:
 keep backups: 10
 backup secret: a12345678901234567890123456789012
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -509,6 +531,9 @@ aws:
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -547,6 +572,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -598,6 +625,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: XX%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -654,6 +683,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: 101%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -705,6 +736,8 @@ log:
 keep backups: 10
 backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
 modify tolerance: -1%
+ignore patterns:
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587
@@ -731,6 +764,63 @@ aws:
 				Code:     config.ErrorCodeParsingYAML,
 				Err: &config.Error{
 					Code: config.ErrorCodePercentageRange,
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: audit-file
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level:   DEBUG
+keep backups: 10
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
+ignore patterns:
+  - ^[[[$
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+  format: html
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+`)
+
+			var s scenario
+			s.description = "it should detect an invalid pattern"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodePattern,
+					Err: &syntax.Error{
+						Code: syntax.ErrMissingBracket,
+						Expr: "[[[$",
+					},
 				},
 			}
 
@@ -789,6 +879,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -803,6 +894,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "abc12300000000000000000000000000"
 				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -844,6 +938,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -881,6 +976,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -918,6 +1014,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -956,6 +1053,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:invalid",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -994,6 +1092,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a123456789012345678901234567890",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -1008,6 +1107,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678900"
 				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -1049,6 +1151,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "a12345678901234567890123456789012",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -1063,6 +1166,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.KeepBackups = 10
 				c.BackupSecret.Value = "a1234567890123456789012345678901"
 				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
 				c.Email.Server = "smtp.example.com"
 				c.Email.Port = 587
 				c.Email.Username = "user@example.com"
@@ -1104,6 +1210,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1141,6 +1248,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "XX%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1183,6 +1291,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "101%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1220,6 +1329,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_KEEP_BACKUPS":          "10",
 				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":      "-1%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^.*\~\$.*$`,
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1230,6 +1340,48 @@ func TestLoadFromEnvironment(t *testing.T) {
 					Value:     "-1%",
 					Err: &config.Error{
 						Code: config.ErrorCodePercentageRange,
+					},
+				},
+			},
+		},
+		{
+			description: "it should detect an invalid pattern",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":        "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":     "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY": "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":            "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":        "backup",
+				"TOGLACIER_EMAIL_SERVER":          "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":            "587",
+				"TOGLACIER_EMAIL_USERNAME":        "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":        "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":            "user@example.com",
+				"TOGLACIER_EMAIL_TO":              "report1@example.com,report2@example.com",
+				"TOGLACIER_EMAIL_FORMAT":          "html",
+				"TOGLACIER_PATHS":                 "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":               "audit-file",
+				"TOGLACIER_DB_FILE":               "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":              "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":             "  DEBUG  ",
+				"TOGLACIER_KEEP_BACKUPS":          "10",
+				"TOGLACIER_BACKUP_SECRET":         "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":      "90%",
+				"TOGLACIER_IGNORE_PATTERNS":       `^[[[$`,
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_IGNORE_PATTERNS",
+					FieldName: "IgnorePatterns",
+					TypeName:  "[]config.Pattern",
+					Value:     "^[[[$",
+					Err: &config.Error{
+						Code: config.ErrorCodePattern,
+						Err: &syntax.Error{
+							Code: syntax.ErrMissingBracket,
+							Expr: "[[[$",
+						},
 					},
 				},
 			},
@@ -1256,6 +1408,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"KEEP_BACKUPS":      "10",
 				"BACKUP_SECRET":     "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"MODIFY_TOLERANCE":  "90%",
+				"IGNORE_PATTERNS":   `^.*\~\$.*$`,
 			},
 			expected: func() *config.Config {
 				return new(config.Config)

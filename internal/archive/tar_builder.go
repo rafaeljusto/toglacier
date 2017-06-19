@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,11 +40,13 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 
 // Build builds a tarball containing all the desired files that you want to
 // backup. A control file is added to the tarball root so we can control
-// incremental archives (send only what was modified). On success it will return
-// an open file, so the caller is responsible for closing it. If no file was
-// written to the tarball, an empty filename is returned. On error it will
-// return an Error or PathError type encapsulated in a traceable error. To
-// retrieve the desired error you can do:
+// incremental archives (send only what was modified). Files and directories can
+// be ignores in the backupPaths using the regular expressions in the
+// ignorePatterns parameter. On success it will return an open file, so the
+// caller is responsible for closing it. If no file was written to the tarball,
+// an empty filename is returned. On error it will return an Error or PathError
+// type encapsulated in a traceable error. To retrieve the desired error you can
+// do:
 //
 //     type causer interface {
 //       Cause() error
@@ -59,7 +62,7 @@ func NewTARBuilder(logger log.Logger) *TARBuilder {
 //         // unknown error
 //       }
 //     }
-func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, Info, error) {
+func (t TARBuilder) Build(lastArchiveInfo Info, ignorePatterns []*regexp.Regexp, backupPaths ...string) (string, Info, error) {
 	t.logger.Debugf("archive: build tar for backup paths %v", backupPaths)
 
 	tarFile, err := ioutil.TempFile("", "toglacier-")
@@ -81,7 +84,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 
 		t.logger.Debugf("archive: analyzing backup path “%s”", path)
 
-		tmpArchiveInfo, tmpHasFiles, err := t.build(lastArchiveInfo, tarArchive, basePath, path)
+		tmpArchiveInfo, tmpHasFiles, err := t.build(lastArchiveInfo, tarArchive, basePath, path, ignorePatterns)
 		if err != nil {
 			return "", nil, errors.WithStack(err)
 		}
@@ -125,7 +128,7 @@ func (t TARBuilder) Build(lastArchiveInfo Info, backupPaths ...string) (string, 
 	return tarFile.Name(), archiveInfo, nil
 }
 
-func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string) (archiveInfo Info, hasFiles bool, err error) {
+func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir, source string, ignorePatterns []*regexp.Regexp) (archiveInfo Info, hasFiles bool, err error) {
 	var directories []*tar.Header
 	archiveInfo = make(Info)
 
@@ -135,6 +138,13 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 		}
 
 		t.logger.Debugf("archive: walking into path “%s”", path)
+
+		for _, ignorePattern := range ignorePatterns {
+			if ignorePattern.MatchString(path) {
+				t.logger.Infof("archive: path “%s” ignored", path)
+				return nil
+			}
+		}
 
 		header, err := tar.FileInfoHeader(info, path)
 		if err != nil {

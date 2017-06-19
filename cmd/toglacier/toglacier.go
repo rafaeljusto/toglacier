@@ -224,7 +224,19 @@ func commandSync(c *cli.Context) error {
 		logger.Out = ioutil.Discard
 	}
 
-	if err := toGlacier.Backup(config.Current().Paths, config.Current().BackupSecret.Value, float64(config.Current().ModifyTolerance)); err != nil {
+	var ignorePatterns []*regexp.Regexp
+	for _, pattern := range config.Current().IgnorePatterns {
+		ignorePatterns = append(ignorePatterns, pattern.Value)
+	}
+
+	err := toGlacier.Backup(
+		config.Current().Paths,
+		config.Current().BackupSecret.Value,
+		float64(config.Current().ModifyTolerance),
+		ignorePatterns,
+	)
+
+	if err != nil {
 		logger.Error(err)
 	}
 
@@ -303,9 +315,21 @@ func commandList(c *cli.Context) error {
 }
 
 func commandStart(c *cli.Context) error {
+	var ignorePatterns []*regexp.Regexp
+	for _, pattern := range config.Current().IgnorePatterns {
+		ignorePatterns = append(ignorePatterns, pattern.Value)
+	}
+
 	scheduler := gocron.NewScheduler()
 	scheduler.Every(1).Day().At("00:00").Do(func() {
-		if err := toGlacier.Backup(config.Current().Paths, config.Current().BackupSecret.Value, float64(config.Current().ModifyTolerance)); err != nil {
+		err := toGlacier.Backup(
+			config.Current().Paths,
+			config.Current().BackupSecret.Value,
+			float64(config.Current().ModifyTolerance),
+			ignorePatterns,
+		)
+
+		if err != nil {
 			logger.Error(err)
 		}
 	})

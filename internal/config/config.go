@@ -3,6 +3,7 @@ package config
 import (
 	"io/ioutil"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -25,6 +26,7 @@ type Config struct {
 	KeepBackups     int        `yaml:"keep backups" split_words:"true"`
 	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true"`
 	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true"`
+	IgnorePatterns  []Pattern  `yaml:"ignore patterns" split_words:"true"`
 
 	Database struct {
 		Type DatabaseType `yaml:"type"`
@@ -357,5 +359,24 @@ func (p *Percentage) UnmarshalText(value []byte) error {
 	}
 
 	*p = Percentage(number)
+	return nil
+}
+
+// Pattern stores a valid regular expression.
+type Pattern struct {
+	Value *regexp.Regexp
+}
+
+// UnmarshalText compile the pattern checking for expression errors.
+func (p *Pattern) UnmarshalText(value []byte) error {
+	pattern := string(value)
+	pattern = strings.TrimSpace(pattern)
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return newError("", ErrorCodePattern, err)
+	}
+
+	p.Value = re
 	return nil
 }

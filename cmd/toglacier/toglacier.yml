@@ -10,6 +10,21 @@ log:
 keep backups: 10
 backup secret: encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==
 modify tolerance: 90.0
+ignore patterns:
+  # Owner File (Same Directory as Source File).
+  #
+  # When a previously saved file is opened for editing, for printing, or for
+  # review, Word creates a temporary file that has a .doc file name extension.
+  # This file name extension begins with a tilde (~) that is followed by a
+  # dollar sign ($) that is followed by the remainder of the original file name.
+  # This temporary file holds the logon name of person who opens the file. This
+  # temporary file is called the "owner file."
+  #
+  # When you try to open a file that is available on a network and that is
+  # already opened by someone else, this file supplies the user name for the
+  # following error message: This file is already opened by user name. Would you
+  # like to make a copy of this file for your use?
+  - ^.*\~\$.*$
 email:
   server: smtp.example.com
   port: 587

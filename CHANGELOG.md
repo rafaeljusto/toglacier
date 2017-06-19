@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Download many archives in parallel
 - Using context from AWS library for user cancellation
 - Detect ransomware infection (maximum number of modified files)
+- Ignore files or directories in the backup paths
 
 ### Fixed
 - Ignore unmodified files when choosing the backup parts to download

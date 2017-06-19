@@ -99,6 +99,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "config: invalid percentage range",
 		},
 		{
+			description: "it should show the correct error message for invalid pattern",
+			err:         &config.Error{Code: config.ErrorCodePattern},
+			expected:    "config: invalid pattern",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &config.Error{Code: config.ErrorCode("i-dont-exist")},
 			expected:    "config: unknown error code",

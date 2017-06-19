@@ -36,6 +36,7 @@ Some cool features that you will find in this tool:
   * Backup the desired directories periodically;
   * Upload only modified files (small backups parts);
   * Detect ransomware infection (too many modified files);
+  * Ignore some files or directories in the backup path;
   * Encrypt backups before sending to the cloud;
   * Automatically download and rebuild backup parts;
   * Old backups are removed periodically to save you some money;
@@ -89,6 +90,7 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
 | TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
 | TOGLACIER_MODIFY_TOLERANCE       | Maximum percentage of modified files    |
+| TOGLACIER_IGNORE_PATTERNS        | Regexps to ignore files in backup paths |
 | TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
 | TOGLACIER_EMAIL_PORT             | SMTP server port                        |
 | TOGLACIER_EMAIL_USERNAME         | Username for e-mail authentication      |
@@ -163,6 +165,7 @@ TOGLACIER_LOG_LEVEL="error" \
 TOGLACIER_KEEP_BACKUPS="10" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 TOGLACIER_MODIFY_TOLERANCE="90%" \
+TOGLACIER_IGNORE_PATTERNS="^.*\~\$.*$" \
 TOGLACIER_EMAIL_SERVER="smtp.example.com" \
 TOGLACIER_EMAIL_PORT="587" \
 TOGLACIER_EMAIL_USERNAME="user@example.com" \
@@ -208,32 +211,10 @@ here to build the package.
 
 To make your life easier you can use the tool [NSSM](http://nssm.cc) to build a
 Windows service to run the toglacier tool in background. The following commands
-would install the service (replace the necessary parameters):
+would install the service:
 
 ```
-c:\> nssm.exe install toglacier c:\programs\toglacier.exe start
-
-c:\> nssm.exe set toglacier AppEnvironmentExtra ^
-  TOGLACIER_AWS_ACCOUNT_ID=encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w== ^
-  TOGLACIER_AWS_ACCESS_KEY_ID=encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ ^
-  TOGLACIER_AWS_SECRET_ACCESS_KEY=encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA= ^
-  TOGLACIER_AWS_REGION=us-east-1 ^
-  TOGLACIER_AWS_VAULT_NAME=backup ^
-  TOGLACIER_PATHS=c:\data\important-files-1,c:\data\important-files-2 ^
-  TOGLACIER_DB_TYPE=boltdb ^
-  TOGLACIER_DB_FILE=c:\log\toglacier\toglacier.db ^
-  TOGLACIER_LOG_FILE=c:\log\toglacier\toglacier.log ^
-  TOGLACIER_LOG_LEVEL=error ^
-  TOGLACIER_KEEP_BACKUPS=10 ^
-  TOGLACIER_BACKUP_SECRET=encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ== ^
-  TOGLACIER_MODIFY_TOLERANCE=90% ^
-  TOGLACIER_EMAIL_SERVER=smtp.example.com ^
-  TOGLACIER_EMAIL_PORT=587 ^
-  TOGLACIER_EMAIL_USERNAME=user@example.com ^
-  TOGLACIER_EMAIL_PASSWORD=encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA== ^
-  TOGLACIER_EMAIL_FROM=user@example.com ^
-  TOGLACIER_EMAIL_TO=report1@example.com,report2@example.com ^
-  TOGLACIER_EMAIL_FORMAT=html
+c:\> nssm.exe install toglacier
 
 c:\> nssm.exe start toglacier
 ```
