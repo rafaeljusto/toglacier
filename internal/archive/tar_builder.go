@@ -21,6 +21,9 @@ import (
 // necessary information for an incremental archive.
 var TARInfoFilename = "toglacier-info.json"
 
+// volumeLetterRX matchs the volume letter in Windows.
+var volumeLetterRX = regexp.MustCompile(`^[a-zA-Z]:`)
+
 // extractDirectoryPermission defines the permission mode for the directories
 // created while extracting a tarball.
 const extractDirectoryPermission os.FileMode = 0755
@@ -158,8 +161,9 @@ func (t TARBuilder) build(lastArchiveInfo Info, tarArchive *tar.Writer, baseDir,
 		}
 
 		// store the full path in the tarball to avoid conflicts when appending
-		// multiple backup paths
-		header.Name = filepath.Join(baseDir, cleanPathToJoin(path))
+		// multiple backup paths. In Windows environment we need to drop the volume
+		// letter before joining the path
+		header.Name = filepath.Join(baseDir, volumeLetterRX.ReplaceAllString(path, ""))
 
 		if info.IsDir() {
 			// tar always use slash as a path separator, even on Windows
