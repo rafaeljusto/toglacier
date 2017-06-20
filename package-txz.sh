@@ -86,14 +86,21 @@ EOF
 
 compile() {
   local project_path=`echo $GOPATH | cut -d: -f1`
-  project_path=$project_path/src/github.com/rafaeljusto/toglacier/cmd/toglacier
+  local program_path=""
+  local current_path=`pwd`
 
-  cd $project_path || exit_error "Cannot change directory"
+  program_path=$project_path/src/github.com/rafaeljusto/toglacier/cmd/toglacier
+  cd $program_path || exit_error "Cannot change directory"
   env GOOS=freebsd GOARCH=amd64 go build -ldflags "-X github.com/rafaeljusto/toglacier/internal/config.Version=$VERSION" || exit_error "Compilation error"
+  mv $program_path/toglacier $BIN_PATH || exit_error "Error copying binary"
+  cp $program_path/toglacier.yml $CONF_PATH/toglacier.yml.sample || exit_error "Error copying configuration sample"
 
-  mv $project_path/toglacier $BIN_PATH || exit_error "Error copying binary"
-  cp $project_path/toglacier.yml $CONF_PATH/toglacier.yml.sample || exit_error "Error copying configuration sample"
-  cd - 1>/dev/null
+  program_path=$project_path/src/github.com/rafaeljusto/toglacier/cmd/toglacier-storage
+  cd $program_path || exit_error "Cannot change directory"
+  env GOOS=freebsd GOARCH=amd64 go build -ldflags "-X github.com/rafaeljusto/toglacier/internal/config.Version=$VERSION" || exit_error "Compilation error"
+  mv $program_path/toglacier-storage $BIN_PATH || exit_error "Error copying binary"
+
+  cd $current_path
 }
 
 build_txz() {
