@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Commands now have verbose flag to show/hide internal messages
 - File checksum method added to archive.Archive (old archive.Builder) interface
 - Backups from internal library are now ordered by ID
+- When username and/or password aren't provided no e-mail auth is performed
 
 ## [3.0.0] - 2017-05-15
 ### Added

@@ -607,7 +607,11 @@ Content-Type: %s; charset=utf-8
 
 %s`, emailInfo.From, strings.Join(emailInfo.To, ","), emailInfo.Format, r)
 
-	auth := smtp.PlainAuth("", emailInfo.Username, emailInfo.Password, emailInfo.Server)
+	var auth smtp.Auth
+	if emailInfo.Username != "" && emailInfo.Password != "" {
+		auth = smtp.PlainAuth("", emailInfo.Username, emailInfo.Password, emailInfo.Server)
+	}
+
 	err = emailInfo.Sender.SendMail(fmt.Sprintf("%s:%d", emailInfo.Server, emailInfo.Port), auth, emailInfo.From, emailInfo.To, []byte(body))
 	return errors.WithStack(err)
 }
