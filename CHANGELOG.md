@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Detect ransomware infection (maximum number of modified files)
 - Ignore files or directories in the backup paths
 - New program to convert local storage format
+- Documentation to the YAML configuration file
 
 ### Fixed
 - Ignore unmodified files when choosing the backup parts to download
