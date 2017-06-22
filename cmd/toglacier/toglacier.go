@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
+	"github.com/robfig/cron"
 	"github.com/urfave/cli"
 )
 
@@ -134,7 +134,12 @@ func main() {
 		},
 	}
 
-	manageSignals(cancel, cancelFunc)
+	manageSignals(cancel, func() {
+		if cancelFunc != nil {
+			cancelFunc()
+		}
+	})
+
 	app.Run(os.Args)
 }
 
@@ -320,8 +325,10 @@ func commandStart(c *cli.Context) error {
 		ignorePatterns = append(ignorePatterns, pattern.Value)
 	}
 
-	scheduler := gocron.NewScheduler()
-	scheduler.Every(1).Day().At("00:00").Do(func() {
+	scheduler := cron.New()
+
+	// run backup sync everyday at 00:00:00
+	scheduler.AddFunc("0 0 0 * * *", func() {
 		err := toGlacier.Backup(
 			config.Current().Paths,
 			config.Current().BackupSecret.Value,
@@ -333,17 +340,23 @@ func commandStart(c *cli.Context) error {
 			logger.Error(err)
 		}
 	})
-	scheduler.Every(1).Weeks().At("01:00").Do(func() {
+
+	// remove old backups every friday at 01:00:00
+	scheduler.AddFunc("0 0 1 * * FRI", func() {
 		if err := toGlacier.RemoveOldBackups(config.Current().KeepBackups); err != nil {
 			logger.Error(err)
 		}
 	})
-	scheduler.Every(4).Weeks().At("12:00").Do(func() {
+
+	// list backups remotely every first day of the month at 12:00:00
+	scheduler.AddFunc("0 0 12 1 * *", func() {
 		if _, err := toGlacier.ListBackups(true); err != nil {
 			logger.Error(err)
 		}
 	})
-	scheduler.Every(1).Weeks().At("06:00").Do(func() {
+
+	// send report every friday at 06:00:00
+	scheduler.AddFunc("0 0 6 * * FRI", func() {
 		emailInfo := toglacier.EmailInfo{
 			Sender:   toglacier.EmailSenderFunc(smtp.SendMail),
 			Server:   config.Current().Email.Server,
@@ -360,9 +373,12 @@ func commandStart(c *cli.Context) error {
 		}
 	})
 
-	stopped := scheduler.Start()
+	scheduler.Start()
+
+	stopped := make(chan bool)
 	cancelFunc = func() {
-		close(stopped)
+		scheduler.Stop()
+		stopped <- true
 	}
 
 	select {

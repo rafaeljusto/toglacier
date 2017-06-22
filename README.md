@@ -144,9 +144,9 @@ When running the scheduler (start command), **the tool will backup the files
 once a day at midnight**. This information isn't configurable yet (the library
 that I'm using for cron tasks isn't so flexible). Also, **old backups are
 removed once a week at 1 AM** (yep, not configurable yet). To keep the
-consistency, **local storage synchronization will occur once a month at 12 PM**.
-A **report will be generated and sent once a week at 6 AM** with all the
-scheduler occurrences.
+consistency, **local storage synchronization will occur on the first day of the
+month at 12 PM**. A **report will be generated and sent every friday at 6 AM**
+with all the scheduler occurrences.
 
 A simple shell script that could help you running the program in Unix
 environments:
