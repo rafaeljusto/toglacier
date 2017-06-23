@@ -327,8 +327,7 @@ func commandStart(c *cli.Context) error {
 
 	scheduler := cron.New()
 
-	// run backup sync everyday at 00:00:00
-	scheduler.AddFunc("0 0 0 * * *", func() {
+	scheduler.Schedule(config.Current().Scheduler.Backup.Value, jobFunc(func() {
 		err := toGlacier.Backup(
 			config.Current().Paths,
 			config.Current().BackupSecret.Value,
@@ -339,24 +338,21 @@ func commandStart(c *cli.Context) error {
 		if err != nil {
 			logger.Error(err)
 		}
-	})
+	}))
 
-	// remove old backups every friday at 01:00:00
-	scheduler.AddFunc("0 0 1 * * FRI", func() {
+	scheduler.Schedule(config.Current().Scheduler.RemoveOldBackups.Value, jobFunc(func() {
 		if err := toGlacier.RemoveOldBackups(config.Current().KeepBackups); err != nil {
 			logger.Error(err)
 		}
-	})
+	}))
 
-	// list backups remotely every first day of the month at 12:00:00
-	scheduler.AddFunc("0 0 12 1 * *", func() {
+	scheduler.Schedule(config.Current().Scheduler.ListRemoteBackups.Value, jobFunc(func() {
 		if _, err := toGlacier.ListBackups(true); err != nil {
 			logger.Error(err)
 		}
-	})
+	}))
 
-	// send report every friday at 06:00:00
-	scheduler.AddFunc("0 0 6 * * FRI", func() {
+	scheduler.Schedule(config.Current().Scheduler.SendReport.Value, jobFunc(func() {
 		emailInfo := toglacier.EmailInfo{
 			Sender:   toglacier.EmailSenderFunc(smtp.SendMail),
 			Server:   config.Current().Email.Server,
@@ -371,7 +367,7 @@ func commandStart(c *cli.Context) error {
 		if err := toGlacier.SendReport(emailInfo); err != nil {
 			logger.Error(err)
 		}
-	})
+	}))
 
 	scheduler.Start()
 
@@ -424,4 +420,11 @@ func commandEncrypt(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+// jobFunc is used only to implement inline functions in the scheduler.
+type jobFunc func()
+
+func (j jobFunc) Run() {
+	j()
 }

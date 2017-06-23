@@ -52,41 +52,42 @@ const (
 	// ErrorCodePattern invalid pattern detected when parsing the regular
 	// expression.
 	ErrorCodePattern ErrorCode = "pattern"
+
+	// ErrorCodeSchedulerFormat the number of items of the schedule is wrong, we
+	// expect 6 space-separated items.
+	ErrorCodeSchedulerFormat ErrorCode = "scheduler-format"
+
+	// ErrorCodeSchedulerValue one or more values of the scheduler is invalid.
+	// Could be an invalid syntax or range.
+	ErrorCodeSchedulerValue ErrorCode = "scheduler-value"
 )
 
 // ErrorCode stores the error type that occurred while reading
 // configuration parameters.
 type ErrorCode string
 
+var errorCodeString = map[ErrorCode]string{
+	ErrorCodeReadingFile:      "error reading the configuration file",
+	ErrorCodeParsingYAML:      "error parsing yaml",
+	ErrorCodeReadingEnvVars:   "error reading environment variables",
+	ErrorCodeInitCipher:       "error initializing cipher",
+	ErrorCodeDecodeBase64:     "error decoding base64",
+	ErrorCodePasswordSize:     "invalid password size",
+	ErrorCodeFillingIV:        "error filling iv",
+	ErrorCodeDatabaseType:     "invalid database type",
+	ErrorCodeLogLevel:         "invalid log level",
+	ErrorCodeEmailFormat:      "invalid email format",
+	ErrorCodePercentageFormat: "invalid percentage format",
+	ErrorCodePercentageRange:  "invalid percentage range",
+	ErrorCodePattern:          "invalid pattern",
+	ErrorCodeSchedulerFormat:  "wrong number of space-separated values in scheduler",
+	ErrorCodeSchedulerValue:   "invalid value in scheduler",
+}
+
 // String translate the error code to a human readable text.
 func (e ErrorCode) String() string {
-	switch e {
-	case ErrorCodeReadingFile:
-		return "error reading the configuration file"
-	case ErrorCodeParsingYAML:
-		return "error parsing yaml"
-	case ErrorCodeReadingEnvVars:
-		return "error reading environment variables"
-	case ErrorCodeInitCipher:
-		return "error initializing cipher"
-	case ErrorCodeDecodeBase64:
-		return "error deconding base64"
-	case ErrorCodePasswordSize:
-		return "invalid password size"
-	case ErrorCodeFillingIV:
-		return "error filling iv"
-	case ErrorCodeDatabaseType:
-		return "invalid database type"
-	case ErrorCodeLogLevel:
-		return "invalid log level"
-	case ErrorCodeEmailFormat:
-		return "invalid email format"
-	case ErrorCodePercentageFormat:
-		return "invalid percentage format"
-	case ErrorCodePercentageRange:
-		return "invalid percentage range"
-	case ErrorCodePattern:
-		return "invalid pattern"
+	if msg, ok := errorCodeString[e]; ok {
+		return msg
 	}
 
 	return "unknown error code"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/pkg/errors"
+	"github.com/robfig/cron"
 	"gopkg.in/yaml.v2"
 )
 
@@ -27,6 +28,13 @@ type Config struct {
 	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true"`
 	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true"`
 	IgnorePatterns  []Pattern  `yaml:"ignore patterns" split_words:"true"`
+
+	Scheduler struct {
+		Backup            Scheduler `yaml:"backup"`
+		RemoveOldBackups  Scheduler `yaml:"remove old backups" split_words:"true"`
+		ListRemoteBackups Scheduler `yaml:"list remote backups" split_words:"true"`
+		SendReport        Scheduler `yaml:"send report" split_words:"true"`
+	} `yaml:"scheduler" envconfig:"scheduler"`
 
 	Database struct {
 		Type DatabaseType `yaml:"type"`
@@ -76,6 +84,10 @@ func Default() {
 	}
 
 	c.KeepBackups = 10
+	c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")             // everyday at 00:00:00
+	c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI") // every friday at 01:00:00
+	c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *") // every first day of the month at 12:00:00
+	c.Scheduler.SendReport.Value, _ = cron.Parse("0 0 6 * * FRI")       // every friday at 06:00:00
 	c.Database.Type = DatabaseTypeBoltDB
 	c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 	c.Log.Level = LogLevelError
@@ -378,5 +390,31 @@ func (p *Pattern) UnmarshalText(value []byte) error {
 	}
 
 	p.Value = re
+	return nil
+}
+
+// Scheduler stores the periodicity of an action.
+type Scheduler struct {
+	Value cron.Schedule
+}
+
+// UnmarshalText verifies the cron format of the scheduler entry. For details
+// about the expected format please check
+// http://godoc.org/github.com/robfig/cron#hdr-CRON_Expression_Format
+func (s *Scheduler) UnmarshalText(value []byte) error {
+	scheduler := string(value)
+	scheduler = strings.TrimSpace(scheduler)
+
+	schedulerParts := strings.Split(scheduler, " ")
+	if len(schedulerParts) != 6 {
+		return newError("", ErrorCodeSchedulerFormat, nil)
+	}
+
+	var err error
+	s.Value, err = cron.Parse(scheduler)
+	if err != nil {
+		return newError("", ErrorCodeSchedulerValue, err)
+	}
+
 	return nil
 }
