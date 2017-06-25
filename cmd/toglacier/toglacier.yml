@@ -74,6 +74,73 @@ ignore patterns:
   # like to make a copy of this file for your use?
   - ^.*\~\$.*$
 
+# scheduler defines the periodicity of actions performed by the tool. The
+# expression used to define each action is composed by 6 space-separated fields.
+#
+#   Field name   | Mandatory? | Allowed values  | Allowed special characters
+#   ----------   | ---------- | --------------  | --------------------------
+#   Seconds      | Yes        | 0-59            | * / , -
+#   Minutes      | Yes        | 0-59            | * / , -
+#   Hours        | Yes        | 0-23            | * / , -
+#   Day of month | Yes        | 1-31            | * / , - ?
+#   Month        | Yes        | 1-12 or JAN-DEC | * / , -
+#   Day of week  | Yes        | 0-6 or SUN-SAT  | * / , - ?
+#
+#   Note: Month and Day-of-week field values are case insensitive. "SUN", "Sun",
+#   and "sun" are equally accepted.
+#
+#   Special Characters
+#   ==================
+#
+#     Asterisk ( * )
+#     --------------
+#     The asterisk indicates that the cron expression will match for all values
+#     of the field; e.g., using an asterisk in the 5th field (month) would
+#     indicate every month.
+#
+#     Slash ( / )
+#     -----------
+#     Slashes are used to describe increments of ranges. For example 3-59/15 in
+#     the 1st field (minutes) would indicate the 3rd minute of the hour and
+#     every 15 minutes thereafter. The form "*\/..." is equivalent to the form
+#     "first-last/...", that is, an increment over the largest possible range of
+#     the field. The form "N/..." is accepted as meaning "N-MAX/...", that is,
+#     starting at N, use the increment until the end of that specific range. It
+#     does not wrap around.
+#
+#     Comma ( , )
+#     -----------
+#     Commas are used to separate items of a list. For example, using
+#     "MON,WED,FRI" in the 5th field (day of week) would mean Mondays,
+#     Wednesdays and Fridays.
+#
+#     Hyphen ( - )
+#     ------------
+#     Hyphens are used to define ranges. For example, 9-17 would indicate every
+#     hour between 9am and 5pm inclusive.
+#
+#     Question mark ( ? )
+#     -------------------
+#     Question mark may be used instead of '*' for leaving either day-of-month
+#     or day-of-week blank.
+scheduler:
+  # backup synchronize the backups paths with the cloud. By default it runs
+  # everyday at 00:00:00.
+  backup: 0 0 0 * * *
+
+  # remove old backups guarantees that only recent most recente backups
+  # (parameter keep backups) will be preserved. This is useful for saving some
+  # space and money in the cloud. By default it runs every friday at 01:00:00.
+  remove old backups: 0 0 1 * * FRI
+
+  # list remote backups synchronize the remote inventory with the local storage
+  # information. By default it runs on the first day of the month at 12:00:00.
+  list remote backups: 0 0 12 1 * *
+
+  # send report keeps the administrator informed by the tool events via e-mail.
+  # By default it runs every friday at 06:00:00.
+  send report: 0 0 6 * * FRI
+
 # email contains all data necessary to send an e-mail for periodic reports.
 email:
   # server defines the e-mail server address without port.

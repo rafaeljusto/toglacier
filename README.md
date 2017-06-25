@@ -75,29 +75,33 @@ The program will work with environment variables or/and with a YAML
 configuration file. You can find the configuration file example on
 `cmd/toglacier/toglacier.yml`, for the environment variables check bellow:
 
-| Environment Variable             | Description                             |
-| -------------------------------- | --------------------------------------- |
-| TOGLACIER_AWS_ACCOUNT_ID         | AWS account ID                          |
-| TOGLACIER_AWS_ACCESS_KEY_ID      | AWS access key ID                       |
-| TOGLACIER_AWS_SECRET_ACCESS_KEY  | AWS secret access key                   |
-| TOGLACIER_AWS_REGION             | AWS region                              |
-| TOGLACIER_AWS_VAULT_NAME         | AWS vault name                          |
-| TOGLACIER_PATHS                  | Paths to backup (separated by comma)    |
-| TOGLACIER_DB_TYPE                | Local backup storage strategy           |
-| TOGLACIER_DB_FILE                | Path where we keep track of the backups |
-| TOGLACIER_LOG_FILE               | File where all events are written       |
-| TOGLACIER_LOG_LEVEL              | Verbosity of the logger                 |
-| TOGLACIER_KEEP_BACKUPS           | Number of backups to keep (default 10)  |
-| TOGLACIER_BACKUP_SECRET          | Encrypt backups with this secret        |
-| TOGLACIER_MODIFY_TOLERANCE       | Maximum percentage of modified files    |
-| TOGLACIER_IGNORE_PATTERNS        | Regexps to ignore files in backup paths |
-| TOGLACIER_EMAIL_SERVER           | SMTP server address                     |
-| TOGLACIER_EMAIL_PORT             | SMTP server port                        |
-| TOGLACIER_EMAIL_USERNAME         | Username for e-mail authentication      |
-| TOGLACIER_EMAIL_PASSWORD         | Password for e-mail authentication      |
-| TOGLACIER_EMAIL_FROM             | E-mail used when sending the reports    |
-| TOGLACIER_EMAIL_TO               | List of e-mails to send the report to   |
-| TOGLACIER_EMAIL_FORMAT           | E-mail content format (html or plain)   |
+| Environment Variable                    | Description                             |
+| --------------------------------------- | --------------------------------------- |
+| TOGLACIER_AWS_ACCOUNT_ID                | AWS account ID                          |
+| TOGLACIER_AWS_ACCESS_KEY_ID             | AWS access key ID                       |
+| TOGLACIER_AWS_SECRET_ACCESS_KEY         | AWS secret access key                   |
+| TOGLACIER_AWS_REGION                    | AWS region                              |
+| TOGLACIER_AWS_VAULT_NAME                | AWS vault name                          |
+| TOGLACIER_PATHS                         | Paths to backup (separated by comma)    |
+| TOGLACIER_DB_TYPE                       | Local backup storage strategy           |
+| TOGLACIER_DB_FILE                       | Path where we keep track of the backups |
+| TOGLACIER_LOG_FILE                      | File where all events are written       |
+| TOGLACIER_LOG_LEVEL                     | Verbosity of the logger                 |
+| TOGLACIER_KEEP_BACKUPS                  | Number of backups to keep (default 10)  |
+| TOGLACIER_BACKUP_SECRET                 | Encrypt backups with this secret        |
+| TOGLACIER_MODIFY_TOLERANCE              | Maximum percentage of modified files    |
+| TOGLACIER_IGNORE_PATTERNS               | Regexps to ignore files in backup paths |
+| TOGLACIER_SCHEDULER_BACKUP              | Backup synchronization periodicity      |
+| TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS  | Remove old backups periodicity          |
+| TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS | List remote backups periodicity         |
+| TOGLACIER_SCHEDULER_SEND_REPORT         | Send report periodicity                 |
+| TOGLACIER_EMAIL_SERVER                  | SMTP server address                     |
+| TOGLACIER_EMAIL_PORT                    | SMTP server port                        |
+| TOGLACIER_EMAIL_USERNAME                | Username for e-mail authentication      |
+| TOGLACIER_EMAIL_PASSWORD                | Password for e-mail authentication      |
+| TOGLACIER_EMAIL_FROM                    | E-mail used when sending the reports    |
+| TOGLACIER_EMAIL_TO                      | List of e-mails to send the report to   |
+| TOGLACIER_EMAIL_FORMAT                  | E-mail content format (html or plain)   |
 
 Most part of them you can retrieve via AWS Console (`My Security Credentials`
 and `Glacier Service`). You will find your AWS region identification
@@ -140,13 +144,14 @@ change your mind later about what local storage format you want, you can use the
 
     [datetime] [vaultName] [archiveID] [checksum] [size]
 
-When running the scheduler (start command), **the tool will backup the files
-once a day at midnight**. This information isn't configurable yet (the library
-that I'm using for cron tasks isn't so flexible). Also, **old backups are
-removed once a week at 1 AM** (yep, not configurable yet). To keep the
-consistency, **local storage synchronization will occur once a month at 12 PM**.
-A **report will be generated and sent once a week at 6 AM** with all the
-scheduler occurrences.
+When running the scheduler (start command), the tool will perform the actions
+bellow in the periodicity defined in the configuration file. If not informed
+default values are used.
+
+  * backup the files and folders;
+  * remove old backups (save storage and money);
+  * synchronize the local storage;
+  * report all the scheduler occurrences by e-mail.
 
 A simple shell script that could help you running the program in Unix
 environments:
@@ -168,6 +173,10 @@ TOGLACIER_KEEP_BACKUPS="10" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 TOGLACIER_MODIFY_TOLERANCE="90%" \
 TOGLACIER_IGNORE_PATTERNS="^.*\~\$.*$" \
+TOGLACIER_SCHEDULER_BACKUP="0 0 0 * * *" \
+TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS="0 0 1 * * FRI" \
+TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS="0 0 12 1 * *" \
+TOGLACIER_SCHEDULER_SEND_REPORT="0 0 6 * * FRI" \
 TOGLACIER_EMAIL_SERVER="smtp.example.com" \
 TOGLACIER_EMAIL_PORT="587" \
 TOGLACIER_EMAIL_USERNAME="user@example.com" \

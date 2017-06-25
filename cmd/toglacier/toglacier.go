@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/jasonlvhit/gocron"
 	"github.com/rafaeljusto/toglacier"
 	"github.com/rafaeljusto/toglacier/internal/archive"
 	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/config"
 	"github.com/rafaeljusto/toglacier/internal/report"
 	"github.com/rafaeljusto/toglacier/internal/storage"
+	"github.com/robfig/cron"
 	"github.com/urfave/cli"
 )
 
@@ -134,7 +134,12 @@ func main() {
 		},
 	}
 
-	manageSignals(cancel, cancelFunc)
+	manageSignals(cancel, func() {
+		if cancelFunc != nil {
+			cancelFunc()
+		}
+	})
+
 	app.Run(os.Args)
 }
 
@@ -320,8 +325,9 @@ func commandStart(c *cli.Context) error {
 		ignorePatterns = append(ignorePatterns, pattern.Value)
 	}
 
-	scheduler := gocron.NewScheduler()
-	scheduler.Every(1).Day().At("00:00").Do(func() {
+	scheduler := cron.New()
+
+	scheduler.Schedule(config.Current().Scheduler.Backup.Value, jobFunc(func() {
 		err := toGlacier.Backup(
 			config.Current().Paths,
 			config.Current().BackupSecret.Value,
@@ -332,18 +338,21 @@ func commandStart(c *cli.Context) error {
 		if err != nil {
 			logger.Error(err)
 		}
-	})
-	scheduler.Every(1).Weeks().At("01:00").Do(func() {
+	}))
+
+	scheduler.Schedule(config.Current().Scheduler.RemoveOldBackups.Value, jobFunc(func() {
 		if err := toGlacier.RemoveOldBackups(config.Current().KeepBackups); err != nil {
 			logger.Error(err)
 		}
-	})
-	scheduler.Every(4).Weeks().At("12:00").Do(func() {
+	}))
+
+	scheduler.Schedule(config.Current().Scheduler.ListRemoteBackups.Value, jobFunc(func() {
 		if _, err := toGlacier.ListBackups(true); err != nil {
 			logger.Error(err)
 		}
-	})
-	scheduler.Every(1).Weeks().At("06:00").Do(func() {
+	}))
+
+	scheduler.Schedule(config.Current().Scheduler.SendReport.Value, jobFunc(func() {
 		emailInfo := toglacier.EmailInfo{
 			Sender:   toglacier.EmailSenderFunc(smtp.SendMail),
 			Server:   config.Current().Email.Server,
@@ -358,11 +367,14 @@ func commandStart(c *cli.Context) error {
 		if err := toGlacier.SendReport(emailInfo); err != nil {
 			logger.Error(err)
 		}
-	})
+	}))
 
-	stopped := scheduler.Start()
+	scheduler.Start()
+
+	stopped := make(chan bool)
 	cancelFunc = func() {
-		close(stopped)
+		scheduler.Stop()
+		stopped <- true
 	}
 
 	select {
@@ -408,4 +420,11 @@ func commandEncrypt(c *cli.Context) error {
 	}
 
 	return nil
+}
+
+// jobFunc is used only to implement inline functions in the scheduler.
+type jobFunc func()
+
+func (j jobFunc) Run() {
+	j()
 }

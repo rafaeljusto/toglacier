@@ -61,7 +61,7 @@ func TestError_Error(t *testing.T) {
 		{
 			description: "it should show the correct error message for decoding base64 problem",
 			err:         &config.Error{Code: config.ErrorCodeDecodeBase64},
-			expected:    "config: error deconding base64",
+			expected:    "config: error decoding base64",
 		},
 		{
 			description: "it should show the correct error message for password size problem",
@@ -102,6 +102,16 @@ func TestError_Error(t *testing.T) {
 			description: "it should show the correct error message for invalid pattern",
 			err:         &config.Error{Code: config.ErrorCodePattern},
 			expected:    "config: invalid pattern",
+		},
+		{
+			description: "it should show the correct error message for invalid scheduler format",
+			err:         &config.Error{Code: config.ErrorCodeSchedulerFormat},
+			expected:    "config: wrong number of space-separated values in scheduler",
+		},
+		{
+			description: "it should show the correct error message for invalid scheduler value",
+			err:         &config.Error{Code: config.ErrorCodeSchedulerValue},
+			expected:    "config: invalid value in scheduler",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
