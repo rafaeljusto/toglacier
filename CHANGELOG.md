@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+### Fixed
+- Add backup report data only if it was successful
+
 ### Changed
 - Using cron scheduler library from Rob Figueiredo
 

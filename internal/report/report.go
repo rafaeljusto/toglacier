@@ -150,6 +150,7 @@ func (s SendBackup) Build(f Format) (string, error) {
       <div class="date">
         {{.CreatedAt.Format "2006-01-02 15:04:05"}}
       </div>
+      {{if ne .Backup.ID "" -}}
       <h2>Backup</h2>
       <div>
         <label>ID:</label>
@@ -167,6 +168,7 @@ func (s SendBackup) Build(f Format) (string, error) {
         <label>Checksum:</label>
         <span>{{.Backup.Checksum}}</span>
       </div>
+      {{- end}}
       <div>
         <label>Paths:</label>
         <ul>
@@ -206,6 +208,7 @@ func (s SendBackup) Build(f Format) (string, error) {
 		tmpl = `
 [{{.CreatedAt.Format "2006-01-02 15:04:05"}}] Backups Sent
 
+  {{if ne .Backup.ID "" -}}
   Backup
   ------
 
@@ -214,6 +217,7 @@ func (s SendBackup) Build(f Format) (string, error) {
     Vault:       {{.Backup.VaultName}}
     Checksum:    {{.Backup.Checksum}}
     Paths:       {{range $path := .Paths}}{{$path}} {{end}}
+  {{- end}}
 
   Durations
   ---------
