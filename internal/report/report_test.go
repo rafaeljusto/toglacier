@@ -74,6 +74,16 @@ func TestBuild(t *testing.T) {
 					return r
 				}(),
 				func() report.Report {
+					r := report.NewSendBackup()
+					r.CreatedAt = date
+					r.Paths = []string{"/data/important-files"}
+					r.Durations.Build = 2 * time.Second
+					r.Durations.Encrypt = 6 * time.Second
+					r.Durations.Send = 6 * time.Minute
+					r.Errors = append(r.Errors, errors.New("timeout connecting to aws"))
+					return r
+				}(),
+				func() report.Report {
 					r := report.NewListBackups()
 					r.CreatedAt = date
 					r.Durations.List = 6 * time.Hour
@@ -114,6 +124,23 @@ func TestBuild(t *testing.T) {
     Vault:       vault
     Checksum:    cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705
     Paths:       /data/important-files
+
+  Durations
+  ---------
+
+    Build:       2s
+    Encrypt:     6s
+    Send:        6m0s
+
+  Errors
+  ------
+
+    * timeout connecting to aws
+
+
+[2017-03-10 14:10:46] Backups Sent
+
+
 
   Durations
   ---------
@@ -184,6 +211,16 @@ func TestBuild(t *testing.T) {
 						VaultName: "vault",
 						Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 					}
+					r.Paths = []string{"/data/important-files"}
+					r.Durations.Build = 2 * time.Second
+					r.Durations.Encrypt = 6 * time.Second
+					r.Durations.Send = 6 * time.Minute
+					r.Errors = append(r.Errors, errors.New("timeout connecting to aws"))
+					return r
+				}(),
+				func() report.Report {
+					r := report.NewSendBackup()
+					r.CreatedAt = date
 					r.Paths = []string{"/data/important-files"}
 					r.Durations.Build = 2 * time.Second
 					r.Durations.Encrypt = 6 * time.Second
@@ -282,6 +319,38 @@ func TestBuild(t *testing.T) {
         <label>Checksum:</label>
         <span>cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705</span>
       </div>
+      <div>
+        <label>Paths:</label>
+        <ul>
+          <li>/data/important-files</li>
+        </ul>
+      </div>
+      <h2>Durations</h2>
+      <div>
+        <label>Build:</label>
+        <span>2s</span>
+      </div>
+      <div>
+        <label>Encrypt:</label>
+        <span>6s</span>
+      </div>
+      <div>
+        <label>Send:</label>
+        <span>6m0s</span>
+      </div>
+      <h2>Errors</h2>
+      <ul>
+        <li>timeout connecting to aws</li>
+      </ul>
+    </section>
+
+
+		<section class="report">
+      <h1>Backups Sent</h1>
+      <div class="date">
+        2017-03-10 14:10:46
+      </div>
+
       <div>
         <label>Paths:</label>
         <ul>
