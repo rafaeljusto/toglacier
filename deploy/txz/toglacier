@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# PROVIDE: toglacier
+# REQUIRE: DAEMON ntpd
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="toglacier"
+rcvar=`set_rcvar`
+command="/usr/local/bin/toglacier -c /etc/toglacier.yml start"
+pidfile="/var/run/toglacier.pid"
+
+: ${toglacier_enable:=no}
+
+load_rc_config $name
+run_rc_command "$1"

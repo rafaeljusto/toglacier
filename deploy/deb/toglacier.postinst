@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+user=toglacier
+group=toglacier
+
+# make sure the user exists
+if ! getent passwd $user > /dev/null; then
+  adduser --system --quiet --no-create-home --shell /bin/bash \
+    --group --gecos "toglacier tool" $user
+fi
+
+# if the user was created manually, make sure the group is there as well
+if ! getent group $user > /dev/null; then
+  addgroup --system --quiet $user
+fi
+
+# make sure the created user is in the created group
+if ! id -Gn $user | grep -qw $group; then
+  adduser --quiet $user $group
+fi
