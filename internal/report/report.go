@@ -94,6 +94,7 @@ type Report interface {
 type basic struct {
 	CreatedAt time.Time
 	Errors    []error
+	Logger    *Log
 }
 
 func newBasic() basic {

@@ -199,7 +199,7 @@ func initialize(c *cli.Context) error {
 	}
 
 	var awsCloud cloud.Cloud
-	if awsCloud, err = cloud.NewAWSCloud(logger, awsConfig, false); err != nil {
+	if awsCloud, err = cloud.NewAWSCloud(report.NewLogger(logger), awsConfig, false); err != nil {
 		fmt.Printf("error initializing AWS cloud. details: %s\n", err)
 		return err
 	}
