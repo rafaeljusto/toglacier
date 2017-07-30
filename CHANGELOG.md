@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Using cron scheduler library from Rob Figueiredo
+- Deploy scripts now configure themselves as daemons
 
 ## [3.1.0] - 2017-06-21
 ### Added
