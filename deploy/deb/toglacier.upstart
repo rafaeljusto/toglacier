@@ -1,0 +1,15 @@
+# Upstart job configuration file
+
+description   "toglacier - Periodic send backups to the cloud"
+author        "Rafael Dantas Justo"
+
+start on filesystem and (started networking)
+
+respawn
+respawn limit 3 10
+
+exec start-stop-daemon \
+  --start \
+  -c toglacier \
+  --exec /usr/local/bin/toglacier \
+  -- -c /etc/toglacier.yml start

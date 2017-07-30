@@ -10,6 +10,7 @@ readonly DESCRIPTION="Send data to Amazon Glacier service periodically."
 
 # install information
 readonly TMP_PATH="/tmp/toglacier/"
+readonly SCRIPTS_PATH="$TMP_PATH/usr/local/etc/rc.d"
 readonly BIN_PATH="$TMP_PATH/usr/local/bin/"
 readonly CONF_PATH="$TMP_PATH/etc/"
 
@@ -19,13 +20,18 @@ exit_error() {
 }
 
 prepare() {
-  mkdir -p $BIN_PATH || exit_error "Cannot create the temporary path"
-  mkdir -p $CONF_PATH || exit_error "Cannot create the temporary path"
+  mkdir -p $SCRIPTS_PATH || exit_error "Cannot create the temporary scripts path"
+  mkdir -p $BIN_PATH || exit_error "Cannot create the temporary binary path"
+  mkdir -p $CONF_PATH || exit_error "Cannot create the temporary configuration path"
 }
 
 copy_files() {
+  local project_path=`echo $GOPATH | cut -d: -f1`
+  project_path=$project_path/src/github.com/rafaeljusto/toglacier
   local version=`echo "$VERSION" | awk -F "-" '{ print $1 }'`
   local release=`echo "$VERSION" | awk -F "-" '{ print $2 }'`
+
+  cp $project_path/deploy/txz/toglacier $SCRIPTS_PATH/toglacier || exit_error "Cannot copy execution script"
 
   # calculate the files size
   local files_size=0
