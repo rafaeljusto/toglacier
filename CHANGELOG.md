@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Add library logs in reports
 
+## [3.2.0] - 2017-08-11
 ### Fixed
 - Show backup report data only if it was successful
 
