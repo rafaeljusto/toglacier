@@ -227,7 +227,9 @@ gcs:
   project: toglacier
 
   # bucket is the name of the container of all backup files in Google Cloud
-  # Storage. The bucket creation will be automatically.
+  # Storage. To create the bucket follow the instructions at
+  # https://cloud.google.com/storage/docs/creating-buckets (we recommend using
+  # coldline service).
   bucket: backup
 
   # account file contains the authentication data to allow managing backups in

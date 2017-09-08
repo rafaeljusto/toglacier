@@ -115,7 +115,11 @@ Credentials` and `Glacier Service`). You will find your AWS region
 identification
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#glacier_region).
 For Google Cloud Storage credentials, check the [Service Account
-Keys](https://console.developers.google.com/permissions/serviceaccounts).
+Keys](https://console.developers.google.com/permissions/serviceaccounts). If you
+chose Google Cloud Storage, you will need to create the
+[project](https://cloud.google.com/resource-manager/docs/creating-managing-projects)
+and the [bucket](https://cloud.google.com/storage/docs/creating-buckets)
+manually.
 
 By default the tool prints everything on the standard output. If you want to
 redirect it to a log file, you can define the location of the file with the
@@ -164,7 +168,7 @@ default values are used.
   * report all the scheduler occurrences by e-mail.
 
 A simple shell script that could help you running the program in Unix
-environments:
+environments (using AWS):
 
 ```shell
 #!/bin/bash
@@ -180,6 +184,7 @@ TOGLACIER_DB_FILE="/var/log/toglacier/toglacier.db" \
 TOGLACIER_LOG_FILE="/var/log/toglacier/toglacier.log" \
 TOGLACIER_LOG_LEVEL="error" \
 TOGLACIER_KEEP_BACKUPS="10" \
+TOGLACIER_CLOUD="aws" \
 TOGLACIER_BACKUP_SECRET="encrypted:/lFK9sxAXAL8CuM1GYwGsdj4UJQYEQ==" \
 TOGLACIER_MODIFY_TOLERANCE="90%" \
 TOGLACIER_IGNORE_PATTERNS="^.*\~\$.*$" \

@@ -34,7 +34,6 @@ var (
 
 func main() {
 	defer logFile.Close()
-	defer toGlacier.Cloud.Close()
 
 	// ctx is used to abort long transactions, such as big files uploads or
 	// inventories
@@ -142,6 +141,10 @@ func main() {
 	})
 
 	app.Run(os.Args)
+
+	if toGlacier.Cloud != nil {
+		toGlacier.Cloud.Close()
+	}
 }
 
 func initialize(c *cli.Context) error {

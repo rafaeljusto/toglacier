@@ -17,8 +17,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-const googleCloudStorageClass = "COLDLINE"
-
 // GoogleCloudStorageConfig stores all necessary parameters to initialize a GCS
 // session.
 type GoogleCloudStorageConfig struct {
@@ -58,14 +56,6 @@ func NewGoogleCloudStorage(ctx context.Context, logger log.Logger, config Google
 	}
 
 	bkt := c.Bucket(config.Bucket)
-	err = bkt.Create(ctx, config.Project, &storage.BucketAttrs{
-		StorageClass: googleCloudStorageClass,
-	})
-
-	if err != nil {
-		return nil, errors.WithStack(newError("", ErrorCodeInitializingSession, err))
-	}
-
 	return &GoogleCloudStorage{
 		Logger: logger,
 		client: c,
