@@ -2,11 +2,12 @@ package cloud
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"sync"
 	"time"
 
@@ -87,8 +88,10 @@ func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup,
 		return Backup{}, errors.WithStack(newError("", ErrorCodeOpeningArchive, err))
 	}
 
-	// TODO: better id for object?
-	obj := g.bucket.Object(strconv.FormatInt(time.Now().UnixNano(), 10))
+	// id will be defined as the filename hash with the current epoch, this is
+	// important to avoid duplicated ids.
+	id := fmt.Sprintf("%s%d", sha256.Sum256([]byte(filename)), time.Now().UnixNano())
+	obj := g.bucket.Object(id)
 	w := obj.NewWriter(ctx)
 
 	if _, err = io.Copy(w, f); err != nil {
@@ -121,6 +124,11 @@ func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup,
 func (g *GoogleCloudStorage) List(ctx context.Context) ([]Backup, error) {
 	g.Logger.Debug("cloud: retrieving list of archives from the google cloud")
 
+	bucketAttrs, err := g.bucket.Attrs(ctx)
+	if err != nil {
+		return nil, errors.WithStack(newError("", ErrorCodeArchiveInfo, err))
+	}
+
 	var backups []Backup
 
 	it := g.bucket.Objects(ctx, nil)
@@ -131,14 +139,14 @@ func (g *GoogleCloudStorage) List(ctx context.Context) ([]Backup, error) {
 		}
 
 		if err != nil {
-			// TODO: define error
+			return nil, errors.WithStack(newError("", ErrorCodeIterating, err))
 		}
 
-		// TODO: vault name?
 		backups = append(backups, Backup{
 			ID:        objAttrs.Name,
 			CreatedAt: objAttrs.Created,
 			Checksum:  base64.StdEncoding.EncodeToString(objAttrs.MD5),
+			VaultName: bucketAttrs.Name,
 			Size:      objAttrs.Size,
 		})
 	}
@@ -205,7 +213,11 @@ func (g *GoogleCloudStorage) get(ctx context.Context, id string, waitGroup *sync
 	obj := g.bucket.Object(id)
 	r, err := obj.NewReader(ctx)
 	if err != nil {
-		// TODO: define error
+		result <- jobResult{
+			id:  id,
+			err: errors.WithStack(newError(id, ErrorCodeDownloadingArchive, err)),
+		}
+		return
 	}
 	defer r.Close()
 
@@ -259,7 +271,7 @@ func (g *GoogleCloudStorage) Close() error {
 	}
 
 	if err := g.client.Close(); err != nil {
-		// TODO: define error
+		return errors.WithStack(newError("", ErrorCodeClosingConnection, err))
 	}
 
 	return nil

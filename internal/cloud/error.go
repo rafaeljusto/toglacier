@@ -62,6 +62,17 @@ const (
 
 	// ErrorCodeCancelled action cancelled by the user.
 	ErrorCodeCancelled ErrorCode = "cancelled"
+
+	// ErrorCodeIterating problem detected while iterating over the result data.
+	ErrorCodeIterating ErrorCode = "iterating"
+
+	// ErrorCodeDownloadingArchive raised when there's an error while downloading
+	// the archive from the cloud.
+	ErrorCodeDownloadingArchive = "downloading-archive"
+
+	// ErrorCodeClosingConnection problem while closing the connection with the
+	// cloud.
+	ErrorCodeClosingConnection = "closing-connection"
 )
 
 // ErrorCode stores the error type that occurred while performing any operation
@@ -79,11 +90,14 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeInitJob:             "error initiating the job",
 	ErrorCodeJobComplete:         "error retrieving the complete job data",
 	ErrorCodeJobFailed:           "job failed to complete in the cloud",
-	ErrorCodeDecodingData:        "error decoding the iventory",
+	ErrorCodeDecodingData:        "error decoding the inventory",
 	ErrorCodeCreatingArchive:     "error creating backup file",
 	ErrorCodeCopyingData:         "error copying data to the backup file",
 	ErrorCodeRemovingArchive:     "error removing backup",
 	ErrorCodeCancelled:           "action cancelled by the user",
+	ErrorCodeIterating:           "error iterating in results",
+	ErrorCodeDownloadingArchive:  "error while downloading the archive",
+	ErrorCodeClosingConnection:   "error closing connection",
 }
 
 // String translate the error code to a human readable text.
