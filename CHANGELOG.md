@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+### Added
+- Google Cloud Storage Coldline service support
+
 ## [3.2.0] - 2017-08-11
 ### Fixed
 - Add backup report data only if it was successful

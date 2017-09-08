@@ -74,6 +74,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "config: error filling iv",
 		},
 		{
+			description: "it should show the correct error message for invalid cloud type",
+			err:         &config.Error{Code: config.ErrorCodeCloudType},
+			expected:    "config: invalid cloud type",
+		},
+		{
 			description: "it should show the correct error message for invalid database type",
 			err:         &config.Error{Code: config.ErrorCodeDatabaseType},
 			expected:    "config: invalid database type",

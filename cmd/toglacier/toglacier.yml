@@ -37,6 +37,10 @@ log:
 # rebuild successfully. By default we will keep the last 10 backups.
 keep backups: 10
 
+# cloud determinates the cloud service will be used to manage the backups. The
+# possible values are aws or gcs. By default aws will be used.
+cloud: aws
+
 # backup secret is an optional parameter that increase the security of your
 # backup in the cloud. If a passphrase is informed the backup tarball is
 # encrypted (OFB) and signed (HMAC256). You will need to have the same
@@ -214,3 +218,24 @@ aws:
   # performed the steps from region to generate a new vault you already have the
   # vault name.
   vault name: backup
+
+# gcs contains all necessary information to manage backups in the Google Cloud
+# Storage Coldline (https://cloud.google.com/storage/archival/).
+gcs:
+  # project defines the Google Cloud project that will be used. To create a new
+  # project go to https://console.cloud.google.com/projectcreate
+  project: toglacier
+
+  # bucket is the name of the container of all backup files in Google Cloud
+  # Storage. The bucket creation will be automatically.
+  bucket: backup
+
+  # account file contains the authentication data to allow managing backups in
+  # the cloud. To properly set the authentication follow the steps bellow.
+  #
+  #   1. Go to https://console.developers.google.com/permissions/serviceaccounts
+  #   2. Select the desired project
+  #   3. Click in the CREATE SERVICE ACCOUNT link
+  #   4. Define a service account name, add permissions for all storage objects
+  #      and check "Furnish a new private key" option (chosing JSON format)
+  account file: /etc/toglacier/toglacier-f926fc937f92.json

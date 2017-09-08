@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/log"
 	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
 const googleCloudStorageClass = "COLDLINE"
@@ -21,8 +22,9 @@ const googleCloudStorageClass = "COLDLINE"
 // GoogleCloudStorageConfig stores all necessary parameters to initialize a GCS
 // session.
 type GoogleCloudStorageConfig struct {
-	Project    string
-	BucketName string
+	Project     string
+	Bucket      string
+	AccountFile string
 }
 
 // GoogleCloudStorage is the Google solution for storing the backups in the
@@ -50,12 +52,12 @@ type GoogleCloudStorage struct {
 //       }
 //     }
 func NewGoogleCloudStorage(ctx context.Context, logger log.Logger, config GoogleCloudStorageConfig) (*GoogleCloudStorage, error) {
-	c, err := storage.NewClient(ctx)
+	c, err := storage.NewClient(ctx, option.WithServiceAccountFile(config.AccountFile))
 	if err != nil {
 		return nil, errors.WithStack(newError("", ErrorCodeInitializingSession, err))
 	}
 
-	bkt := c.Bucket(config.BucketName)
+	bkt := c.Bucket(config.Bucket)
 	err = bkt.Create(ctx, config.Project, &storage.BucketAttrs{
 		StorageClass: googleCloudStorageClass,
 	})
@@ -257,5 +259,18 @@ func (g *GoogleCloudStorage) Remove(ctx context.Context, id string) error {
 	}
 
 	g.Logger.Infof("cloud: backup “%s” removed successfully from the google cloud", id)
+	return nil
+}
+
+// Close ends the Google Cloud session.
+func (g *GoogleCloudStorage) Close() error {
+	if g == nil {
+		return nil
+	}
+
+	if err := g.client.Close(); err != nil {
+		// TODO: define error
+	}
+
 	return nil
 }

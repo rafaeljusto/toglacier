@@ -34,6 +34,7 @@ var (
 
 func main() {
 	defer logFile.Close()
+	defer toGlacier.Cloud.Close()
 
 	// ctx is used to abort long transactions, such as big files uploads or
 	// inventories
@@ -53,7 +54,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "config, c",
-			Usage: "Tool configuration file (YAML)",
+			Usage: "tool configuration file (YAML)",
 		},
 	}
 	app.Before = initialize
@@ -190,18 +191,34 @@ func initialize(c *cli.Context) error {
 		logger.Level = logrus.PanicLevel
 	}
 
-	awsConfig := cloud.AWSConfig{
-		AccountID:       config.Current().AWS.AccountID.Value,
-		AccessKeyID:     config.Current().AWS.AccessKeyID.Value,
-		SecretAccessKey: config.Current().AWS.SecretAccessKey.Value,
-		Region:          config.Current().AWS.Region,
-		VaultName:       config.Current().AWS.VaultName,
-	}
+	var chosenCloud cloud.Cloud
 
-	var awsCloud cloud.Cloud
-	if awsCloud, err = cloud.NewAWSCloud(logger, awsConfig, false); err != nil {
-		fmt.Printf("error initializing AWS cloud. details: %s\n", err)
-		return err
+	switch config.Current().Cloud {
+	case config.CloudTypeAWS:
+		awsConfig := cloud.AWSConfig{
+			AccountID:       config.Current().AWS.AccountID.Value,
+			AccessKeyID:     config.Current().AWS.AccessKeyID.Value,
+			SecretAccessKey: config.Current().AWS.SecretAccessKey.Value,
+			Region:          config.Current().AWS.Region,
+			VaultName:       config.Current().AWS.VaultName,
+		}
+
+		if chosenCloud, err = cloud.NewAWSCloud(logger, awsConfig, false); err != nil {
+			fmt.Printf("error initializing aws cloud. details: %s\n", err)
+			return err
+		}
+
+	case config.CloudTypeGCS:
+		gcsConfig := cloud.GoogleCloudStorageConfig{
+			Project:     config.Current().GCS.Project,
+			Bucket:      config.Current().GCS.Bucket,
+			AccountFile: config.Current().GCS.AccountFile,
+		}
+
+		if chosenCloud, err = cloud.NewGoogleCloudStorage(ctx, logger, gcsConfig); err != nil {
+			fmt.Printf("error initializing google cloud. details: %s\n", err)
+			return err
+		}
 	}
 
 	var localStorage storage.Storage
@@ -216,7 +233,7 @@ func initialize(c *cli.Context) error {
 		Context: ctx,
 		Archive: archive.NewTARBuilder(logger),
 		Envelop: archive.NewOFBEnvelop(logger),
-		Cloud:   awsCloud,
+		Cloud:   chosenCloud,
 		Storage: localStorage,
 		Logger:  logger,
 	}
@@ -256,7 +273,7 @@ func commandGet(c *cli.Context) error {
 	if err := toGlacier.RetrieveBackup(c.Args().First(), config.Current().BackupSecret.Value, c.Bool("skip-unmodified")); err != nil {
 		logger.Error(err)
 	} else {
-		fmt.Println("Backup recovered successfully")
+		fmt.Println("backup recovered successfully")
 	}
 
 	return nil
@@ -291,7 +308,7 @@ func commandList(c *cli.Context) error {
 
 	var filenameMatch *regexp.Regexp
 	if c.NArg() > 0 {
-		fmt.Printf("Backups containing pattern “%s”\n\n", c.Args().First())
+		fmt.Printf("backups containing pattern “%s”\n\n", c.Args().First())
 
 		if filenameMatch, err = regexp.Compile(c.Args().First()); err != nil {
 			logger.Errorf("invalid pattern. details: %s", err)

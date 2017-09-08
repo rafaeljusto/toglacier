@@ -566,6 +566,12 @@ func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 	return nil
 }
 
+// Close ends the AWS session. As there's nothing to close here, this will not
+// perform any action.
+func (a *AWSCloud) Close() error {
+	return nil
+}
+
 func (a *AWSCloud) waitJobs(ctx context.Context, jobs ...string) error {
 	sort.Strings(jobs)
 	a.Logger.Debugf("cloud: waiting for jobs %v", jobs)

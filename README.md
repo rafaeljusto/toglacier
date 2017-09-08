@@ -8,28 +8,32 @@
 ![toglacier](https://raw.githubusercontent.com/rafaeljusto/toglacier/master/toglacier.png)
 
 # toglacier
-Send data to Amazon Glacier service periodically.
+Send data to the cloud periodically.
 
 ## What?
 
 Have you ever thought that your server could have some backup in the cloud to
 mitigate some crazy [ransomware](https://en.wikipedia.org/wiki/Ransomware)
 infection? Great! Here is a peace of software to help you do that, sending your
-data periodically to [Amazon Glacier](https://aws.amazon.com/glacier/). It uses
-the [AWS SDK](https://aws.amazon.com/sdk-for-go/) behind the scenes, all honors
-go to the [Amazon developers](https://github.com/orgs/aws/people).
+data periodically to the cloud. For now it could be the [Amazon
+Glacier](https://aws.amazon.com/glacier/) or the [Google Cloud Storage
+Coldline](https://cloud.google.com/storage/archival/) services. It uses the [AWS
+SDK](https://aws.amazon.com/sdk-for-go/) and [Google Cloud
+SDK](https://github.com/GoogleCloudPlatform/google-cloud-go) behind the scenes,
+all honors go to the [Amazon developers](https://github.com/orgs/aws/people) and
+[Google developers](https://github.com/orgs/GoogleCloudPlatform/people).
 
 The program will first add all modified files (compared with the last sync) to a
 [tarball](https://en.wikipedia.org/wiki/Tar_(computing)) and then, if a secret
-was defined, it will encrypt the archive. After that it will decide to send it
-in one shot or use a multipart strategy for larger files. For now we will follow
-the AWS suggestion and send multipart when the tarball gets bigger than 100MB.
-When using multipart, each part will have 4MB (except for the last one). The
-maximum archive size is 40GB (but we can increase this).
+was defined, it will encrypt the archive. After that, if AWS was chosen, it will
+decide to send it in one shot or use a multipart strategy for larger files. For
+now we will follow the AWS suggestion and send multipart when the tarball gets
+bigger than 100MB. When using multipart, each part will have 4MB (except for the
+last one). The maximum archive size is 40GB (but we can increase this).
 
 Old backups will also be removed automatically, to avoid keeping many files in
-AWS Glacier service, and consequently saving you some money. Periodically, the
-tool will request the remote backups in AWS to synchronize the local storage.
+the cloud, and consequently saving you some money. Periodically, the tool will
+request the remote backups in the cloud to synchronize the local storage.
 
 Some cool features that you will find in this tool:
 
@@ -82,6 +86,9 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_AWS_SECRET_ACCESS_KEY         | AWS secret access key                   |
 | TOGLACIER_AWS_REGION                    | AWS region                              |
 | TOGLACIER_AWS_VAULT_NAME                | AWS vault name                          |
+| TOGLACIER_GCS_PROJECT                   | GCS project name                        |
+| TOGLACIER_GCS_BUCKET                    | GCS bucket name                         |
+| TOGLACIER_GCS_ACCOUNT_FILE              | GCS account file                        |
 | TOGLACIER_PATHS                         | Paths to backup (separated by comma)    |
 | TOGLACIER_DB_TYPE                       | Local backup storage strategy           |
 | TOGLACIER_DB_FILE                       | Path where we keep track of the backups |
@@ -103,9 +110,12 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_EMAIL_TO                      | List of e-mails to send the report to   |
 | TOGLACIER_EMAIL_FORMAT                  | E-mail content format (html or plain)   |
 
-Most part of them you can retrieve via AWS Console (`My Security Credentials`
-and `Glacier Service`). You will find your AWS region identification
+Amazon cloud credentials can be retrieved via AWS Console (`My Security
+Credentials` and `Glacier Service`). You will find your AWS region
+identification
 [here](http://docs.aws.amazon.com/general/latest/gr/rande.html#glacier_region).
+For Google Cloud Storage credentials, check the [Service Account
+Keys](https://console.developers.google.com/permissions/serviceaccounts).
 
 By default the tool prints everything on the standard output. If you want to
 redirect it to a log file, you can define the location of the file with the
