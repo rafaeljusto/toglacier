@@ -16,11 +16,11 @@ Have you ever thought that your server could have some backup in the cloud to
 mitigate some crazy [ransomware](https://en.wikipedia.org/wiki/Ransomware)
 infection? Great! Here is a peace of software to help you do that, sending your
 data periodically to the cloud. For now it could be the [Amazon
-Glacier](https://aws.amazon.com/glacier/) or the [Google Cloud Storage
-Coldline](https://cloud.google.com/storage/archival/) services. It uses the [AWS
+Glacier](https://aws.amazon.com/glacier/) or the [Google Cloud
+Storage](https://cloud.google.com/storage/archival/) services. It uses the [AWS
 SDK](https://aws.amazon.com/sdk-for-go/) and [Google Cloud
 SDK](https://github.com/GoogleCloudPlatform/google-cloud-go) behind the scenes,
-all honors go to the [Amazon developers](https://github.com/orgs/aws/people) and
+all honors go to [Amazon developers](https://github.com/orgs/aws/people) and
 [Google developers](https://github.com/orgs/GoogleCloudPlatform/people).
 
 The program will first add all modified files (compared with the last sync) to a

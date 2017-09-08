@@ -220,7 +220,7 @@ aws:
   vault name: backup
 
 # gcs contains all necessary information to manage backups in the Google Cloud
-# Storage Coldline (https://cloud.google.com/storage/archival/).
+# Storage (https://cloud.google.com/storage/archival/).
 gcs:
   # project defines the Google Cloud project that will be used. To create a new
   # project go to https://console.cloud.google.com/projectcreate

@@ -173,7 +173,7 @@ const (
 	// CloudTypeAWS will backup archives to Amazon AWS Glacier cloud service.
 	CloudTypeAWS CloudType = "aws"
 
-	// CloudTypeGCS will backup archives to Google Cloud Storage Coldline service.
+	// CloudTypeGCS will backup archives to Google Cloud Storage service.
 	CloudTypeGCS CloudType = "gcs"
 )
 

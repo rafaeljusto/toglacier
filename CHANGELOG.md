@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 ### Added
-- Google Cloud Storage Coldline service support
+- Google Cloud Storage support
 
 ## [3.2.0] - 2017-08-11
 ### Fixed

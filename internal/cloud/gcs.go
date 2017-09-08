@@ -26,8 +26,8 @@ type GoogleCloudStorageConfig struct {
 }
 
 // GoogleCloudStorage is the Google solution for storing the backups in the
-// cloud. It uses the Google Cloud Storage Coldline service, as it allows large
-// files for a small price.
+// cloud. It uses the Google Cloud Storage service, as it can allow large files
+// for a small price (coldline recommended).
 type GoogleCloudStorage struct {
 	Logger log.Logger
 	client *storage.Client
