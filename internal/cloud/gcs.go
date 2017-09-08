@@ -92,7 +92,9 @@ func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup,
 	// important to avoid duplicated ids.
 	id := fmt.Sprintf("%s%d", sha256.Sum256([]byte(filename)), time.Now().UnixNano())
 	obj := g.bucket.Object(id)
+
 	w := obj.NewWriter(ctx)
+	w.ContentType = "application/octet-stream"
 
 	if _, err = io.Copy(w, f); err != nil {
 		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
