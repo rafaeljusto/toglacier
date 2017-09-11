@@ -18,25 +18,24 @@ import (
 	"google.golang.org/api/option"
 )
 
-// GoogleCloudStorageConfig stores all necessary parameters to initialize a GCS
-// session.
-type GoogleCloudStorageConfig struct {
+// GCSConfig stores all necessary parameters to initialize a GCS session.
+type GCSConfig struct {
 	Project     string
 	Bucket      string
 	AccountFile string
 }
 
-// GoogleCloudStorage is the Google solution for storing the backups in the
-// cloud. It uses the Google Cloud Storage service, as it can allow large files
-// for a small price (coldline recommended).
-type GoogleCloudStorage struct {
+// GCS is the Google solution for storing the backups in the cloud. It uses the
+// Google Cloud Storage service, as it can allow large files for a small price
+// (coldline recommended).
+type GCS struct {
 	Logger log.Logger
 	client *storage.Client
 	bucket *storage.BucketHandle
 }
 
-// NewGoogleCloudStorage initializes the Google Cloud Storage bucket. On error
-// it will return an Error type. To retrieve the desired error you can do:
+// NewGCS initializes the Google Cloud Storage bucket. On error it will return
+// an Error type. To retrieve the desired error you can do:
 //
 //     type causer interface {
 //       Cause() error
@@ -50,14 +49,14 @@ type GoogleCloudStorage struct {
 //         // unknown error
 //       }
 //     }
-func NewGoogleCloudStorage(ctx context.Context, logger log.Logger, config GoogleCloudStorageConfig) (*GoogleCloudStorage, error) {
+func NewGCS(ctx context.Context, logger log.Logger, config GCSConfig) (*GCS, error) {
 	c, err := storage.NewClient(ctx, option.WithServiceAccountFile(config.AccountFile))
 	if err != nil {
 		return nil, errors.WithStack(newError("", ErrorCodeInitializingSession, err))
 	}
 
 	bkt := c.Bucket(config.Bucket)
-	return &GoogleCloudStorage{
+	return &GCS{
 		Logger: logger,
 		client: c,
 		bucket: bkt,
@@ -80,7 +79,7 @@ func NewGoogleCloudStorage(ctx context.Context, logger log.Logger, config Google
 //         // unknown error
 //       }
 //     }
-func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup, error) {
+func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 	g.Logger.Debugf("cloud: sending file “%s” to google cloud", filename)
 
 	f, err := os.Open(filename)
@@ -91,9 +90,7 @@ func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup,
 	// id will be defined as the filename hash with the current epoch, this is
 	// important to avoid duplicated ids.
 	id := fmt.Sprintf("%s%d", sha256.Sum256([]byte(filename)), time.Now().UnixNano())
-	obj := g.bucket.Object(id)
-
-	w := obj.NewWriter(ctx)
+	w := g.bucket.Object(id).NewWriter(ctx)
 	w.ContentType = "application/octet-stream"
 
 	if _, err = io.Copy(w, f); err != nil {
@@ -123,7 +120,7 @@ func (g *GoogleCloudStorage) Send(ctx context.Context, filename string) (Backup,
 //         // unknown error
 //       }
 //     }
-func (g *GoogleCloudStorage) List(ctx context.Context) ([]Backup, error) {
+func (g *GCS) List(ctx context.Context) ([]Backup, error) {
 	g.Logger.Debug("cloud: retrieving list of archives from the google cloud")
 
 	bucketAttrs, err := g.bucket.Attrs(ctx)
@@ -132,8 +129,8 @@ func (g *GoogleCloudStorage) List(ctx context.Context) ([]Backup, error) {
 	}
 
 	var backups []Backup
-
 	it := g.bucket.Objects(ctx, nil)
+
 	for {
 		objAttrs, err := it.Next()
 		if err == iterator.Done {
@@ -174,7 +171,7 @@ func (g *GoogleCloudStorage) List(ctx context.Context) ([]Backup, error) {
 //         // unknown error
 //       }
 //     }
-func (g *GoogleCloudStorage) Get(ctx context.Context, ids ...string) (map[string]string, error) {
+func (g *GCS) Get(ctx context.Context, ids ...string) (map[string]string, error) {
 	g.Logger.Debugf("cloud: retrieving archives “%v” from the google cloud", ids)
 
 	var waitGroup sync.WaitGroup
@@ -199,7 +196,7 @@ func (g *GoogleCloudStorage) Get(ctx context.Context, ids ...string) (map[string
 	return filenames, nil
 }
 
-func (g *GoogleCloudStorage) get(ctx context.Context, id string, waitGroup *sync.WaitGroup, result chan<- jobResult) {
+func (g *GCS) get(ctx context.Context, id string, waitGroup *sync.WaitGroup, result chan<- jobResult) {
 	defer waitGroup.Done()
 
 	backup, err := os.Create(path.Join(os.TempDir(), "backup-"+id+".tar"))
@@ -212,8 +209,7 @@ func (g *GoogleCloudStorage) get(ctx context.Context, id string, waitGroup *sync
 	}
 	defer backup.Close()
 
-	obj := g.bucket.Object(id)
-	r, err := obj.NewReader(ctx)
+	r, err := g.bucket.Object(id).NewReader(ctx)
 	if err != nil {
 		result <- jobResult{
 			id:  id,
@@ -255,7 +251,7 @@ func (g *GoogleCloudStorage) get(ctx context.Context, id string, waitGroup *sync
 //         // unknown error
 //       }
 //     }
-func (g *GoogleCloudStorage) Remove(ctx context.Context, id string) error {
+func (g *GCS) Remove(ctx context.Context, id string) error {
 	g.Logger.Debugf("cloud: removing archive %s from the google cloud", id)
 
 	if err := g.bucket.Object(id).Delete(ctx); err != nil {
@@ -267,7 +263,7 @@ func (g *GoogleCloudStorage) Remove(ctx context.Context, id string) error {
 }
 
 // Close ends the Google Cloud session.
-func (g *GoogleCloudStorage) Close() error {
+func (g *GCS) Close() error {
 	if g == nil {
 		return nil
 	}

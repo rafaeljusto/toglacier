@@ -212,13 +212,13 @@ func initialize(c *cli.Context) error {
 		}
 
 	case config.CloudTypeGCS:
-		gcsConfig := cloud.GoogleCloudStorageConfig{
+		gcsConfig := cloud.GCSConfig{
 			Project:     config.Current().GCS.Project,
 			Bucket:      config.Current().GCS.Bucket,
 			AccountFile: config.Current().GCS.AccountFile,
 		}
 
-		if chosenCloud, err = cloud.NewGoogleCloudStorage(ctx, logger, gcsConfig); err != nil {
+		if chosenCloud, err = cloud.NewGCS(ctx, logger, gcsConfig); err != nil {
 			fmt.Printf("error initializing google cloud. details: %s\n", err)
 			return err
 		}
