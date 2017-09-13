@@ -14,6 +14,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/pkg/errors"
 	"github.com/rafaeljusto/toglacier/internal/log"
+	gcscontext "golang.org/x/net/context"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -25,13 +26,68 @@ type GCSConfig struct {
 	AccountFile string
 }
 
+// GCSClient contains all used methods from the Google Cloud Storage SDK client
+// that is used. This is necessary to make it easy to test the components
+// locally.
+type GCSClient interface {
+	Close() error
+}
+
+// GCSBucket contains all used methods from the Google Cloud Storage SDK bucket
+// that is used. This is necessary to make it easy to test the components
+// locally.
+type GCSBucket interface {
+	Object(name string) *storage.ObjectHandle
+	Objects(ctx gcscontext.Context, q *storage.Query) *storage.ObjectIterator
+	Attrs(ctx gcscontext.Context) (*storage.BucketAttrs, error)
+}
+
+// GCSObjectHandler contains all operations performed with the Google Cloud
+// Storage SDK objects. This is necessary to make it easy to test the components
+// locally.
+type GCSObjectHandler interface {
+	Read(ctx gcscontext.Context, obj *storage.ObjectHandle, w io.Writer) error
+	Write(ctx gcscontext.Context, obj *storage.ObjectHandle, r io.Reader) error
+	Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error)
+}
+
+type gcsObjectHandler struct{}
+
+func (g gcsObjectHandler) Read(ctx gcscontext.Context, obj *storage.ObjectHandle, w io.Writer) error {
+	r, err := obj.NewReader(ctx)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	_, err = io.Copy(w, r)
+	return err
+}
+
+func (g gcsObjectHandler) Write(ctx gcscontext.Context, obj *storage.ObjectHandle, r io.Reader) error {
+	w := obj.NewWriter(ctx)
+	w.ContentType = "application/octet-stream"
+
+	if _, err := io.Copy(w, r); err != nil {
+		return err
+	}
+
+	return w.Close()
+}
+
+func (g gcsObjectHandler) Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error) {
+	return obj.Attrs(ctx)
+}
+
 // GCS is the Google solution for storing the backups in the cloud. It uses the
 // Google Cloud Storage service, as it can allow large files for a small price
 // (coldline recommended).
 type GCS struct {
-	Logger log.Logger
-	client *storage.Client
-	bucket *storage.BucketHandle
+	Logger        log.Logger
+	Client        GCSClient
+	Bucket        GCSBucket
+	BucketName    string
+	ObjectHandler GCSObjectHandler
 }
 
 // NewGCS initializes the Google Cloud Storage bucket. On error it will return
@@ -55,11 +111,12 @@ func NewGCS(ctx context.Context, logger log.Logger, config GCSConfig) (*GCS, err
 		return nil, errors.WithStack(newError("", ErrorCodeInitializingSession, err))
 	}
 
-	bkt := c.Bucket(config.Bucket)
 	return &GCS{
-		Logger: logger,
-		client: c,
-		bucket: bkt,
+		Logger:        logger,
+		Client:        c,
+		Bucket:        c.Bucket(config.Bucket),
+		BucketName:    config.Bucket,
+		ObjectHandler: gcsObjectHandler{},
 	}, nil
 }
 
@@ -86,22 +143,29 @@ func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 	if err != nil {
 		return Backup{}, errors.WithStack(newError("", ErrorCodeOpeningArchive, err))
 	}
+	defer f.Close()
 
 	// id will be defined as the filename hash with the current epoch, this is
-	// important to avoid duplicated ids.
+	// important to avoid duplicated ids
 	id := fmt.Sprintf("%s%d", sha256.Sum256([]byte(filename)), time.Now().UnixNano())
-	w := g.bucket.Object(id).NewWriter(ctx)
-	w.ContentType = "application/octet-stream"
 
-	if _, err = io.Copy(w, f); err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
+	if err = g.ObjectHandler.Write(ctx, g.Bucket.Object(id), f); err != nil {
+		return Backup{}, errors.WithStack(g.checkCancellation(newError("", ErrorCodeSendingArchive, err)))
 	}
 
-	if err = w.Close(); err != nil {
-		return Backup{}, errors.WithStack(newError("", ErrorCodeSendingArchive, err))
+	attrs, err := g.ObjectHandler.Attrs(ctx, g.Bucket.Object(id))
+	if err != nil {
+		// TODO: better error code?
+		return Backup{}, errors.WithStack(g.checkCancellation(newError("", ErrorCodeArchiveInfo, err)))
 	}
 
-	return Backup{}, nil
+	return Backup{
+		ID:        attrs.Name,
+		CreatedAt: attrs.Created,
+		Checksum:  base64.StdEncoding.EncodeToString(attrs.MD5),
+		VaultName: g.BucketName,
+		Size:      attrs.Size,
+	}, nil
 }
 
 // List retrieves all the uploaded backups information in the cloud. If an error
@@ -123,13 +187,8 @@ func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 func (g *GCS) List(ctx context.Context) ([]Backup, error) {
 	g.Logger.Debug("cloud: retrieving list of archives from the google cloud")
 
-	bucketAttrs, err := g.bucket.Attrs(ctx)
-	if err != nil {
-		return nil, errors.WithStack(newError("", ErrorCodeArchiveInfo, err))
-	}
-
 	var backups []Backup
-	it := g.bucket.Objects(ctx, nil)
+	it := g.Bucket.Objects(ctx, nil)
 
 	for {
 		objAttrs, err := it.Next()
@@ -138,14 +197,14 @@ func (g *GCS) List(ctx context.Context) ([]Backup, error) {
 		}
 
 		if err != nil {
-			return nil, errors.WithStack(newError("", ErrorCodeIterating, err))
+			return nil, errors.WithStack(g.checkCancellation(newError("", ErrorCodeIterating, err)))
 		}
 
 		backups = append(backups, Backup{
 			ID:        objAttrs.Name,
 			CreatedAt: objAttrs.Created,
 			Checksum:  base64.StdEncoding.EncodeToString(objAttrs.MD5),
-			VaultName: bucketAttrs.Name,
+			VaultName: g.BucketName,
 			Size:      objAttrs.Size,
 		})
 	}
@@ -209,20 +268,10 @@ func (g *GCS) get(ctx context.Context, id string, waitGroup *sync.WaitGroup, res
 	}
 	defer backup.Close()
 
-	r, err := g.bucket.Object(id).NewReader(ctx)
-	if err != nil {
+	if err = g.ObjectHandler.Read(ctx, g.Bucket.Object(id), backup); err != nil {
 		result <- jobResult{
 			id:  id,
-			err: errors.WithStack(newError(id, ErrorCodeDownloadingArchive, err)),
-		}
-		return
-	}
-	defer r.Close()
-
-	if _, err := io.Copy(backup, r); err != nil {
-		result <- jobResult{
-			id:  id,
-			err: errors.WithStack(newError(id, ErrorCodeCopyingData, err)),
+			err: errors.WithStack(g.checkCancellation(newError(id, ErrorCodeDownloadingArchive, err))),
 		}
 		return
 	}
@@ -254,8 +303,8 @@ func (g *GCS) get(ctx context.Context, id string, waitGroup *sync.WaitGroup, res
 func (g *GCS) Remove(ctx context.Context, id string) error {
 	g.Logger.Debugf("cloud: removing archive %s from the google cloud", id)
 
-	if err := g.bucket.Object(id).Delete(ctx); err != nil {
-		return errors.WithStack(newError(id, ErrorCodeRemovingArchive, err))
+	if err := g.Bucket.Object(id).Delete(ctx); err != nil {
+		return errors.WithStack(g.checkCancellation(newError(id, ErrorCodeRemovingArchive, err)))
 	}
 
 	g.Logger.Infof("cloud: backup “%s” removed successfully from the google cloud", id)
@@ -268,9 +317,25 @@ func (g *GCS) Close() error {
 		return nil
 	}
 
-	if err := g.client.Close(); err != nil {
+	if err := g.Client.Close(); err != nil {
 		return errors.WithStack(newError("", ErrorCodeClosingConnection, err))
 	}
 
 	return nil
+}
+
+func (g *GCS) checkCancellation(err error) error {
+	v, ok := err.(*Error)
+	if !ok {
+		return err
+	}
+
+	cancellation := errors.Cause(v.Err) == context.Canceled || errors.Cause(v.Err) == context.DeadlineExceeded
+
+	if cancellation {
+		g.Logger.Debug("operation cancelled by user")
+		return newError(v.ID, ErrorCodeCancelled, v.Err)
+	}
+
+	return err
 }
