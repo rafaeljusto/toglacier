@@ -49,6 +49,7 @@ type GCSObjectHandler interface {
 	Read(ctx gcscontext.Context, obj *storage.ObjectHandle, w io.Writer) error
 	Write(ctx gcscontext.Context, obj *storage.ObjectHandle, r io.Reader) error
 	Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error)
+	Iterate(it *storage.ObjectIterator) (*storage.ObjectAttrs, error)
 }
 
 type gcsObjectHandler struct{}
@@ -77,6 +78,10 @@ func (g gcsObjectHandler) Write(ctx gcscontext.Context, obj *storage.ObjectHandl
 
 func (g gcsObjectHandler) Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error) {
 	return obj.Attrs(ctx)
+}
+
+func (g gcsObjectHandler) Iterate(it *storage.ObjectIterator) (*storage.ObjectAttrs, error) {
+	return it.Next()
 }
 
 // GCS is the Google solution for storing the backups in the cloud. It uses the
@@ -191,7 +196,7 @@ func (g *GCS) List(ctx context.Context) ([]Backup, error) {
 	it := g.Bucket.Objects(ctx, nil)
 
 	for {
-		objAttrs, err := it.Next()
+		objAttrs, err := g.ObjectHandler.Iterate(it)
 		if err == iterator.Done {
 			break
 		}
