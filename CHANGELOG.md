@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Google Cloud Storage support
 
+### Fixed
+- Close file after uploaded to the AWS cloud
+
 ## [3.2.0] - 2017-08-11
 ### Fixed
 - Add backup report data only if it was successful

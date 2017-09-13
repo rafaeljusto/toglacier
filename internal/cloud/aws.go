@@ -163,6 +163,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 	if err != nil {
 		return Backup{}, errors.WithStack(newError("", ErrorCodeOpeningArchive, err))
 	}
+	defer archive.Close()
 
 	archiveInfo, err := archive.Stat()
 	if err != nil {
