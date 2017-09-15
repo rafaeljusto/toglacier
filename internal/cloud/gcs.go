@@ -49,6 +49,7 @@ type GCSObjectHandler interface {
 	Read(ctx gcscontext.Context, obj *storage.ObjectHandle, w io.Writer) error
 	Write(ctx gcscontext.Context, obj *storage.ObjectHandle, r io.Reader) error
 	Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error)
+	Delete(ctx gcscontext.Context, obj *storage.ObjectHandle) error
 	Iterate(it *storage.ObjectIterator) (*storage.ObjectAttrs, error)
 }
 
@@ -78,6 +79,10 @@ func (g gcsObjectHandler) Write(ctx gcscontext.Context, obj *storage.ObjectHandl
 
 func (g gcsObjectHandler) Attrs(ctx gcscontext.Context, obj *storage.ObjectHandle) (*storage.ObjectAttrs, error) {
 	return obj.Attrs(ctx)
+}
+
+func (g gcsObjectHandler) Delete(ctx gcscontext.Context, obj *storage.ObjectHandle) error {
+	return obj.Delete(ctx)
 }
 
 func (g gcsObjectHandler) Iterate(it *storage.ObjectIterator) (*storage.ObjectAttrs, error) {
@@ -308,7 +313,7 @@ func (g *GCS) get(ctx context.Context, id string, waitGroup *sync.WaitGroup, res
 func (g *GCS) Remove(ctx context.Context, id string) error {
 	g.Logger.Debugf("cloud: removing archive %s from the google cloud", id)
 
-	if err := g.Bucket.Object(id).Delete(ctx); err != nil {
+	if err := g.ObjectHandler.Delete(ctx, g.Bucket.Object(id)); err != nil {
 		return errors.WithStack(g.checkCancellation(newError(id, ErrorCodeRemovingArchive, err)))
 	}
 
@@ -318,7 +323,7 @@ func (g *GCS) Remove(ctx context.Context, id string) error {
 
 // Close ends the Google Cloud session.
 func (g *GCS) Close() error {
-	if g == nil {
+	if g == nil || g.Client == nil {
 		return nil
 	}
 

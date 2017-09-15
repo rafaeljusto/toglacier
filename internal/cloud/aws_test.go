@@ -73,7 +73,7 @@ func TestNewAWSCloud(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
-				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, awsCloud))
+				t.Errorf("cloud instances don't match.\n%s", Diff(scenario.expected, awsCloud))
 			}
 			for key, value := range scenario.expectedEnv {
 				if env := os.Getenv(key); env != value {
@@ -1831,6 +1831,37 @@ func TestAWSCloud_Remove(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			err := scenario.awsCloud.Remove(context.Background(), scenario.id)
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestAWSCloud_Close(t *testing.T) {
+	scenarios := []struct {
+		description   string
+		awsCloud      cloud.AWSCloud
+		expectedError error
+	}{
+		{
+			description: "it should close the connection correctly",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			err := scenario.awsCloud.Close()
 			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}
