@@ -175,6 +175,7 @@ func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 		Checksum:  base64.StdEncoding.EncodeToString(attrs.MD5),
 		VaultName: g.BucketName,
 		Size:      attrs.Size,
+		Location:  LocationGCS,
 	}, nil
 }
 
@@ -216,6 +217,7 @@ func (g *GCS) List(ctx context.Context) ([]Backup, error) {
 			Checksum:  base64.StdEncoding.EncodeToString(objAttrs.MD5),
 			VaultName: g.BucketName,
 			Size:      objAttrs.Size,
+			Location:  LocationGCS,
 		})
 	}
 

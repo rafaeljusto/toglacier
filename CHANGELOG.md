@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Close file after uploaded to the AWS cloud
 
+### Changed
+- Audit file now supports cloud location field
+
 ## [3.2.0] - 2017-08-11
 ### Fixed
 - Add backup report data only if it was successful

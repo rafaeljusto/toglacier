@@ -87,6 +87,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "storage: error while iterating over the database results",
 		},
 		{
+			description: "it should show the correct error message for location problem",
+			err:         &storage.Error{Code: storage.ErrorCodeLocation},
+			expected:    "storage: invalid cloud location",
+		},
+		{
 			description: "it should detect when the code doesn't exist",
 			err:         &storage.Error{Code: storage.ErrorCode("i-dont-exist")},
 			expected:    "storage: unknown error code",

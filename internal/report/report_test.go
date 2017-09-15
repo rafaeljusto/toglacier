@@ -65,6 +65,7 @@ func TestBuild(t *testing.T) {
 						CreatedAt: date.Add(-time.Second),
 						VaultName: "vault",
 						Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+						Location:  cloud.LocationAWS,
 					}
 					r.Paths = []string{"/data/important-files"}
 					r.Durations.Build = 2 * time.Second
@@ -99,6 +100,7 @@ func TestBuild(t *testing.T) {
 							CreatedAt: date.Add(-time.Second),
 							VaultName: "vault",
 							Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+							Location:  cloud.LocationAWS,
 						},
 					}
 					r.Durations.List = 6 * time.Hour
@@ -123,6 +125,7 @@ func TestBuild(t *testing.T) {
     Date:        2017-03-10 14:10:45
     Vault:       vault
     Checksum:    cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705
+    Location:    aws
     Paths:       /data/important-files
 
   Durations
@@ -177,6 +180,7 @@ func TestBuild(t *testing.T) {
       Date:      2017-03-10 14:10:45
       Vault:     vault
       Checksum:  cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705
+      Location:  aws
 
   Durations
   ---------
@@ -210,6 +214,7 @@ func TestBuild(t *testing.T) {
 						CreatedAt: date.Add(-time.Second),
 						VaultName: "vault",
 						Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+						Location:  cloud.LocationAWS,
 					}
 					r.Paths = []string{"/data/important-files"}
 					r.Durations.Build = 2 * time.Second
@@ -244,6 +249,7 @@ func TestBuild(t *testing.T) {
 							CreatedAt: date.Add(-time.Second),
 							VaultName: "vault",
 							Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
+							Location:  cloud.LocationAWS,
 						},
 					}
 					r.Durations.List = 6 * time.Hour
@@ -318,6 +324,10 @@ func TestBuild(t *testing.T) {
       <div>
         <label>Checksum:</label>
         <span>cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705</span>
+      </div>
+      <div>
+        <label>Location:</label>
+        <span>aws</span>
       </div>
       <div>
         <label>Paths:</label>
@@ -407,6 +417,7 @@ func TestBuild(t *testing.T) {
             <th>Date</th>
             <th>Vault</th>
             <th>Checksum</th>
+            <th>Location</th>
           </tr>
         </thead>
         <tbody>
@@ -414,6 +425,7 @@ func TestBuild(t *testing.T) {
           <td>2017-03-10 14:10:45</td>
           <td>vault</td>
           <td>cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705</td>
+          <td>aws</td>
         </tbody>
       </table>
       <h2>Durations</h2>

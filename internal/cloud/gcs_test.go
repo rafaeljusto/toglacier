@@ -209,6 +209,7 @@ func TestGCS_Send(t *testing.T) {
 				Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 				VaultName: "backup",
 				Size:      41,
+				Location:  cloud.LocationGCS,
 			},
 		},
 		{
@@ -461,6 +462,7 @@ func TestGCS_List(t *testing.T) {
 					Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 					VaultName: "backup",
 					Size:      41,
+					Location:  cloud.LocationGCS,
 				},
 				{
 					ID:        "GCSID124",
@@ -468,6 +470,7 @@ func TestGCS_List(t *testing.T) {
 					Checksum:  "941ba830a21740a0349e9d31e7ac8e6fe20a75fe6ecf0bdc23c9a19a10f2a2e0",
 					VaultName: "backup",
 					Size:      72,
+					Location:  cloud.LocationGCS,
 				},
 			},
 		},

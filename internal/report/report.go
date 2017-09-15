@@ -168,6 +168,10 @@ func (s SendBackup) Build(f Format) (string, error) {
         <label>Checksum:</label>
         <span>{{.Backup.Checksum}}</span>
       </div>
+      <div>
+        <label>Location:</label>
+        <span>{{.Backup.Location}}</span>
+      </div>
       {{- end}}
       <div>
         <label>Paths:</label>
@@ -216,6 +220,7 @@ func (s SendBackup) Build(f Format) (string, error) {
     Date:        {{.Backup.CreatedAt.Format "2006-01-02 15:04:05"}}
     Vault:       {{.Backup.VaultName}}
     Checksum:    {{.Backup.Checksum}}
+    Location:    {{.Backup.Location}}
     Paths:       {{range $path := .Paths}}{{$path}} {{end}}
   {{- end}}
 
@@ -391,6 +396,7 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
             <th>Date</th>
             <th>Vault</th>
             <th>Checksum</th>
+            <th>Location</th>
           </tr>
         </thead>
         <tbody>
@@ -399,6 +405,7 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
           <td>{{$backup.CreatedAt.Format "2006-01-02 15:04:05"}}</td>
           <td>{{$backup.VaultName}}</td>
           <td>{{$backup.Checksum}}</td>
+          <td>{{$backup.Location}}</td>
           {{- end}}
         </tbody>
       </table>
@@ -436,6 +443,7 @@ func (r RemoveOldBackups) Build(f Format) (string, error) {
       Date:      {{$backup.CreatedAt.Format "2006-01-02 15:04:05"}}
       Vault:     {{$backup.VaultName}}
       Checksum:  {{$backup.Checksum}}
+      Location:  {{$backup.Location}}
     {{- end}}
 
   Durations

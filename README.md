@@ -156,7 +156,10 @@ faster from the AWS Glacier (don't need to wait for the inventory). If you
 change your mind later about what local storage format you want, you can use the
 `toglacier-storage` program to convert it.
 
-    [datetime] [vaultName] [archiveID] [checksum] [size]
+    [datetime] [vaultName] [archiveID] [checksum] [size] [location]
+
+The location of the audit file could be `aws` or `gcs` depending on the cloud
+service used to store the backup.
 
 When running the scheduler (start command), the tool will perform the actions
 bellow in the periodicity defined in the configuration file. If not informed

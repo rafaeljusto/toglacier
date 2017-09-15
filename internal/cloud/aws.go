@@ -192,6 +192,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
+		Location:  LocationAWS,
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -227,6 +228,7 @@ func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup
 func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSize int64) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
+		Location:  LocationAWS,
 	}
 
 	initiateMultipartUploadInput := glacier.InitiateMultipartUploadInput{
@@ -409,6 +411,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 			Checksum:  archive.SHA256TreeHash,
 			VaultName: a.VaultName,
 			Size:      int64(archive.Size),
+			Location:  LocationAWS,
 		})
 	}
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
+	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -124,6 +125,12 @@ func (b BoltDB) List() (Backups, error) {
 			if err = json.Unmarshal(v, &backup); err != nil {
 				return errors.WithStack(newError(ErrorCodeDecodingBackup, err))
 			}
+
+			if !backup.Backup.Location.Defined() {
+				// default location is AWS for backward compatibility
+				backup.Backup.Location = cloud.LocationAWS
+			}
+
 			backups.Add(backup)
 			return nil
 		})
