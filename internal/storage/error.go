@@ -60,6 +60,10 @@ const (
 
 	// ErrorAccessingBucket failed to open or create a database bucket.
 	ErrorAccessingBucket ErrorCode = "accessing-bucket"
+
+	// ErrorCodeLocation invalid location in backup file. If informed, the valid
+	// values are "aws" or "gcs".
+	ErrorCodeLocation ErrorCode = "location"
 )
 
 // ErrorCode stores the error type that occurred while managing the local
@@ -83,6 +87,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeDelete:           "failed to remove the item from the database",
 	ErrorCodeIterating:        "error while iterating over the database results",
 	ErrorAccessingBucket:      "failed to open or create a database bucket",
+	ErrorCodeLocation:         "invalid cloud location",
 }
 
 // String translate the error code to a human readable text.

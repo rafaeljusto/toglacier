@@ -163,6 +163,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 	if err != nil {
 		return Backup{}, errors.WithStack(newError("", ErrorCodeOpeningArchive, err))
 	}
+	defer archive.Close()
 
 	archiveInfo, err := archive.Stat()
 	if err != nil {
@@ -191,6 +192,7 @@ func (a *AWSCloud) Send(ctx context.Context, filename string) (Backup, error) {
 func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
+		Location:  LocationAWS,
 	}
 
 	// ComputeHashes already rewind the file seek at the beginning and at the end
@@ -226,6 +228,7 @@ func (a *AWSCloud) sendSmall(ctx context.Context, archive io.ReadSeeker) (Backup
 func (a *AWSCloud) sendBig(ctx context.Context, archive io.ReadSeeker, archiveSize int64) (Backup, error) {
 	backup := Backup{
 		CreatedAt: a.Clock.Now(),
+		Location:  LocationAWS,
 	}
 
 	initiateMultipartUploadInput := glacier.InitiateMultipartUploadInput{
@@ -408,6 +411,7 @@ func (a *AWSCloud) List(ctx context.Context) ([]Backup, error) {
 			Checksum:  archive.SHA256TreeHash,
 			VaultName: a.VaultName,
 			Size:      int64(archive.Size),
+			Location:  LocationAWS,
 		})
 	}
 
@@ -563,6 +567,12 @@ func (a *AWSCloud) Remove(ctx context.Context, id string) error {
 	}
 
 	a.Logger.Infof("cloud: backup “%s” removed successfully from the aws cloud", id)
+	return nil
+}
+
+// Close ends the AWS session. As there's nothing to close here, this will not
+// perform any action.
+func (a *AWSCloud) Close() error {
 	return nil
 }
 

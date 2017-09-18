@@ -28,6 +28,7 @@ type Config struct {
 	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true"`
 	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true"`
 	IgnorePatterns  []Pattern  `yaml:"ignore patterns" split_words:"true"`
+	Cloud           CloudType  `yaml:"cloud"`
 
 	Scheduler struct {
 		Backup            Scheduler `yaml:"backup"`
@@ -63,6 +64,12 @@ type Config struct {
 		Region          string    `yaml:"region"`
 		VaultName       string    `yaml:"vault name" split_words:"true"`
 	} `yaml:"aws" envconfig:"aws"`
+
+	GCS struct {
+		Project     string `yaml:"project"`
+		Bucket      string `yaml:"bucket"`
+		AccountFile string `yaml:"account file" split_words:"true"`
+	} `yaml:"gcs" envconfig:"gcs"`
 }
 
 // Current return the actual system configuration, stored internally in a global
@@ -84,6 +91,7 @@ func Default() {
 	}
 
 	c.KeepBackups = 10
+	c.Cloud = CloudTypeAWS
 	c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")             // everyday at 00:00:00
 	c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI") // every friday at 01:00:00
 	c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *") // every first day of the month at 12:00:00
@@ -158,6 +166,38 @@ func LoadFromEnvironment() error {
 	}
 
 	Update(c)
+	return nil
+}
+
+const (
+	// CloudTypeAWS will backup archives to Amazon AWS Glacier cloud service.
+	CloudTypeAWS CloudType = "aws"
+
+	// CloudTypeGCS will backup archives to Google Cloud Storage service.
+	CloudTypeGCS CloudType = "gcs"
+)
+
+var cloudTypeValid = map[string]bool{
+	string(CloudTypeAWS): true,
+	string(CloudTypeGCS): true,
+}
+
+// CloudType defines the cloud service type that will be used to manage
+// archives.
+type CloudType string
+
+// UnmarshalText ensure that the cloud type defined in the configuration is
+// valid.
+func (c *CloudType) UnmarshalText(value []byte) error {
+	cloudType := string(value)
+	cloudType = strings.TrimSpace(cloudType)
+	cloudType = strings.ToLower(cloudType)
+
+	if ok := cloudTypeValid[cloudType]; !ok {
+		return newError("", ErrorCodeCloudType, nil)
+	}
+
+	*c = CloudType(cloudType)
 	return nil
 }
 

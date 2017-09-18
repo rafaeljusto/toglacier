@@ -23,4 +23,7 @@ type Cloud interface {
 	// Remove erase a specific backup from the cloud. The operation can be
 	// cancelled anytime using the context.
 	Remove(ctx context.Context, id string) error
+
+	// Close ends the cloud service session.
+	Close() error
 }

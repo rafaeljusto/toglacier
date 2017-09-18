@@ -34,6 +34,7 @@ func TestDefault(t *testing.T) {
 				c.Database.Type = config.DatabaseTypeBoltDB
 				c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -94,6 +95,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -119,6 +121,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 				return f.Name()
@@ -134,6 +140,7 @@ aws:
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -158,6 +165,9 @@ aws:
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
 		},
@@ -186,12 +196,13 @@ paths:
   - /usr/local/important-files-1
   - /usr/local/important-files-2
 database:
-  type: idontexist
+  type: audit-file
   file: /var/log/toglacier/audit.log
 log:
   file: /var/log/toglacier/toglacier.log
   level: error
 keep backups: 10
+cloud: idontexist
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -217,6 +228,73 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
+`)
+
+			var s scenario
+			s.description = "it should detect when the cloud type is unknown"
+			s.filename = f.Name()
+			s.expectedError = &config.Error{
+				Filename: f.Name(),
+				Code:     config.ErrorCodeParsingYAML,
+				Err: &config.Error{
+					Code: config.ErrorCodeCloudType,
+				},
+			}
+
+			return s
+		}(),
+		func() scenario {
+			f, err := ioutil.TempFile("", "toglacier-")
+			if err != nil {
+				t.Fatalf("error creating a temporary file. details %s", err)
+			}
+			defer f.Close()
+
+			f.WriteString(`
+paths:
+  - /usr/local/important-files-1
+  - /usr/local/important-files-2
+database:
+  type: idontexist
+  file: /var/log/toglacier/audit.log
+log:
+  file: /var/log/toglacier/toglacier.log
+  level: error
+keep backups: 10
+cloud: aws
+scheduler:
+  backup: 0 0 0 * * *
+  remove old backups: 0 0 1 * * FRI
+  list remote backups: 0 0 12 1 * *
+  send report: 0 0 6 * * FRI
+backup secret: encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==
+modify tolerance: 90%
+ignore patterns:
+  - ^.*\~\$.*$
+email:
+  server: smtp.example.com
+  port: 587
+  username: user@example.com
+  password: encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==
+  from: user@example.com
+  to:
+    - report1@example.com
+    - report2@example.com
+  format: html
+aws:
+  account id: encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==
+  access key id: encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ
+  secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
+  region: us-east-1
+  vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -250,6 +328,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level: idontexist
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -275,6 +354,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -335,6 +418,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level: debug
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -360,6 +444,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -394,6 +482,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level: debug
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -419,6 +508,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -455,6 +548,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level: debug
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -480,6 +574,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 				return f.Name()
@@ -495,6 +593,7 @@ aws:
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -519,6 +618,9 @@ aws:
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
 		},
@@ -542,6 +644,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level: debug
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -567,6 +670,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 				return f.Name()
@@ -582,6 +689,7 @@ aws:
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -606,6 +714,9 @@ aws:
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
 		},
@@ -627,6 +738,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -652,6 +764,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -685,6 +801,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -710,6 +827,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -748,6 +869,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -773,6 +895,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -806,6 +932,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -831,6 +958,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -864,6 +995,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -889,6 +1021,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -926,6 +1062,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 0 0 0 * *
   remove old backups: 0 0 1 * * FRI
@@ -951,6 +1088,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -984,6 +1125,7 @@ log:
   file: /var/log/toglacier/toglacier.log
   level:   DEBUG
 keep backups: 10
+cloud: aws
 scheduler:
   backup: 100 0 0 * * *
   remove old backups: 0 0 1 * * FRI
@@ -1009,6 +1151,10 @@ aws:
   secret access key: encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=
   region: us-east-1
   vault name: backup
+gcs:
+  project: toglacier
+  bucket: backup
+  account file: gcs-account.json
 `)
 
 			var s scenario
@@ -1063,6 +1209,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1076,6 +1225,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1095,6 +1245,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -1119,8 +1270,57 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
+		},
+		{
+			description: "it should detect an invalid cloud type",
+			env: map[string]string{
+				"TOGLACIER_AWS_ACCOUNT_ID":                "encrypted:DueEGILYe8OoEp49Qt7Gymms2sPuk5weSPiG6w==",
+				"TOGLACIER_AWS_ACCESS_KEY_ID":             "encrypted:XesW4TPKzT3Cgw1SCXeMB9Pb2TssRPCdM4mrPwlf4zWpzSZQ",
+				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
+				"TOGLACIER_AWS_REGION":                    "us-east-1",
+				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
+				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
+				"TOGLACIER_EMAIL_PORT":                    "587",
+				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
+				"TOGLACIER_EMAIL_PASSWORD":                "encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==",
+				"TOGLACIER_EMAIL_FROM":                    "user@example.com",
+				"TOGLACIER_EMAIL_TO":                      "report1@example.com,report2@example.com",
+				"TOGLACIER_EMAIL_FORMAT":                  "html",
+				"TOGLACIER_PATHS":                         "/usr/local/important-files-1,/usr/local/important-files-2",
+				"TOGLACIER_DB_TYPE":                       "audit-file",
+				"TOGLACIER_DB_FILE":                       "/var/log/toglacier/audit.log",
+				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
+				"TOGLACIER_LOG_LEVEL":                     "error",
+				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "idontexist",
+				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
+				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
+				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
+				"TOGLACIER_SCHEDULER_SEND_REPORT":         "0 0 6 * * FRI",
+				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
+				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
+				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+			},
+			expectedError: &config.Error{
+				Code: config.ErrorCodeReadingEnvVars,
+				Err: &envconfig.ParseError{
+					KeyName:   "TOGLACIER_CLOUD",
+					FieldName: "Cloud",
+					TypeName:  "config.CloudType",
+					Value:     "idontexist",
+					Err: &config.Error{
+						Code: config.ErrorCodeCloudType,
+					},
+				},
+			},
 		},
 		{
 			description: "it should detect an invalid database type",
@@ -1130,6 +1330,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1143,6 +1346,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "error",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1172,6 +1376,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1185,6 +1392,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "idontexist",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1214,6 +1422,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1227,6 +1438,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "debug",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1257,6 +1469,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1270,6 +1485,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "debug",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1300,6 +1516,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1313,6 +1532,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "debug",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1332,6 +1552,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -1356,6 +1577,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
 		},
@@ -1367,6 +1591,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1380,6 +1607,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "debug",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1399,6 +1627,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.Log.File = "/var/log/toglacier/toglacier.log"
 				c.Log.Level = config.LogLevelDebug
 				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
 				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
 				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
 				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
@@ -1423,6 +1652,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 				c.AWS.Region = "us-east-1"
 				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
 				return c
 			}(),
 		},
@@ -1434,6 +1666,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1447,6 +1682,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1476,6 +1712,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1489,6 +1728,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1523,6 +1763,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1536,6 +1779,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1565,6 +1809,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1578,6 +1825,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1607,6 +1855,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1620,6 +1871,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1653,6 +1905,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1666,6 +1921,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "0 0 0 * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",
@@ -1695,6 +1951,9 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_AWS_SECRET_ACCESS_KEY":         "encrypted:hHHZXW+Uuj+efOA7NR4QDAZh6tzLqoHFaUHkg/Yw1GE/3sJBi+4cn81LhR8OSVhNwv1rI6BR4fA=",
 				"TOGLACIER_AWS_REGION":                    "us-east-1",
 				"TOGLACIER_AWS_VAULT_NAME":                "backup",
+				"TOGLACIER_GCS_PROJECT":                   "toglacier",
+				"TOGLACIER_GCS_BUCKET":                    "backup",
+				"TOGLACIER_GCS_ACCOUNT_FILE":              "gcs-account.json",
 				"TOGLACIER_EMAIL_SERVER":                  "smtp.example.com",
 				"TOGLACIER_EMAIL_PORT":                    "587",
 				"TOGLACIER_EMAIL_USERNAME":                "user@example.com",
@@ -1708,6 +1967,7 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_LOG_FILE":                      "/var/log/toglacier/toglacier.log",
 				"TOGLACIER_LOG_LEVEL":                     "  DEBUG  ",
 				"TOGLACIER_KEEP_BACKUPS":                  "10",
+				"TOGLACIER_CLOUD":                         "aws",
 				"TOGLACIER_SCHEDULER_BACKUP":              "100 0 0 * * *",
 				"TOGLACIER_SCHEDULER_REMOVE_OLD_BACKUPS":  "0 0 1 * * FRI",
 				"TOGLACIER_SCHEDULER_LIST_REMOTE_BACKUPS": "0 0 12 1 * *",

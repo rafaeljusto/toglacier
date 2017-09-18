@@ -31,6 +31,10 @@ const (
 	// ErrorCodeFillingIV error while filling the IV array with random bytes.
 	ErrorCodeFillingIV ErrorCode = "filling-iv"
 
+	// ErrorCodeCloudType informed cloud type is unknown, it should be "aws" or
+	// "gcs".
+	ErrorCodeCloudType ErrorCode = "cloud-type"
+
 	// ErrorCodeDatabaseType informed database type is unknown, it should be
 	// "audit-file" or "boltdb".
 	ErrorCodeDatabaseType ErrorCode = "database-type"
@@ -74,6 +78,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeDecodeBase64:     "error decoding base64",
 	ErrorCodePasswordSize:     "invalid password size",
 	ErrorCodeFillingIV:        "error filling iv",
+	ErrorCodeCloudType:        "invalid cloud type",
 	ErrorCodeDatabaseType:     "invalid database type",
 	ErrorCodeLogLevel:         "invalid log level",
 	ErrorCodeEmailFormat:      "invalid email format",

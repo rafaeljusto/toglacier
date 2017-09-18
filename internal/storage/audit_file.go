@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/rafaeljusto/toglacier/internal/cloud"
 	"github.com/rafaeljusto/toglacier/internal/log"
 )
 
@@ -29,7 +30,7 @@ func NewAuditFile(logger log.Logger, filename string) *AuditFile {
 // Save a backup information. It stores the backup information one per line with
 // the following columns:
 //
-//     [datetime] [vaultName] [archiveID] [checksum] [size]
+//     [datetime] [vaultName] [archiveID] [checksum] [size] [location]
 //
 // The audit file doesn't store backup extra information. On error it will
 // return an Error type encapsulated in a traceable error. To retrieve the
@@ -56,7 +57,7 @@ func (a *AuditFile) Save(backup Backup) error {
 	}
 	defer auditFile.Close()
 
-	audit := fmt.Sprintf("%s %s %s %s %d\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size)
+	audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size, backup.Backup.Location)
 	if _, err = auditFile.WriteString(audit); err != nil {
 		return errors.WithStack(newError(ErrorCodeWritingFile, err))
 	}
@@ -103,7 +104,7 @@ func (a *AuditFile) List() (Backups, error) {
 		line := strings.TrimSpace(scanner.Text())
 		lineParts := strings.Split(line, " ")
 
-		if len(lineParts) < 4 || len(lineParts) > 5 {
+		if len(lineParts) < 4 || len(lineParts) > 6 {
 			return nil, errors.WithStack(newError(ErrorCodeFormat, err))
 		}
 
@@ -122,6 +123,17 @@ func (a *AuditFile) List() (Backups, error) {
 			if err != nil {
 				return nil, errors.WithStack(newError(ErrorCodeSizeFormat, err))
 			}
+		}
+
+		if len(lineParts) >= 6 {
+			backup.Backup.Location, err = cloud.ParseLocation(lineParts[5])
+			if err != nil {
+				return nil, errors.WithStack(newError(ErrorCodeLocation, err))
+			}
+
+		} else {
+			// default location is AWS for backward compatibility
+			backup.Backup.Location = cloud.LocationAWS
 		}
 
 		backups.Add(backup)
@@ -177,7 +189,7 @@ func (a *AuditFile) Remove(id string) error {
 			continue
 		}
 
-		audit := fmt.Sprintf("%s %s %s %s %d\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size)
+		audit := fmt.Sprintf("%s %s %s %s %d %s\n", backup.Backup.CreatedAt.Format(time.RFC3339), backup.Backup.VaultName, backup.Backup.ID, backup.Backup.Checksum, backup.Backup.Size, backup.Backup.Location)
 		if _, err = auditFile.WriteString(audit); err != nil {
 			// TODO: recover backup file
 			return errors.WithStack(newError(ErrorCodeWritingFile, err))

@@ -2772,6 +2772,7 @@ type mockCloud struct {
 	mockList   func() ([]cloud.Backup, error)
 	mockGet    func(id ...string) (filenames map[string]string, err error)
 	mockRemove func(id string) error
+	mockClose  func() error
 }
 
 func (m mockCloud) Send(ctx context.Context, filename string) (cloud.Backup, error) {
@@ -2788,6 +2789,10 @@ func (m mockCloud) Get(ctx context.Context, id ...string) (filenames map[string]
 
 func (m mockCloud) Remove(ctx context.Context, id string) error {
 	return m.mockRemove(id)
+}
+
+func (m mockCloud) Close() error {
+	return m.mockClose()
 }
 
 type mockStorage struct {

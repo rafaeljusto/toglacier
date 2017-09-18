@@ -50,6 +50,7 @@ func TestBoltDB_Save(t *testing.T) {
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
 					Size:      120,
+					Location:  cloud.LocationAWS,
 				},
 			},
 		},
@@ -76,6 +77,7 @@ func TestBoltDB_Save(t *testing.T) {
 					CreatedAt: now,
 					Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 					VaultName: "test",
+					Location:  cloud.LocationAWS,
 				},
 			},
 			expectedError: &storage.Error{
@@ -141,6 +143,129 @@ func TestBoltDB_List(t *testing.T) {
 	}{
 		{
 			description: "it should list all backups information correctly",
+			logger: mockLogger{
+				mockDebug:  func(args ...interface{}) {},
+				mockDebugf: func(format string, args ...interface{}) {},
+				mockInfo:   func(args ...interface{}) {},
+				mockInfof:  func(format string, args ...interface{}) {},
+			},
+			filename: func() string {
+				backup1 := storage.Backup{
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+						Location:  cloud.LocationAWS,
+					},
+				}
+
+				encoded1, err := json.Marshal(backup1)
+				if err != nil {
+					t.Fatalf("error encoding backup 1. details: %s", err)
+				}
+
+				backup2 := storage.Backup{
+					Backup: cloud.Backup{
+						ID: "654321",
+						CreatedAt: func() time.Time {
+							var c time.Time
+							if c, err = time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339)); err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+						Location:  cloud.LocationAWS,
+					},
+				}
+
+				encoded2, err := json.Marshal(backup2)
+				if err != nil {
+					t.Fatalf("error encoding backup 2. details: %s", err)
+				}
+
+				f, err := ioutil.TempFile("", "toglacier-test")
+				if err != nil {
+					t.Fatalf("error creating a temporary file. details: %s", err)
+				}
+				f.Close()
+
+				boltDB, err := bolt.Open(f.Name(), storage.BoltDBFileMode, nil)
+				if err != nil {
+					t.Fatalf("error opening database. details: %s", err)
+				}
+				defer boltDB.Close()
+
+				err = boltDB.Update(func(tx *bolt.Tx) error {
+					var bucket *bolt.Bucket
+					if bucket, err = tx.CreateBucketIfNotExists(storage.BoltDBBucket); err != nil {
+						t.Fatalf("error creating or opening bucket. details: %s", err)
+					}
+
+					if err = bucket.Put([]byte(backup1.Backup.ID), encoded1); err != nil {
+						t.Fatalf("error putting data in bucket. details: %s", err)
+					}
+
+					if err = bucket.Put([]byte(backup2.Backup.ID), encoded2); err != nil {
+						t.Fatalf("error putting data in bucket. details: %s", err)
+					}
+
+					return nil
+				})
+
+				if err != nil {
+					t.Fatalf("error updating bucket. details: %s", err)
+				}
+
+				return f.Name()
+			}(),
+			expected: storage.Backups{
+				{
+					Backup: cloud.Backup{
+						ID: "123456",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+						Location:  cloud.LocationAWS,
+					},
+				},
+				{
+					Backup: cloud.Backup{
+						ID: "654321",
+						CreatedAt: func() time.Time {
+							c, err := time.Parse(time.RFC3339, now.Add(time.Second).Format(time.RFC3339))
+							if err != nil {
+								t.Fatalf("error parsing current time. details: %s", err)
+							}
+							return c
+						}(),
+						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
+						VaultName: "test",
+						Size:      120,
+						Location:  cloud.LocationAWS,
+					},
+				},
+			},
+		},
+		{
+			description: "it should list all backups information correctly with backward compatibility (no location)",
 			logger: mockLogger{
 				mockDebug:  func(args ...interface{}) {},
 				mockDebugf: func(format string, args ...interface{}) {},
@@ -239,6 +364,7 @@ func TestBoltDB_List(t *testing.T) {
 						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 						VaultName: "test",
 						Size:      120,
+						Location:  cloud.LocationAWS,
 					},
 				},
 				{
@@ -254,6 +380,7 @@ func TestBoltDB_List(t *testing.T) {
 						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 						VaultName: "test",
 						Size:      120,
+						Location:  cloud.LocationAWS,
 					},
 				},
 			},
@@ -412,6 +539,7 @@ func TestBoltDB_Remove(t *testing.T) {
 						Checksum:  "ca34f069795292e834af7ea8766e9e68fdddf3f46c7ce92ab94fc2174910adb7",
 						VaultName: "test",
 						Size:      120,
+						Location:  cloud.LocationAWS,
 					},
 				}
 

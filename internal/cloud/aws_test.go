@@ -73,7 +73,7 @@ func TestNewAWSCloud(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(scenario.expected, awsCloud) {
-				t.Errorf("backups don't match.\n%s", Diff(scenario.expected, awsCloud))
+				t.Errorf("cloud instances don't match.\n%s", Diff(scenario.expected, awsCloud))
 			}
 			for key, value := range scenario.expectedEnv {
 				if env := os.Getenv(key); env != value {
@@ -171,6 +171,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "cb63324d2c35cdfcb4521e15ca4518bd0ed9dc2364a9f47de75151b3f9b4b705",
 				VaultName: "vault",
 				Size:      41,
+				Location:  cloud.LocationAWS,
 			},
 		},
 		{
@@ -320,6 +321,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				Checksum:  "a6d392677577af12fb1f4ceb510940374c3378455a1485b0226a35ef5ad65242",
 				VaultName: "vault",
 				Size:      42000,
+				Location:  cloud.LocationAWS,
 			},
 		},
 		{
@@ -586,6 +588,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
+				Location:  cloud.LocationAWS,
 			},
 			expectedError: &cloud.Error{
 				ID:   "AWSID123",
@@ -649,6 +652,7 @@ func TestAWSCloud_Send(t *testing.T) {
 				CreatedAt: time.Date(2016, 12, 27, 8, 14, 53, 0, time.UTC),
 				Checksum:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				VaultName: "vault",
+				Location:  cloud.LocationAWS,
 			},
 			expectedError: &cloud.Error{
 				ID:   "AWSID123",
@@ -850,6 +854,7 @@ func TestAWSCloud_List(t *testing.T) {
 					Checksum:  "223072246f6eedbf1271bd1576f01b4b67c8e1cb1142599d5ef615673f513a5f",
 					VaultName: "vault",
 					Size:      2456,
+					Location:  cloud.LocationAWS,
 				},
 				{
 					ID:        "AWSID123",
@@ -857,6 +862,7 @@ func TestAWSCloud_List(t *testing.T) {
 					Checksum:  "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
 					VaultName: "vault",
 					Size:      4000,
+					Location:  cloud.LocationAWS,
 				},
 			},
 		},
@@ -1049,6 +1055,7 @@ func TestAWSCloud_List(t *testing.T) {
 					Checksum:  "a75e723eaf6da1db780e0a9b6a2046eba1a6bc20e8e69ffcb7c633e5e51f2502",
 					VaultName: "vault",
 					Size:      4000,
+					Location:  cloud.LocationAWS,
 				},
 			},
 		},
@@ -1831,6 +1838,37 @@ func TestAWSCloud_Remove(t *testing.T) {
 	for _, scenario := range scenarios {
 		t.Run(scenario.description, func(t *testing.T) {
 			err := scenario.awsCloud.Remove(context.Background(), scenario.id)
+			if !cloud.ErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestAWSCloud_Close(t *testing.T) {
+	scenarios := []struct {
+		description   string
+		awsCloud      cloud.AWSCloud
+		expectedError error
+	}{
+		{
+			description: "it should close the connection correctly",
+			awsCloud: cloud.AWSCloud{
+				Logger: mockLogger{
+					mockDebug:  func(args ...interface{}) {},
+					mockDebugf: func(format string, args ...interface{}) {},
+					mockInfo:   func(args ...interface{}) {},
+					mockInfof:  func(format string, args ...interface{}) {},
+				},
+				AccountID: "account",
+				VaultName: "vault",
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			err := scenario.awsCloud.Close()
 			if !cloud.ErrorEqual(scenario.expectedError, err) {
 				t.Errorf("errors don't match. expected: “%v” and got “%v”", scenario.expectedError, err)
 			}

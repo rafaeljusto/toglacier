@@ -54,6 +54,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "cloud: error retrieving archive information",
 		},
 		{
+			description: "it should show the correct error message for retrieving remote archive info problem",
+			err:         &cloud.Error{Code: cloud.ErrorCodeRemoteArchiveInfo},
+			expected:    "cloud: error retrieving remote archive information",
+		},
+		{
 			description: "it should show the correct error message for sending archive problem",
 			err:         &cloud.Error{Code: cloud.ErrorCodeSendingArchive},
 			expected:    "cloud: error sending archive to the cloud",
@@ -91,7 +96,7 @@ func TestError_Error(t *testing.T) {
 		{
 			description: "it should show the correct error message for decoding data problem",
 			err:         &cloud.Error{Code: cloud.ErrorCodeDecodingData},
-			expected:    "cloud: error decoding the iventory",
+			expected:    "cloud: error decoding the inventory",
 		},
 		{
 			description: "it should show the correct error message for creating archive problem",
@@ -112,6 +117,21 @@ func TestError_Error(t *testing.T) {
 			description: "it should show the correct error message for action cancelled by the user",
 			err:         &cloud.Error{Code: cloud.ErrorCodeCancelled},
 			expected:    "cloud: action cancelled by the user",
+		},
+		{
+			description: "it should show the correct error message for iterating in the result set",
+			err:         &cloud.Error{Code: cloud.ErrorCodeIterating},
+			expected:    "cloud: error iterating in results",
+		},
+		{
+			description: "it should show the correct error message for downloading archive",
+			err:         &cloud.Error{Code: cloud.ErrorCodeDownloadingArchive},
+			expected:    "cloud: error while downloading the archive",
+		},
+		{
+			description: "it should show the correct error message for closing connection",
+			err:         &cloud.Error{Code: cloud.ErrorCodeClosingConnection},
+			expected:    "cloud: error closing connection",
 		},
 		{
 			description: "it should detect when the code doesn't exist",
