@@ -152,9 +152,10 @@ For keeping track of the backups locally you can choose `boltdb`
 audit file, as it is a human readable and a technology free solution, the format
 is defined bellow. It's a good idea to periodically copy the audit file or the
 BoltDB file somewhere else, so if you lose your server you can recover the files
-faster from the AWS Glacier (don't need to wait for the inventory). If you
-change your mind later about what local storage format you want, you can use the
-`toglacier-storage` program to convert it.
+faster from the cloud (don't need to wait for the inventory). If you change your
+mind later about what local storage format you want, you can use the
+`toglacier-storage` program to convert it. Just remember that `boltdb` format
+stores more information than the `auditfile` format.
 
     [datetime] [vaultName] [archiveID] [checksum] [size] [location]
 
