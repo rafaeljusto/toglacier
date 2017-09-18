@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"regexp"
 	"sync"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
+
+// nonLetterDigit will remove all characters that could cause problems when
+// generating a backup id.
+var nonLetterDigit = regexp.MustCompile(`[^a-zA-Z0-9]`)
 
 // GCSConfig stores all necessary parameters to initialize a GCS session.
 type GCSConfig struct {
@@ -157,7 +162,8 @@ func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 
 	// id will be defined as the filename hash with the current epoch, this is
 	// important to avoid duplicated ids
-	id := fmt.Sprintf("%s%d", sha256.Sum256([]byte(filename)), time.Now().UnixNano())
+	filenameHash := sha256.Sum256([]byte(filename))
+	id := fmt.Sprintf("%s%d", nonLetterDigit.ReplaceAllString(base64.StdEncoding.EncodeToString(filenameHash[:]), ""), time.Now().UnixNano())
 
 	if err = g.ObjectHandler.Write(ctx, g.Bucket.Object(id), f); err != nil {
 		return Backup{}, errors.WithStack(g.checkCancellation(newError("", ErrorCodeSendingArchive, err)))
