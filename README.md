@@ -158,8 +158,8 @@ change your mind later about what local storage format you want, you can use the
 
     [datetime] [vaultName] [archiveID] [checksum] [size] [location]
 
-The location of the audit file could be `aws` or `gcs` depending on the cloud
-service used to store the backup.
+The `[location]` in the audit file could have the value `aws` or `gcs` depending
+on the cloud service used to store the backup.
 
 When running the scheduler (start command), the tool will perform the actions
 bellow in the periodicity defined in the configuration file. If not informed
@@ -170,8 +170,8 @@ default values are used.
   * synchronize the local storage;
   * report all the scheduler occurrences by e-mail.
 
-A simple shell script that could help you running the program in Unix
-environments (using AWS):
+A shell script that could help you running the program in Unix environments
+(using AWS):
 
 ```shell
 #!/bin/bash
