@@ -171,8 +171,7 @@ func (g *GCS) Send(ctx context.Context, filename string) (Backup, error) {
 
 	attrs, err := g.ObjectHandler.Attrs(ctx, g.Bucket.Object(id))
 	if err != nil {
-		// TODO: better error code?
-		return Backup{}, errors.WithStack(g.checkCancellation(newError("", ErrorCodeArchiveInfo, err)))
+		return Backup{}, errors.WithStack(g.checkCancellation(newError("", ErrorCodeRemoteArchiveInfo, err)))
 	}
 
 	return Backup{
@@ -265,7 +264,9 @@ func (g *GCS) Get(ctx context.Context, ids ...string) (map[string]string, error)
 	for i := 0; i < len(ids); i++ {
 		result := <-jobResults
 		if result.err != nil {
-			// TODO: if only one file failed we will stop it all?
+			// as we work with incremental parts, and GCS is really fast on retrieving
+			// archives, for now we will stop everything if we detect an error in one
+			// piece
 			return nil, errors.WithStack(result.err)
 		}
 		filenames[result.id] = result.filename

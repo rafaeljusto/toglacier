@@ -293,7 +293,7 @@ func TestGCS_Send(t *testing.T) {
 				},
 			},
 			expectedError: &cloud.Error{
-				Code: cloud.ErrorCodeArchiveInfo,
+				Code: cloud.ErrorCodeRemoteArchiveInfo,
 				Err:  errors.New("fail to read attrs"),
 			},
 		},

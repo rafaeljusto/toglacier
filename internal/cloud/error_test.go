@@ -54,6 +54,11 @@ func TestError_Error(t *testing.T) {
 			expected:    "cloud: error retrieving archive information",
 		},
 		{
+			description: "it should show the correct error message for retrieving remote archive info problem",
+			err:         &cloud.Error{Code: cloud.ErrorCodeRemoteArchiveInfo},
+			expected:    "cloud: error retrieving remote archive information",
+		},
+		{
 			description: "it should show the correct error message for sending archive problem",
 			err:         &cloud.Error{Code: cloud.ErrorCodeSendingArchive},
 			expected:    "cloud: error sending archive to the cloud",

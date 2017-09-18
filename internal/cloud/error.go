@@ -20,6 +20,10 @@ const (
 	// archive.
 	ErrorCodeArchiveInfo ErrorCode = "archive-info"
 
+	// ErrorCodeRemoteArchiveInfo error while retrieving information about the
+	// archive in the cloud.
+	ErrorCodeRemoteArchiveInfo = "remote-archive-info"
+
 	// ErrorCodeSendingArchive problem while uploading the archive to the cloud.
 	ErrorCodeSendingArchive ErrorCode = "sending-archive"
 
@@ -83,6 +87,7 @@ var errorCodeString = map[ErrorCode]string{
 	ErrorCodeInitializingSession: "error initializing cloud session",
 	ErrorCodeOpeningArchive:      "error opening archive",
 	ErrorCodeArchiveInfo:         "error retrieving archive information",
+	ErrorCodeRemoteArchiveInfo:   "error retrieving remote archive information",
 	ErrorCodeSendingArchive:      "error sending archive to the cloud",
 	ErrorCodeComparingChecksums:  "error comparing checksums",
 	ErrorCodeInitMultipart:       "error initializing multipart upload",
