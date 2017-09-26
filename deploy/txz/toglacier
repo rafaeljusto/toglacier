@@ -8,10 +8,71 @@
 
 name="toglacier"
 rcvar=`set_rcvar`
-command="/usr/local/bin/toglacier -c /etc/toglacier.yml start"
+command="/usr/local/bin/toglacier"
 pidfile="/var/run/toglacier.pid"
 
+toglacier_flags="-c /etc/toglacier.yml start"
+toglacier_user="root"
+toglacier_supervisor_pidfile=/var/run/toglacier-supervisor.pid
+toglacier_supervisor_command="/usr/sbin/daemon -r -u ${toglacier_user} -P ${toglacier_supervisor_pidfile} ${command} ${toglacier_flags}"
+
 : ${toglacier_enable:=no}
+
+status_cmd="toglacier_status"
+start_cmd="toglacier_start"
+stop_cmd="toglacier_stop"
+restart_cmd="toglacier_restart"
+
+toglacier_status()
+{
+    if [ ! -s ${toglacier_supervisor_pidfile} ]; then
+        echo "toglacier supervisor is not running. Missing ${toglacier_supervisor_pidfile} file."
+    else
+        ps -p `cat ${toglacier_supervisor_pidfile}` | grep "${command}" > /dev/null
+        if [ $? = 0 ]; then
+            echo "toglacier supervisor is running as pid" `cat ${toglacier_supervisor_pidfile}`
+        else
+            echo "toglacier supervisor is not running"
+        fi
+    fi
+
+    if [ ! -s ${pidfile} ]; then
+        echo "toglacier is not running. Missing ${pidfile} file."
+    else
+        ps -p `cat ${pidfile}` | grep "${command}" > /dev/null
+        if [ $? = 0 ]; then
+            echo "toglacier is running as pid" `cat ${pidfile}`
+        else
+            echo "toglacier is not running"
+        fi
+    fi
+}
+
+toglacier_start()
+{
+    info "Starting ${name}."
+    if [ ! -s ${toglacier_supervisor_pidfile} ]; then
+        ${toglacier_supervisor_command}
+        chmod 640 ${toglacier_supervisor_pidfile}
+        exit 0
+    fi
+
+    ps -p `cat ${toglacier_supervisor_pidfile}` | grep "${command}"
+    if [ $? = 1 ]; then
+        ${toglacier_supervisor_command}
+        chmod 640 ${toglacier_supervisor_pidfile}
+    fi
+}
+
+toglacier_stop()
+{
+    kill `cat ${toglacier_supervisor_pidfile}`
+}
+
+toglacier_restart()
+{
+    kill `cat ${pidfile}`
+}
 
 load_rc_config $name
 run_rc_command "$1"

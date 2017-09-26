@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 - Audit file now supports cloud location field
+- Improve FreeBSD process management script
 
 ## [3.2.0] - 2017-08-11
 ### Fixed
