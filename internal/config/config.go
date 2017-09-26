@@ -70,6 +70,11 @@ type Config struct {
 		Bucket      string `yaml:"bucket"`
 		AccountFile string `yaml:"account file" split_words:"true"`
 	} `yaml:"gcs" envconfig:"gcs"`
+
+	WEB struct {
+		Enabled bool   `yaml:"enabled"`
+		Address string `yaml:"address"`
+	} `yaml:"web" envconfig:"web"`
 }
 
 // Current return the actual system configuration, stored internally in a global
@@ -100,6 +105,8 @@ func Default() {
 	c.Database.File = path.Join("var", "log", "toglacier", "toglacier.db")
 	c.Log.Level = LogLevelError
 	c.Email.Format = EmailFormatHTML
+	c.WEB.Enabled = true
+	c.WEB.Address = "0.0.0.0:80"
 
 	Update(c)
 }

@@ -241,3 +241,14 @@ gcs:
   #   4. Define a service account name, add permissions for all storage objects
   #      and check "Furnish a new private key" option (chosing JSON format)
   account file: /etc/toglacier/toglacier-f926fc937f92.json
+
+# web contains all necessary information to run the web interface for
+# communicating with the running scheduler.
+web:
+  # enabled flag enables or disables the web interface. By default the web
+  # interface is enabled.
+  enabled: true
+
+  # address contains the IP address and port that the web server will listen to.
+  # By default it will listen on all interfaces on port 80.
+  address: 0.0.0.0:80

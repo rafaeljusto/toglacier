@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"net/smtp"
 	"os"
 	"regexp"
@@ -391,9 +392,15 @@ func commandStart(c *cli.Context) error {
 
 	scheduler.Start()
 
+	var server *http.Server
+	if config.Current().WEB.Enabled {
+		server = startWEB()
+	}
+
 	stopped := make(chan bool)
 	cancelFunc = func() {
 		scheduler.Stop()
+		server.Shutdown(nil)
 		stopped <- true
 	}
 
