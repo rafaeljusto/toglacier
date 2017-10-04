@@ -52,6 +52,15 @@ func startWEB() *http.Server {
 		}
 	})
 
+	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		encoder := json.NewEncoder(w)
+		if err := encoder.Encode(config.Current()); err != nil {
+			logger.Warningf("error marshalling backups. details: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Warningf("error listening web server. details: %s", err)

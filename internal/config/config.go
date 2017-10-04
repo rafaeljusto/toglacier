@@ -23,58 +23,58 @@ var config unsafe.Pointer
 // Config stores all the necessary information to send backups to the cloud and
 // keep track in the local storage.
 type Config struct {
-	Paths           []string   `yaml:"paths"`
-	KeepBackups     int        `yaml:"keep backups" split_words:"true"`
-	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true"`
-	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true"`
-	IgnorePatterns  []Pattern  `yaml:"ignore patterns" split_words:"true"`
-	Cloud           CloudType  `yaml:"cloud"`
+	Paths           []string   `yaml:"paths" json:"paths"`
+	KeepBackups     int        `yaml:"keep backups" split_words:"true" json:"keepBackups"`
+	BackupSecret    aesKey     `yaml:"backup secret" split_words:"true" json:"backupSecret"`
+	ModifyTolerance Percentage `yaml:"modify tolerance" split_words:"true" json:"modifyTolerance"`
+	IgnorePatterns  []Pattern  `yaml:"ignore patterns" split_words:"true" json:"ignorePatterns"`
+	Cloud           CloudType  `yaml:"cloud" json:"cloud"`
 
 	Scheduler struct {
-		Backup            Scheduler `yaml:"backup"`
-		RemoveOldBackups  Scheduler `yaml:"remove old backups" split_words:"true"`
-		ListRemoteBackups Scheduler `yaml:"list remote backups" split_words:"true"`
-		SendReport        Scheduler `yaml:"send report" split_words:"true"`
-	} `yaml:"scheduler" envconfig:"scheduler"`
+		Backup            Scheduler `yaml:"backup" json:"backup"`
+		RemoveOldBackups  Scheduler `yaml:"remove old backups" split_words:"true" json:"removeOldBackups"`
+		ListRemoteBackups Scheduler `yaml:"list remote backups" split_words:"true" json:"listRemoteBackups"`
+		SendReport        Scheduler `yaml:"send report" split_words:"true" json:"sendReport"`
+	} `yaml:"scheduler" envconfig:"scheduler" json:"scheduler"`
 
 	Database struct {
-		Type DatabaseType `yaml:"type"`
-		File string       `yaml:"file"`
-	} `yaml:"database" envconfig:"db"`
+		Type DatabaseType `yaml:"type" json:"type"`
+		File string       `yaml:"file" json:"file"`
+	} `yaml:"database" envconfig:"db" json:"database"`
 
 	Log struct {
-		File  string   `yaml:"file"`
-		Level LogLevel `yaml:"level"`
-	} `yaml:"log" envconfig:"log"`
+		File  string   `yaml:"file" json:"file"`
+		Level LogLevel `yaml:"level" json:"level"`
+	} `yaml:"log" envconfig:"log" json:"log"`
 
 	Email struct {
-		Server   string      `yaml:"server"`
-		Port     int         `yaml:"port"`
-		Username string      `yaml:"username"`
-		Password encrypted   `yaml:"password"`
-		From     string      `yaml:"from"`
-		To       []string    `yaml:"to"`
-		Format   EmailFormat `yaml:"format"`
-	} `yaml:"email" envconfig:"email"`
+		Server   string      `yaml:"server" json:"server"`
+		Port     int         `yaml:"port" json:"port"`
+		Username string      `yaml:"username" json:"username"`
+		Password encrypted   `yaml:"password" json:"password"`
+		From     string      `yaml:"from" json:"from"`
+		To       []string    `yaml:"to" json:"to"`
+		Format   EmailFormat `yaml:"format" json:"format"`
+	} `yaml:"email" envconfig:"email" json:"email"`
 
 	AWS struct {
-		AccountID       encrypted `yaml:"account id" split_words:"true"`
-		AccessKeyID     encrypted `yaml:"access key id" split_words:"true"`
-		SecretAccessKey encrypted `yaml:"secret access key" split_words:"true"`
-		Region          string    `yaml:"region"`
-		VaultName       string    `yaml:"vault name" split_words:"true"`
-	} `yaml:"aws" envconfig:"aws"`
+		AccountID       encrypted `yaml:"account id" split_words:"true" json:"accountID"`
+		AccessKeyID     encrypted `yaml:"access key id" split_words:"true" json:"accessKeyID"`
+		SecretAccessKey encrypted `yaml:"secret access key" split_words:"true" json:"secretAccessKey"`
+		Region          string    `yaml:"region" json:"region"`
+		VaultName       string    `yaml:"vault name" split_words:"true" json:"vaultName"`
+	} `yaml:"aws" envconfig:"aws" json:"aws"`
 
 	GCS struct {
-		Project     string `yaml:"project"`
-		Bucket      string `yaml:"bucket"`
-		AccountFile string `yaml:"account file" split_words:"true"`
-	} `yaml:"gcs" envconfig:"gcs"`
+		Project     string `yaml:"project" json:"project"`
+		Bucket      string `yaml:"bucket" json:"bucket"`
+		AccountFile string `yaml:"account file" split_words:"true" json:"accountFile"`
+	} `yaml:"gcs" envconfig:"gcs" json:"gcs"`
 
 	WEB struct {
-		Enabled bool   `yaml:"enabled"`
-		Address string `yaml:"address"`
-	} `yaml:"web" envconfig:"web"`
+		Enabled bool   `yaml:"enabled" json:"enabled"`
+		Address string `yaml:"address" json:"address"`
+	} `yaml:"web" envconfig:"web" json:"web"`
 }
 
 // Current return the actual system configuration, stored internally in a global
