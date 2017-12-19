@@ -45,6 +45,8 @@ func TestDefault(t *testing.T) {
 				c.Scheduler.SendReport.Value, _ = cron.Parse("0 0 6 * * FRI")
 				c.Log.Level = config.LogLevelError
 				c.Email.Format = config.EmailFormatHTML
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -125,6 +127,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 				return f.Name()
@@ -168,6 +173,8 @@ gcs:
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -232,6 +239,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -295,6 +305,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -358,6 +371,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -448,6 +464,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -512,6 +531,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -578,6 +600,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 				return f.Name()
@@ -621,6 +646,8 @@ gcs:
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -674,6 +701,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 				return f.Name()
@@ -717,6 +747,8 @@ gcs:
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -768,6 +800,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -831,6 +866,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -899,6 +937,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -962,6 +1003,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -1025,6 +1069,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -1092,6 +1139,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -1155,6 +1205,9 @@ gcs:
   project: toglacier
   bucket: backup
   account file: gcs-account.json
+web:
+  enabled: true
+  address: 0.0.0.0:80
 `)
 
 			var s scenario
@@ -1233,6 +1286,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -1273,6 +1328,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -1308,6 +1365,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1354,6 +1413,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1400,6 +1461,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1446,6 +1509,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1493,6 +1558,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:invalid",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1540,6 +1607,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "a123456789012345678901234567890",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -1580,6 +1649,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -1615,6 +1686,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "a12345678901234567890123456789012",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expected: func() *config.Config {
 				c := new(config.Config)
@@ -1655,6 +1728,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				c.GCS.Project = "toglacier"
 				c.GCS.Bucket = "backup"
 				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
 				return c
 			}(),
 		},
@@ -1690,6 +1765,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1736,6 +1813,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "XX%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1787,6 +1866,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "101%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1833,6 +1914,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "-1%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1879,6 +1962,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^[[[$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1929,6 +2014,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -1975,6 +2062,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"TOGLACIER_BACKUP_SECRET":                 "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"TOGLACIER_MODIFY_TOLERANCE":              "90%",
 				"TOGLACIER_IGNORE_PATTERNS":               `^.*\~\$.*$`,
+				"TOGLACIER_WEB_ENABLED":                   "true",
+				"TOGLACIER_WEB_ADDRESS":                   "0.0.0.0:80",
 			},
 			expectedError: &config.Error{
 				Code: config.ErrorCodeReadingEnvVars,
@@ -2017,6 +2106,8 @@ func TestLoadFromEnvironment(t *testing.T) {
 				"BACKUP_SECRET":       "encrypted:M5rNhMpetktcTEOSuF25mYNn97TN1w==",
 				"MODIFY_TOLERANCE":    "90%",
 				"IGNORE_PATTERNS":     `^.*\~\$.*$`,
+				"ENABLED":             "true",
+				"ADDRESS":             "0.0.0.0:80",
 			},
 			expected: func() *config.Config {
 				return new(config.Config)
