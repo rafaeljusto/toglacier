@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 ### Added
 - Google Cloud Storage support
+- Web interface for managing backups and configuration
 
 ### Fixed
 - Close file after uploaded to the AWS cloud

@@ -37,6 +37,7 @@ request the remote backups in the cloud to synchronize the local storage.
 
 Some cool features that you will find in this tool:
 
+  * Web interface for managing backups and configuration;
   * Backup the desired directories periodically;
   * Upload only modified files (small backups parts);
   * Detect ransomware infection (too many modified files);
@@ -109,6 +110,8 @@ configuration file. You can find the configuration file example on
 | TOGLACIER_EMAIL_FROM                    | E-mail used when sending the reports    |
 | TOGLACIER_EMAIL_TO                      | List of e-mails to send the report to   |
 | TOGLACIER_EMAIL_FORMAT                  | E-mail content format (html or plain)   |
+| TOGLACIER_WEB_ENABLED                   | Enable or disable the web interface     |
+| TOGLACIER_WEB_ADDRESS                   | Address to listen (host and port)       |
 
 Amazon cloud credentials can be retrieved via AWS Console (`My Security
 Credentials` and `Glacier Service`). You will find your AWS region
@@ -203,6 +206,8 @@ TOGLACIER_EMAIL_PASSWORD="encrypted:i9dw0HZPOzNiFgtEtrr0tiY0W+YYlA==" \
 TOGLACIER_EMAIL_FROM="user@example.com" \
 TOGLACIER_EMAIL_TO="report1@example.com,report2@example.com" \
 TOGLACIER_EMAIL_FORMAT="html" \
+TOGLACIER_WEB_ENABLED="true" \
+TOGLACIER_WEB_ADDRESS="0.0.0.0:80" \
 toglacier $@
 ```
 
