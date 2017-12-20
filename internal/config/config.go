@@ -426,6 +426,15 @@ type Pattern struct {
 	Value *regexp.Regexp
 }
 
+// MarshalText converts the pattern to a human readable format.
+func (p Pattern) MarshalText() ([]byte, error) {
+	if p.Value == nil {
+		return nil, nil
+	}
+
+	return []byte(p.Value.String()), nil
+}
+
 // UnmarshalText compile the pattern checking for expression errors.
 func (p *Pattern) UnmarshalText(value []byte) error {
 	pattern := string(value)

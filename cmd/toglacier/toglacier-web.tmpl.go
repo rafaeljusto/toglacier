@@ -7,7 +7,7 @@ var webHomepageTemplate = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>toglacier</title>
 
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
   </head>
   <body>
     <nav class="navbar navbar-dark bg-primary">
@@ -64,6 +64,74 @@ var webHomepageTemplate = `<!doctype html>
                     line.
                   </small>
                 </div>
+                <div class="form-group">
+                  <label for="keep-backups">Keep Backups</label>
+                  <input id="keep-backups" type="number" min="0" class="form-control" aria-describedby="keepBackupsHelp" placeholder="Enter the number of backups to keep" />
+                  <small id="keepBackupsHelp" class="form-text text-muted">
+                    Keep backups defines the number of recent backups to
+                    preserve (by creation date). The idea is to remove older
+                    backups so we don't spent too much space in the cloud. All
+                    dependent backups (incremental parts) are also kept so you
+                    can rebuild successfully. By default we will keep the last
+                    10 backups.
+                  </small>
+                </div>
+                <div class="form-group">
+                  <label for="backup-secret">Backup secret</label>
+                  <input id="backup-secret" type="password" class="form-control" aria-describedby="backupSecretHelp" placeholder="Enter the backup secret" />
+                  <small id="backupSecretHelp" class="form-text text-muted">
+                    Backup secret is an optional parameter that increase the
+                    security of your backup in the cloud. If a passphrase is
+                    informed the backup tarball is encrypted (OFB) and signed
+                    (HMAC256). You will need to have the same passphrase when
+                    retrieving an encrypted backup. The passphrase can be
+                    encrypted with the 'toglacier encrypt' command to avoid
+                    having it in plain text.
+                  </small>
+                </div>
+                <div class="form-group">
+                  <label for="modify-tolerance">Modify tolerance</label>
+                  <input id="modify-tolerance" type="number" min="0" max="100" class="form-control" aria-describedby="modifyToleranceHelp" placeholder="Enter the modify tolerance" />
+                  <small id="modifyToleranceHelp" class="form-text text-muted">
+                    Modify tolerance defines the percentage of modified files
+                    that can be tolerated between two backups. This is important
+                    to detect ransomware infections, when all files in disk are
+                    encrypted by a computer virus. This value should be defined
+                    according to your behavior, if you usually modify all files
+                    in the backup folders this percentage should be high,
+                    otherwise you can decrease the value to a safety line.
+                    Values 0% or 100% disables this check. By default is 0%.
+                  </small>
+                </div>
+                <div class="form-group">
+                  <label for="ignore-patterns">Ignore patterns</label>
+                  <textarea id="ignore-patterns" class="form-control" aria-describedby="ignorePatternsHelp" placeholder="Enter the regular expression"></textarea>
+                  <small id="ignorePatternsHelp" class="form-text text-muted">
+                    Ignore patterns removes from the backup files that matches
+                    one or more patterns of this list. This is useful to avoid
+                    temporary or lock files in your backup.
+                  </small>
+                </div>
+                <div class="form-group">
+                  <label>Cloud</label>
+                  <div class="form-check">
+                    <label class="form-check-label">
+                      <input id="cloud-aws" name="cloud" type="radio" class="form-check-input" aria-describedby="cloudHelp" value="aws" />
+                      Amazon Web Services
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <label class="form-check-label">
+                      <input id="cloud-gcs" name="cloud" type="radio" class="form-check-input" aria-describedby="cloudHelp" value="gcs" />
+                      Google Cloud Storage
+                    </label>
+                  </div>
+                  <small id="cloudHelp" class="form-text text-muted">
+                    Cloud determinates the cloud service will be used to manage
+                    the backups. The possible values are aws or gcs. By default
+                    aws will be used.
+                  </small>
+                </div>
               </form>
             </div>
           </div>
@@ -72,8 +140,8 @@ var webHomepageTemplate = `<!doctype html>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
 
     <script type="text/javascript">
       function backups() {
@@ -115,6 +183,23 @@ var webHomepageTemplate = `<!doctype html>
             $.each(config.paths, function(index, path) {
               $("#paths").val(path + "\n");
             });
+            $("#paths").val($.trim($("#paths").val()));
+
+            $("#keep-backups").val(config.keepBackups);
+            $("#backup-secret").val(config.backupSecret);
+            $("#modify-tolerance").val(config.modifyTolerance);
+
+            $("#ignore-patterns").val("");
+            $.each(config.ignorePatterns, function(index, ignorePattern) {
+              $("#ignore-patterns").val(ignorePattern + "\n");
+            });
+            $("#ignore-patterns").val($.trim($("#ignore-patterns").val()));
+
+            if (config.cloud == "aws") {
+              $("#cloud-aws").prop("checked", true);
+            } else if (config.cloud == "gcs") {
+              $("#cloud-gcs").prop("checked", true);
+            }
           })
 
           .fail(function(jqXHR, textStatus, errorThrown) {

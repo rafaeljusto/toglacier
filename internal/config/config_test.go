@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -2133,6 +2134,77 @@ func TestLoadFromEnvironment(t *testing.T) {
 
 			if c := config.Current(); !reflect.DeepEqual(scenario.expected, c) {
 				t.Errorf("config don't match.\n%s", Diff(scenario.expected, c))
+			}
+
+			if !config.ErrorEqual(scenario.expectedError, err) {
+				t.Errorf("errors don't match. expected “%v” and got “%v”", scenario.expectedError, err)
+			}
+		})
+	}
+}
+
+func TestConvertToJSON(t *testing.T) {
+	scenarios := []struct {
+		description   string
+		config        *config.Config
+		expected      []byte
+		expectedError error
+	}{
+		{
+			description: "it should convert the config to json correctly",
+			config: func() *config.Config {
+				c := new(config.Config)
+				c.Paths = []string{
+					"/usr/local/important-files-1",
+					"/usr/local/important-files-2",
+				}
+				c.Database.Type = config.DatabaseTypeAuditFile
+				c.Database.File = "/var/log/toglacier/audit.log"
+				c.Log.File = "/var/log/toglacier/toglacier.log"
+				c.Log.Level = config.LogLevelDebug
+				c.KeepBackups = 10
+				c.Cloud = config.CloudTypeAWS
+				c.Scheduler.Backup.Value, _ = cron.Parse("0 0 0 * * *")
+				c.Scheduler.RemoveOldBackups.Value, _ = cron.Parse("0 0 1 * * FRI")
+				c.Scheduler.ListRemoteBackups.Value, _ = cron.Parse("0 0 12 1 * *")
+				c.Scheduler.SendReport.Value, _ = cron.Parse("0 0 6 * * FRI")
+				c.BackupSecret.Value = "abc12300000000000000000000000000"
+				c.ModifyTolerance = 90.0
+				c.IgnorePatterns = []config.Pattern{
+					{Value: regexp.MustCompile(`^.*\~\$.*$`)},
+				}
+				c.Email.Server = "smtp.example.com"
+				c.Email.Port = 587
+				c.Email.Username = "user@example.com"
+				c.Email.Password.Value = "abc123"
+				c.Email.From = "user@example.com"
+				c.Email.To = []string{
+					"report1@example.com",
+					"report2@example.com",
+				}
+				c.Email.Format = config.EmailFormatHTML
+				c.AWS.AccountID.Value = "000000000000"
+				c.AWS.AccessKeyID.Value = "AAAAAAAAAAAAAAAAAAAA"
+				c.AWS.SecretAccessKey.Value = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+				c.AWS.Region = "us-east-1"
+				c.AWS.VaultName = "backup"
+				c.GCS.Project = "toglacier"
+				c.GCS.Bucket = "backup"
+				c.GCS.AccountFile = "gcs-account.json"
+				c.WEB.Enabled = true
+				c.WEB.Address = "0.0.0.0:80"
+				return c
+			}(),
+			expected: []byte(`{"paths":["/usr/local/important-files-1","/usr/local/important-files-2"],"keepBackups":10,"backupSecret":{"Value":"abc12300000000000000000000000000"},"modifyTolerance":90,"ignorePatterns":["^.*\\~\\$.*$"],"cloud":"aws","scheduler":{"backup":{"Value":{"Second":1,"Minute":1,"Hour":1,"Dom":9223372041149743102,"Month":9223372036854783998,"Dow":9223372036854775935}},"removeOldBackups":{"Value":{"Second":1,"Minute":1,"Hour":2,"Dom":9223372041149743102,"Month":9223372036854783998,"Dow":32}},"listRemoteBackups":{"Value":{"Second":1,"Minute":1,"Hour":4096,"Dom":2,"Month":9223372036854783998,"Dow":9223372036854775935}},"sendReport":{"Value":{"Second":1,"Minute":1,"Hour":64,"Dom":9223372041149743102,"Month":9223372036854783998,"Dow":32}}},"database":{"type":"audit-file","file":"/var/log/toglacier/audit.log"},"log":{"file":"/var/log/toglacier/toglacier.log","level":"debug"},"email":{"server":"smtp.example.com","port":587,"username":"user@example.com","password":{"Value":"abc123"},"from":"user@example.com","to":["report1@example.com","report2@example.com"],"format":"html"},"aws":{"accountID":{"Value":"000000000000"},"accessKeyID":{"Value":"AAAAAAAAAAAAAAAAAAAA"},"secretAccessKey":{"Value":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},"region":"us-east-1","vaultName":"backup"},"gcs":{"project":"toglacier","bucket":"backup","accountFile":"gcs-account.json"},"web":{"enabled":true,"address":"0.0.0.0:80"}}`),
+		},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.description, func(t *testing.T) {
+			output, err := json.Marshal(scenario.config)
+
+			if !reflect.DeepEqual(scenario.expected, output) {
+				t.Errorf("json output doesn't match.\n%s", Diff(string(scenario.expected), string(output)))
 			}
 
 			if !config.ErrorEqual(scenario.expectedError, err) {
